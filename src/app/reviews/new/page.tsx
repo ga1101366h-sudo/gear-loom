@@ -12,6 +12,7 @@ import {
   doc,
   getDoc,
   updateDoc,
+  setDoc,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,6 +52,8 @@ export default function NewReviewPage() {
   const [situations, setSituations] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [previewImageUrls, setPreviewImageUrls] = useState<string[]>([]);
+  /** 機材レビュー時のみ。マイページの所持機材に追加するか */
+  const [addToOwnedGear, setAddToOwnedGear] = useState(true);
 
   const SITUATION_OPTIONS: { id: string; label: string }[] = [
     { id: "home", label: "自宅・宅録" },
@@ -205,6 +208,25 @@ export default function NewReviewPage() {
         });
       }
 
+      if (addToOwnedGear && !isContentOnlyCategory && gearName.trim()) {
+        const currentOwnedGear = (profile?.owned_gear as string | undefined) ?? "";
+        const makerPart = makerName.trim();
+        const lineCore = makerPart ? `${makerPart} / ${gearName.trim()}` : gearName.trim();
+        const newLine = categoryNameJa ? `[${categoryNameJa}] ${lineCore}` : lineCore;
+        const existingLines = currentOwnedGear
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter(Boolean);
+        if (!existingLines.includes(newLine)) {
+          const newText = currentOwnedGear ? `${currentOwnedGear}\n${newLine}` : newLine;
+          await setDoc(
+            doc(db, "profiles", user.uid),
+            { owned_gear: newText.trim() || null, updated_at: new Date().toISOString() },
+            { merge: true }
+          );
+        }
+      }
+
       router.push(`/reviews/${reviewRef.id}`);
       router.refresh();
     } catch (err: unknown) {
@@ -310,6 +332,23 @@ export default function NewReviewPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={addToOwnedGear}
+                    onChange={(e) => setAddToOwnedGear(e.target.checked)}
+                    className="rounded border-surface-border bg-surface-card text-electric-blue focus:ring-electric-blue"
+                  />
+                  <span className="text-sm text-gray-200">
+                    マイページの所持機材にこの機材を追加する
+                  </span>
+                </label>
+                <p className="text-xs text-gray-500">
+                  チェックを入れると、投稿後にプロフィールの「所有機材」に自動で追加されます。
+                </p>
               </div>
             </>
           )}

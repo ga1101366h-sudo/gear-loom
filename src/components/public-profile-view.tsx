@@ -1,9 +1,11 @@
 import Image from "next/image";
+import Link from "next/link";
 import { ReviewImagesGallery } from "@/components/review-images-gallery";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { LiveEventCalendar } from "@/components/live-event-calendar";
 import type { Profile } from "@/types/database";
 import type { LiveEvent } from "@/types/database";
+import type { Review } from "@/types/database";
 
 function buildUrl(raw: string | null, type: "x" | "instagram" | "youtube" | "twitch"): string | null {
   if (!raw) return null;
@@ -28,9 +30,10 @@ function buildUrl(raw: string | null, type: "x" | "instagram" | "youtube" | "twi
 type Props = {
   profile: Profile;
   events: LiveEvent[];
+  reviews: Review[];
 };
 
-export function PublicProfileView({ profile, events }: Props) {
+export function PublicProfileView({ profile, events, reviews }: Props) {
   const xUrl = buildUrl(profile.sns_twitter, "x");
   const instagramUrl = buildUrl(profile.sns_instagram, "instagram");
   const youtubeUrl = buildUrl(profile.sns_youtube, "youtube");
@@ -180,6 +183,39 @@ export function PublicProfileView({ profile, events }: Props) {
                 )}
               </div>
             </section>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-electric-blue">投稿した記事</CardTitle>
+          <CardDescription>このアカウントが投稿したレビュー・記事一覧</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {reviews.length === 0 ? (
+            <p className="text-sm text-gray-400">まだ投稿がありません。</p>
+          ) : (
+            <ul className="space-y-2">
+              {reviews.map((r) => (
+                <li key={r.id}>
+                  <Link
+                    href={`/reviews/${r.id}`}
+                    className="block rounded-lg border border-surface-border bg-surface-card/40 px-3 py-2 text-sm text-gray-200 hover:border-electric-blue/50 hover:text-electric-blue transition-colors"
+                  >
+                    <span className="font-medium">{r.title}</span>
+                    {r.gear_name && (
+                      <span className="ml-2 text-gray-400"> — {r.gear_name}</span>
+                    )}
+                    <span className="ml-2 text-xs text-gray-500">
+                      {r.created_at
+                        ? new Date(r.created_at).toLocaleDateString("ja-JP")
+                        : ""}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </CardContent>
       </Card>
