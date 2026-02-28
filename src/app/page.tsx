@@ -18,6 +18,9 @@ import { getExternalNewsForTopPage, type ExternalNewsItem } from "@/lib/news";
 import { getProfilesListForTopPage } from "@/lib/firebase/data";
 import type { Review, LiveEvent } from "@/types/database";
 
+/** トップページは常に最新のレビュー・人気機材を表示するため、キャッシュせず毎回サーバーで描画する */
+export const dynamic = "force-dynamic";
+
 async function getRecentReviews(): Promise<Review[]> {
   try {
     const { getReviewsFromFirestore } = await import("@/lib/firebase/data");
