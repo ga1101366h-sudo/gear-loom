@@ -93,17 +93,20 @@ body {
   display: none;
 }
 
-/* 新着・人気レビュー：横にゆっくりスライド（ホバーで一時停止） */
-.new-reviews-scroll {
-  animation: newReviewsScroll 90s linear infinite;
+/* 新着・人気レビュー：カルーセル自動スライド（CSSアニメーション） */
+.carousel-track-animate {
+  animation: carouselSlide 80s linear infinite;
 }
-.carousel-auto-slide:hover .new-reviews-scroll {
+.carousel-track-paused {
   animation-play-state: paused;
 }
-.carousel-auto-slide:focus-within .new-reviews-scroll {
+.carousel-auto-slide:hover .carousel-track-animate {
   animation-play-state: paused;
 }
-@keyframes newReviewsScroll {
+.carousel-auto-slide:focus-within .carousel-track-animate {
+  animation-play-state: paused;
+}
+@keyframes carouselSlide {
   0% {
     transform: translateX(0);
   }
