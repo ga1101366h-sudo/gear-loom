@@ -58,7 +58,44 @@ export default function PrivacyPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-electric-blue text-lg">4. お問い合わせ</CardTitle>
+          <CardTitle className="text-electric-blue text-lg">4. 広告の配信・アフィリエイトプログラムについて</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-gray-300 text-sm">
+          <p>
+            当サービスでは、Google AdSense 等の第三者配信広告を利用しています。これらの広告配信において Cookie を使用する場合があります。また、当サービスは Amazon アソシエイト・プログラムおよび楽天アフィリエイトの参加者であり、適格販売により収入を得ている場合があります。
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-electric-blue text-lg">5. アクセス解析ツールについて</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-gray-300 text-sm">
+          <p>
+            当サービスでは、Google アナリティクスを利用し、トラフィックデータの収集のために Cookie を使用しています。収集されるデータは匿名であり、個人を特定するものではありません。利用目的はサービスの改善・利用状況の把握です。
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-electric-blue text-lg">6. 個人情報の開示・訂正・削除</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-gray-300 text-sm">
+          <p>
+            ご自身の個人情報の開示や訂正、データ削除（退会手続き）を希望される場合は、マイページから手続きを行うか、
+            <Link href="/contact" className="text-electric-blue hover:underline">
+              お問い合わせページ
+            </Link>
+            からご連絡ください。適切に対応いたします。
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-electric-blue text-lg">7. お問い合わせ</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-gray-300 text-sm">
           <p>
@@ -73,7 +110,7 @@ export default function PrivacyPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-electric-blue text-lg">5. 改定</CardTitle>
+          <CardTitle className="text-electric-blue text-lg">8. 改定</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-gray-300 text-sm">
           <p>
