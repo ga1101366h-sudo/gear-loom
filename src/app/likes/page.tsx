@@ -1,0 +1,21 @@
+import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+export default function LikesPage() {
+  return (
+    <div className="max-w-2xl mx-auto py-8">
+      <h1 className="text-2xl font-bold text-white mb-4">いいね</h1>
+      <Card>
+        <CardContent className="py-12 text-center text-gray-400">
+          みんなのいいね一覧は準備中です。
+        </CardContent>
+      </Card>
+      <div className="mt-6">
+        <Button variant="ghost" asChild>
+          <Link href="/">トップに戻る</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}

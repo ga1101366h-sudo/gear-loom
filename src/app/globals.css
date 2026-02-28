@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --electric-blue: #00D4FF;
+  --electric-blue-dim: #0099CC;
+  --surface-dark: #0D1117;
+  --surface-card: rgba(22, 27, 34, 0.7);
+  --surface-border: rgba(48, 54, 61, 0.5);
+  --glass-blur: 12px;
+}
+
+body {
+  @apply bg-surface-dark text-gray-100 antialiased;
+  background-color: var(--surface-dark);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 212, 255, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 50%, rgba(0, 212, 255, 0.04), transparent),
+    radial-gradient(ellipse 60% 40% at 0% 50%, rgba(0, 212, 255, 0.04), transparent);
+}
+
+/* グラスモーフィズムカード */
+.glass-card {
+  background: var(--surface-card);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--surface-border);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  @apply transition-all duration-300;
+}
+
+.glass-card:hover {
+  border-color: rgba(0, 212, 255, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), 0 0 24px rgba(0, 212, 255, 0.08);
+}
+
+/* カードホバー：軽い浮き＋グロー */
+.card-hover {
+  @apply transition-all duration-300 ease-out;
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.4), 0 0 24px rgba(0, 212, 255, 0.15);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+/* アクセントリンク・ボタン */
+.accent-link {
+  @apply text-electric-blue hover:text-electric-blue-dim transition-colors;
+}
+
+/* セクション表示アニメーション用（opacity 初期 0 で JS や遅延で付与） */
+.animate-on-scroll {
+  opacity: 0;
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* スタッガー用の遅延クラス */
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+.delay-4 { animation-delay: 0.4s; }
+.delay-5 { animation-delay: 0.5s; }
+
+/* マークダウンレンダリング */
+.markdown-body h1 { @apply text-xl font-bold mt-4 mb-2; }
+.markdown-body h2 { @apply text-lg font-semibold mt-3 mb-2; }
+.markdown-body p { @apply my-2 leading-relaxed; }
+.markdown-body ul { @apply list-disc pl-6 my-2; }
+.markdown-body ol { @apply list-decimal pl-6 my-2; }
+.markdown-body a { @apply text-electric-blue hover:underline; }
+.markdown-body code { @apply bg-surface-card px-1.5 py-0.5 rounded text-sm; }
+.markdown-body pre { @apply bg-surface-card p-4 rounded-lg overflow-x-auto my-2; }
+
+/* 横スクロールナビ用：スクロールバー非表示 */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* 新着・人気レビュー：横にゆっくりスライド */
+.new-reviews-scroll {
+  animation: newReviewsScroll 120s linear infinite;
+}
+@keyframes newReviewsScroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
