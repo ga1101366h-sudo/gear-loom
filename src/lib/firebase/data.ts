@@ -142,7 +142,7 @@ export async function getReviewsFromFirestore(
         created_at: data.created_at ?? "",
         updated_at: data.updated_at ?? "",
         categories: data.category_name_ja
-          ? { id: "", slug: "", name_ja: data.category_name_ja, name_en: null, sort_order: 0, created_at: "" }
+          ? { id: "", slug: (data.category_slug as string) ?? "", name_ja: data.category_name_ja, name_en: null, sort_order: 0, created_at: "" }
           : undefined,
         profiles: data.author_user_id != null || data.author_display_name != null
           ? {
@@ -171,6 +171,48 @@ export async function getReviewsFromFirestore(
       if (limit) return reviews.slice(0, limit);
     }
     return reviews;
+  } catch {
+    return [];
+  }
+}
+
+/** 公開プロフィール用：指定ユーザー（author_id = プロフィール doc id）が投稿したレビュー一覧 */
+export async function getReviewsByAuthorIdFromFirestore(
+  authorId: string,
+  limit?: number
+): Promise<Review[]> {
+  const db = getAdminFirestore();
+  if (!db) return [];
+  if (!authorId.trim()) return [];
+  try {
+    const snap = await db.collection("reviews").where("author_id", "==", authorId).get();
+    const reviews: Review[] = snap.docs
+      .map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        author_id: data.author_id ?? "",
+        category_id: data.category_id ?? "",
+        maker_id: data.maker_id ?? null,
+        maker_name: (data.maker_name as string | null) ?? null,
+        title: data.title ?? "",
+        gear_name: data.gear_name ?? "",
+        rating: data.rating ?? 0,
+        body_md: data.body_md ?? null,
+        body_html: data.body_html ?? null,
+        youtube_url: (data.youtube_url as string | null) ?? null,
+        situations: (data.situations as string[] | null) ?? null,
+        created_at: data.created_at ?? "",
+        updated_at: data.updated_at ?? "",
+        categories: data.category_name_ja
+          ? { id: "", slug: (data.category_slug as string) ?? "", name_ja: data.category_name_ja, name_en: null, sort_order: 0, created_at: "" }
+          : undefined,
+        profiles: undefined,
+        review_images: (data.review_images as { storage_path: string; sort_order: number }[] | undefined) ?? [],
+      } as Review;
+      })
+      .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+    return limit ? reviews.slice(0, limit) : reviews;
   } catch {
     return [];
   }
@@ -312,7 +354,7 @@ export async function getPopularReviewsFromFirestore(limit = 20): Promise<Review
         created_at: data.created_at ?? "",
         updated_at: data.updated_at ?? "",
         categories: data.category_name_ja
-          ? { id: "", slug: "", name_ja: data.category_name_ja, name_en: null, sort_order: 0, created_at: "" }
+          ? { id: "", slug: (data.category_slug as string) ?? "", name_ja: data.category_name_ja, name_en: null, sort_order: 0, created_at: "" }
           : undefined,
         profiles: data.author_user_id != null || data.author_display_name != null
           ? {

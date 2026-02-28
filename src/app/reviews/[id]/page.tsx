@@ -192,7 +192,16 @@ export default async function ReviewDetailPage({
       <Card>
         <CardHeader className="space-y-2">
           <CardDescription className="flex items-center gap-2 flex-wrap">
-            <span className="text-electric-blue">{categoryName}</span>
+            {categorySlug ? (
+              <Link
+                href={`/reviews?category=${encodeURIComponent(categorySlug)}`}
+                className="text-electric-blue hover:underline"
+              >
+                {categoryName}
+              </Link>
+            ) : (
+              <span className="text-electric-blue">{categoryName}</span>
+            )}
           </CardDescription>
           <CardTitle className="text-2xl">{review.title}</CardTitle>
           {!isContentOnlyCategory && (

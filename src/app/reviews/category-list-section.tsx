@@ -52,22 +52,28 @@ export function CategoryListSection({
           </CardContent>
         </Card>
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {reviews.map((r) => {
             const imageUrl = getFirstReviewImageUrl(r);
             const showStars = !isContentOnlyCategorySlug(r.category_id) && r.rating > 0;
+            const categorySlug = (r.categories && "slug" in r.categories && (r.categories as { slug: string }).slug)
+              ? (r.categories as { slug: string }).slug
+              : r.category_id;
+            const categoryName = r.categories && "name_ja" in r.categories
+              ? (r.categories as { name_ja: string }).name_ja
+              : null;
             return (
               <li key={r.id}>
-                <Link href={`/reviews/${r.id}`}>
-                  <Card className="h-full overflow-hidden transition-all hover:border-electric-blue/50">
-                    <div className="relative aspect-[400/260] w-full bg-surface-card overflow-hidden">
+                <Card className="h-full overflow-hidden transition-all hover:border-electric-blue/50">
+                  <Link href={`/reviews/${r.id}`} className="block">
+                    <div className="relative aspect-[2/1] w-full bg-surface-card overflow-hidden">
                       {imageUrl ? (
                         <Image
                           src={imageUrl}
                           alt=""
                           fill
                           className="object-cover"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
                         />
                       ) : (
                         <Image
@@ -75,27 +81,32 @@ export function CategoryListSection({
                           alt=""
                           fill
                           className="object-cover"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
                           unoptimized
                         />
                       )}
                     </div>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base line-clamp-1">{r.title}</CardTitle>
-                      <CardDescription className="flex items-center gap-2 flex-wrap">
+                    <CardHeader className="p-2 pb-0">
+                      <CardTitle className="text-xs line-clamp-1">{r.title}</CardTitle>
+                      <CardDescription className="flex items-center gap-1 flex-wrap text-[11px]">
                         <span>{r.gear_name}</span>
-                        {r.categories && "name_ja" in r.categories && (
-                          <span className="text-electric-blue">
-                            {(r.categories as { name_ja: string }).name_ja}
-                          </span>
-                        )}
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="pt-0 flex items-center">
+                    <CardContent className="px-2 pt-0 pb-1.5 flex items-center">
                       {showStars && <StarRating rating={r.rating} />}
                     </CardContent>
-                  </Card>
-                </Link>
+                  </Link>
+                  {categoryName && (
+                    <div className="px-2 pb-1.5 -mt-0.5">
+                      <Link
+                        href={`/reviews?category=${encodeURIComponent(categorySlug)}`}
+                        className="text-[11px] text-electric-blue hover:underline"
+                      >
+                        {categoryName}
+                      </Link>
+                    </div>
+                  )}
+                </Card>
               </li>
             );
           })}
