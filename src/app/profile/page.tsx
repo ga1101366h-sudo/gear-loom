@@ -18,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ProfilePreviewOverlay } from "@/components/profile-preview-overlay";
 import type { Profile } from "@/types/database";
 
 const ACCEPT_IMAGE = "image/jpeg,image/png,image/webp,image/gif";
@@ -53,6 +54,7 @@ export default function ProfilePage() {
   const [ownedGearCategory, setOwnedGearCategory] = useState("");
   const [ownedGearMakerInput, setOwnedGearMakerInput] = useState("");
   const [ownedGearNameInput, setOwnedGearNameInput] = useState("");
+  const [showProfilePreview, setShowProfilePreview] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -642,14 +644,21 @@ export default function ProfilePage() {
                 {saving ? "保存中..." : "保存"}
               </Button>
               {profile?.user_id && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => router.push(`/users/${encodeURIComponent(profile.user_id as string)}`)}
-                >
-                  他の人からはこう見えますよ
-                </Button>
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setShowProfilePreview(true)}
+                  >
+                    他の人からはこう見えますよ
+                  </Button>
+                  <ProfilePreviewOverlay
+                    userId={profile.user_id}
+                    open={showProfilePreview}
+                    onClose={() => setShowProfilePreview(false)}
+                  />
+                </>
               )}
             </div>
           </form>

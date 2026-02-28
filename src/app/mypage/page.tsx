@@ -18,6 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LiveEventCalendar } from "@/components/live-event-calendar";
+import { ProfilePreviewOverlay } from "@/components/profile-preview-overlay";
 import type { Profile } from "@/types/database";
 import type { Review } from "@/types/database";
 import type { LiveEvent } from "@/types/database";
@@ -52,6 +53,7 @@ export default function MypagePage() {
   const [totalLikes, setTotalLikes] = useState(0);
   const [liveEvents, setLiveEvents] = useState<LiveEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showProfilePreview, setShowProfilePreview] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -278,6 +280,18 @@ export default function MypagePage() {
               <Button variant="outline" size="sm" asChild>
                 <Link href="/profile">プロフィールを編集</Link>
               </Button>
+              {userId && (
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setShowProfilePreview(true)}>
+                    他の人からはこう見えますよ
+                  </Button>
+                  <ProfilePreviewOverlay
+                    userId={userId}
+                    open={showProfilePreview}
+                    onClose={() => setShowProfilePreview(false)}
+                  />
+                </>
+              )}
               <Button variant="secondary" size="sm" asChild>
                 <Link href="/reviews/compare">比較リストを見る</Link>
               </Button>

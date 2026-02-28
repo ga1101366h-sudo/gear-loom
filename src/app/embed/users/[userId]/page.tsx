@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getProfileByUserIdFromFirestore, getLiveEventsByUserIdFromFirestore } from "@/lib/firebase/data";
 import { PublicProfileView } from "@/components/public-profile-view";
 
-export default async function PublicProfilePage({
+export default async function EmbedProfilePage({
   params,
 }: {
   params: Promise<{ userId: string }>;
@@ -13,4 +13,3 @@ export default async function PublicProfilePage({
   const events = await getLiveEventsByUserIdFromFirestore(profile.id);
   return <PublicProfileView profile={profile} events={events} />;
 }
-
