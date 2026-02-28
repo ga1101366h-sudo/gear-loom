@@ -11,7 +11,7 @@ interface ReviewHelpfulButtonProps {
   initialCount: number;
 }
 
-export function ReviewHelpfulButton({ reviewId, initialCount }: ReviewHelpfulButtonProps) {
+export function ReviewHelpfulButton({ reviewId, initialCount, className }: ReviewHelpfulButtonProps & { className?: string }) {
   const { user } = useAuth();
   const db = getFirebaseFirestore();
   const [count, setCount] = useState(initialCount);
@@ -74,7 +74,7 @@ export function ReviewHelpfulButton({ reviewId, initialCount }: ReviewHelpfulBut
       size="sm"
       onClick={handleToggle}
       disabled={loading}
-      className="gap-1.5 border-electric-blue/50 text-xs"
+      className={`gap-1.5 border-electric-blue/50 text-xs ${className ?? ""}`}
     >
       <span className={marked ? "text-electric-blue" : "text-gray-400"}>👍</span>
       <span className="text-gray-200">役に立った</span>

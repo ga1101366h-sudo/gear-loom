@@ -12,6 +12,7 @@ import { HeroCta } from "@/components/hero-cta";
 import { NewReviewsCarousel, type NewReviewItem } from "@/components/new-reviews-carousel";
 import { TopPageLiveCalendar } from "@/components/top-page-live-calendar";
 import { TopPageCategoryNav, TopPageCategoryNavMobile } from "@/components/top-page-category-nav";
+import { TopPageMainNavMobile } from "@/components/top-page-main-nav-mobile";
 import { TopPageUserSidebarGate } from "@/components/top-page-user-sidebar";
 import { NearbySpotsMap } from "@/components/nearby-spots-map";
 import { getExternalNewsForTopPage, type ExternalNewsItem } from "@/lib/news";
@@ -143,6 +144,8 @@ export default async function HomePage() {
           <HeroCta />
         </section>
 
+        {/* スマホのみ：レビュー・比較リスト・カスタム手帳…のメインナビ（新着レビュー直上でスライド表示） */}
+        <TopPageMainNavMobile />
         {/* 新着レビュー（カルーセル・横にゆっくりスライド） */}
         <section className="opacity-0 animate-fade-in-up [animation-fill-mode:forwards] [animation-delay:150ms] overflow-hidden min-w-0">
           <h2 className="font-display text-xl md:text-2xl font-semibold tracking-tight text-white mb-2">
