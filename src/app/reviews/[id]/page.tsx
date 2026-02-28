@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import {
@@ -40,6 +41,56 @@ function getFirebaseStorageUrl(storagePath: string): string {
   const bucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "";
   const encoded = encodeURIComponent(storagePath);
   return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encoded}?alt=media`;
+}
+
+function getSiteOrigin(): string {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://gear-loom.com")
+  );
+}
+
+/** X・Facebook 等でシェア時の「写真付きリンクカード」用メタデータ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const review = await getReviewByIdFromFirestore(id);
+  if (!review) return { title: "レビューが見つかりません" };
+
+  const title = `${review.title} | Gear-Loom`;
+  const description =
+    (review.body_md?.slice(0, 120).replace(/\n/g, " ").trim() ?? "") + (review.body_md && review.body_md.length > 120 ? "…" : "") ||
+    (review.gear_name ? `${review.gear_name}のレビュー` : "楽器・機材のレビュー");
+  const origin = getSiteOrigin();
+  const url = `${origin}/reviews/${id}`;
+
+  const images = (review as ReviewDetail).review_images ?? [];
+  const firstImage = images.length > 0
+    ? [...images].sort((a, b) => a.sort_order - b.sort_order)[0]
+    : null;
+  const ogImage = firstImage ? getFirebaseStorageUrl(firstImage.storage_path) : undefined;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: "Gear-Loom",
+      type: "article",
+      ...(ogImage && { images: [{ url: ogImage, width: 1200, height: 630, alt: review.title }] }),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      ...(ogImage && { images: [ogImage] }),
+    },
+  };
 }
 
 function getYouTubeEmbedUrl(raw: string | null | undefined): string | null {
