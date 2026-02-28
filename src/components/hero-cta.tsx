@@ -61,7 +61,7 @@ export function HeroCta() {
     // プロフィールは「今の user.uid 用に取得したもの」だけ表示（別ユーザのキャッシュが一瞬出るのを防ぐ）
     const isProfileForCurrentUser = profile?.uid === user.uid;
     const displayName = isProfileForCurrentUser && profile
-      ? (profile.displayName ?? user.displayName || user.email?.split("@")[0] || "ユーザー")
+      ? (profile.displayName ?? (user.displayName || user.email?.split("@")[0] || "ユーザー"))
       : (user.displayName || user.email?.split("@")[0] || "ユーザー");
     const accountLabel = isProfileForCurrentUser && profile?.userId
       ? `${displayName} @${profile.userId}`
