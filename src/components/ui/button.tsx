@@ -16,6 +16,8 @@ const buttonVariants = cva(
           "border border-electric-blue text-electric-blue hover:bg-electric-blue/10",
         ghost: "text-gray-200 hover:bg-surface-card hover:text-white",
         link: "text-electric-blue underline-offset-4 hover:underline",
+        destructive:
+          "bg-red-600 text-white hover:bg-red-700 border border-red-500",
       },
       size: {
         default: "h-10 px-4 py-2",
