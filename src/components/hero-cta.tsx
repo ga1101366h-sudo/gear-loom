@@ -105,13 +105,6 @@ export function HeroCta() {
         >
           <Link href="/reviews/new">投稿する</Link>
         </Button>
-        <Button
-          variant="ghost"
-          asChild
-          className="text-gray-400 hover:text-electric-blue text-sm"
-        >
-          <Link href="/mypage">マイページ</Link>
-        </Button>
       </div>
     );
   }

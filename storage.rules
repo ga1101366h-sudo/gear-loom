@@ -15,6 +15,16 @@ service firebase.storage {
       allow read: if true;
       allow write: if request.auth != null;
     }
+    // カスタム手帳の画像（認証済みユーザーが書き込み可能。path の userId 一致が効かない環境向け）
+    match /notebook-images/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    // プロフィールの所有機材画像（本人のみ書き込み、誰でも読める）
+    match /owned-gear-images/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
     match /{allPaths=**} {
       allow read, write: if false;
     }

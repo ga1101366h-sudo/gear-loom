@@ -124,6 +124,8 @@ export interface GearNotebookEntry {
   maker_name: string | null;
   title: string;
   description: string | null;
+  /** 画像URL（Storage の download URL） */
+  image_url?: string | null;
   created_at: string;
   updated_at: string;
 }
