@@ -56,24 +56,29 @@ export default function RootLayout({
       >
         <AuthProvider>
         <header className="sticky top-0 z-50 w-full glass-card border-b border-surface-border transition-shadow duration-300 hover:shadow-electric-glow/20 pt-[env(safe-area-inset-top)]">
-          <div className="container mx-auto w-full min-[1708px]:max-w-[min(90vw,2200px)] flex min-h-[44px] sm:h-12 md:h-14 items-center justify-between gap-1 sm:gap-2 md:gap-4 px-2 sm:px-4 flex-nowrap">
+          <div className="container mx-auto w-full min-[1708px]:max-w-[min(90vw,2200px)] flex min-h-[44px] sm:h-12 md:h-14 items-center gap-2 sm:gap-3 px-2 sm:px-4">
             <a
               href="/"
               className="font-display text-lg sm:text-xl font-bold tracking-tight text-electric-blue shrink-0 transition-all duration-300 hover:tracking-wide hover:drop-shadow-glow py-1.5 sm:py-2 min-h-[40px] sm:min-h-[44px] flex items-center touch-manipulation"
             >
               Gear-Loom
             </a>
-            <nav className="flex items-center gap-0 sm:gap-2 overflow-x-auto scrollbar-hide min-w-0 flex-1 justify-end sm:justify-start">
-              {navItems.map(({ href, label }) => (
-                <a
-                  key={href + label}
-                  href={href}
-                  className="text-xs sm:text-sm text-gray-300 hover:text-electric-blue transition-all duration-200 whitespace-nowrap px-2 py-2 sm:px-3 sm:py-2.5 min-h-[40px] sm:min-h-[44px] flex items-center touch-manipulation rounded-md active:bg-white/5"
-                >
-                  {label}
-                </a>
-              ))}
-            </nav>
+            <div className="flex-1 min-w-0 overflow-hidden" aria-hidden>
+              <nav
+                className="flex items-center gap-0 sm:gap-1 overflow-x-auto scrollbar-hide w-full py-1 -mx-1"
+                aria-label="メインメニュー"
+              >
+                {navItems.map(({ href, label }) => (
+                  <a
+                    key={href + label}
+                    href={href}
+                    className="shrink-0 text-xs sm:text-sm text-gray-300 hover:text-electric-blue transition-all duration-200 whitespace-nowrap px-2 py-2 sm:px-3 sm:py-2.5 min-h-[40px] sm:min-h-[44px] flex items-center touch-manipulation rounded-md active:bg-white/5"
+                  >
+                    {label}
+                  </a>
+                ))}
+              </nav>
+            </div>
             <HeaderAuth />
           </div>
         </header>
