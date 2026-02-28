@@ -16,10 +16,21 @@ const notoSansJP = Noto_Sans_JP({
   display: "swap",
 });
 
+const siteOrigin =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://gear-loom.com");
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteOrigin),
   title: "Gear-Loom | 楽器・機材レビュー UGC プラットフォーム",
   description:
     "楽器演奏者向けユーザー生成コンテンツプラットフォーム。機材レビューを共有し、EC検索リンクで購入までサポート。",
+  openGraph: {
+    siteName: "Gear-Loom",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
 };
 
 const navItems = [
