@@ -46,6 +46,7 @@ export default function NewReviewPage() {
   const [bodyMd, setBodyMd] = useState("");
   const [specTagIds, setSpecTagIds] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
+  const [filePreviewUrls, setFilePreviewUrls] = useState<string[]>([]);
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [situations, setSituations] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
@@ -114,6 +115,12 @@ export default function NewReviewPage() {
       setMakers(list);
     })();
   }, [db, groupSlug]);
+
+  useEffect(() => {
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setFilePreviewUrls(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [files]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -362,11 +369,49 @@ export default function NewReviewPage() {
 
           <div className="space-y-2">
             <Label>画像（任意・複数可）</Label>
+            <p className="text-xs text-gray-500">一番上が一覧で使われるメイン画像です。複数回選択で追加できます。</p>
+            {files.length > 0 && (
+              <ul className="flex flex-wrap gap-2">
+                {files.map((file, idx) => (
+                  <li
+                    key={`${file.name}-${idx}`}
+                    className="relative flex flex-col items-center gap-1 rounded-lg border border-surface-border bg-surface-card p-1"
+                  >
+                    <span className="text-xs text-gray-400">{(idx + 1)}枚目</span>
+                    <div className="relative w-20 h-20 rounded overflow-hidden bg-surface">
+                      {filePreviewUrls[idx] && (
+                        <img
+                          src={filePreviewUrls[idx]}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs text-gray-400 hover:text-red-400"
+                      onClick={() => setFiles((prev) => prev.filter((_, i) => i !== idx))}
+                      aria-label="この画像を削除"
+                    >
+                      削除
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,image/gif"
               multiple
-              onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+              onChange={(e) => {
+                const newFiles = Array.from(e.target.files ?? []);
+                if (newFiles.length > 0) {
+                  setFiles((prev) => [...prev, ...newFiles]);
+                }
+                e.target.value = "";
+              }}
               className="block w-full text-sm text-gray-400 file:mr-4 file:rounded-lg file:border-0 file:bg-electric-blue file:px-4 file:py-2 file:text-surface-dark"
             />
           </div>
