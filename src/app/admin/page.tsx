@@ -238,6 +238,9 @@ export default function AdminPage() {
                   </Link>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-gray-500 text-xs">{r.created_at?.slice(0, 10)}</span>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/reviews/${r.id}/edit`}>編集</Link>
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"

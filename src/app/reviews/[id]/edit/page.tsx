@@ -26,6 +26,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CategoryDropdown } from "@/components/category-dropdown";
 import { ReviewFormPreview } from "@/components/review-form-preview";
 import { getGroupSlugByCategorySlug, isContentOnlyCategorySlug } from "@/data/post-categories";
+import { isAdminUserId } from "@/lib/admin";
 import type { Maker, SpecTag, ReviewImage } from "@/types/database";
 
 export default function EditReviewPage() {
@@ -59,6 +60,7 @@ export default function EditReviewPage() {
   const [previewImageUrls, setPreviewImageUrls] = useState<string[]>([]);
   /** 機材レビュー時のみ。マイページの所持機材に追加するか（編集時は未チェックがデフォルト） */
   const [addToOwnedGear, setAddToOwnedGear] = useState(false);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
   const SITUATION_OPTIONS: { id: string; label: string }[] = [
     { id: "home", label: "自宅・宅録" },
@@ -83,16 +85,20 @@ export default function EditReviewPage() {
     }
     (async () => {
       try {
-        const [tagSnap, reviewSnap] = await Promise.all([
+        const [tagSnap, reviewSnap, profileSnap] = await Promise.all([
           getDocs(collection(db, "spec_tags")),
           getDoc(doc(db, "reviews", reviewId)),
+          getDoc(doc(db, "profiles", user.uid)),
         ]);
         if (!reviewSnap.exists()) {
           router.push("/reviews");
           return;
         }
         const data = reviewSnap.data();
-        if (data.author_id !== user.uid) {
+        const uid = (profileSnap.data()?.user_id as string) ?? null;
+        setProfileUserId(uid);
+        const canEdit = data.author_id === user.uid || isAdminUserId(uid);
+        if (!canEdit) {
           router.push(`/reviews/${reviewId}`);
           return;
         }
@@ -168,7 +174,8 @@ export default function EditReviewPage() {
       const reviewRef = doc(db, "reviews", reviewId);
       const reviewSnap = await getDoc(reviewRef);
       const data = reviewSnap.data();
-      if (!data || data.author_id !== user.uid) {
+      const canEdit = data && (data.author_id === user.uid || isAdminUserId(profileUserId));
+      if (!canEdit) {
         setError("このレビューを編集する権限がありません。");
         setSubmitting(false);
         return;
