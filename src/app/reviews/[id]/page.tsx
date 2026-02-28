@@ -71,7 +71,11 @@ export async function generateMetadata({
   const firstImage = images.length > 0
     ? [...images].sort((a, b) => a.sort_order - b.sort_order)[0]
     : null;
-  const ogImage = firstImage ? getFirebaseStorageUrl(firstImage.storage_path) : undefined;
+  const reviewImageUrl = firstImage ? getFirebaseStorageUrl(firstImage.storage_path) : null;
+  const ogImageUrl =
+    reviewImageUrl ??
+    "https://placehold.co/1200x630/1a2332/7dd3fc?text=Gear-Loom";
+  const ogImages = [{ url: ogImageUrl, width: 1200, height: 630, alt: review.title }];
 
   return {
     title,
@@ -82,14 +86,15 @@ export async function generateMetadata({
       url,
       siteName: "Gear-Loom",
       type: "article",
-      ...(ogImage && { images: [{ url: ogImage, width: 1200, height: 630, alt: review.title }] }),
+      images: ogImages,
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      ...(ogImage && { images: [ogImage] }),
+      images: [ogImageUrl],
     },
+    alternates: { canonical: url },
   };
 }
 
