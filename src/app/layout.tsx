@@ -55,20 +55,20 @@ export default function RootLayout({
         className={`${syne.variable} ${notoSansJP.variable} font-sans antialiased min-h-screen`}
       >
         <AuthProvider>
-        <header className="sticky top-0 z-50 w-full glass-card border-b border-surface-border transition-shadow duration-300 hover:shadow-electric-glow/20">
-          <div className="container mx-auto w-full min-[1708px]:max-w-[min(90vw,2200px)] flex h-14 items-center justify-between gap-4 px-4 flex-wrap sm:flex-nowrap">
+        <header className="sticky top-0 z-50 w-full glass-card border-b border-surface-border transition-shadow duration-300 hover:shadow-electric-glow/20 pt-[env(safe-area-inset-top)]">
+          <div className="container mx-auto w-full min-[1708px]:max-w-[min(90vw,2200px)] flex min-h-[52px] sm:h-14 items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4 flex-wrap sm:flex-nowrap">
             <a
               href="/"
-              className="font-display text-xl font-bold tracking-tight text-electric-blue shrink-0 transition-all duration-300 hover:tracking-wide hover:drop-shadow-glow"
+              className="font-display text-xl font-bold tracking-tight text-electric-blue shrink-0 transition-all duration-300 hover:tracking-wide hover:drop-shadow-glow py-2 min-h-[44px] flex items-center touch-manipulation"
             >
               Gear-Loom
             </a>
-            <nav className="flex items-center gap-2 sm:gap-3 overflow-x-auto py-2 sm:py-0 scrollbar-hide">
+            <nav className="flex items-center gap-1 sm:gap-3 overflow-x-auto py-2 sm:py-0 scrollbar-hide -mx-1">
               {navItems.map(({ href, label }) => (
                 <a
                   key={href + label}
                   href={href}
-                  className="text-sm text-gray-300 hover:text-electric-blue transition-all duration-200 whitespace-nowrap hover:translate-y-[-1px]"
+                  className="text-sm text-gray-300 hover:text-electric-blue transition-all duration-200 whitespace-nowrap hover:translate-y-[-1px] px-3 py-2.5 min-h-[44px] flex items-center touch-manipulation rounded-md active:bg-white/5"
                 >
                   {label}
                 </a>
@@ -77,7 +77,7 @@ export default function RootLayout({
             <HeaderAuth />
           </div>
         </header>
-        <main className="container mx-auto px-4 py-6 pb-20 w-full min-[1708px]:max-w-[min(90vw,2200px)]">{children}</main>
+        <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-20 w-full min-w-0 min-[1708px]:max-w-[min(90vw,2200px)] [padding-bottom:max(5rem,env(safe-area-inset-bottom))]">{children}</main>
         </AuthProvider>
       </body>
     </html>

@@ -100,7 +100,7 @@ export function NewReviewsCarousel({ items }: { items: NewReviewItem[] }) {
   const displayItems = enableAutoScroll ? [...items, ...items] : items;
 
   return (
-    <div className="relative w-full overflow-hidden">
+    <div className="carousel-auto-slide relative w-full overflow-hidden">
       <div
         className={`flex gap-6 ${enableAutoScroll ? "new-reviews-scroll" : ""}`}
         style={enableAutoScroll ? { width: "max-content" } : undefined}

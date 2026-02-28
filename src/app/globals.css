@@ -93,9 +93,15 @@ body {
   display: none;
 }
 
-/* 新着・人気レビュー：横にゆっくりスライド */
+/* 新着・人気レビュー：横にゆっくりスライド（ホバーで一時停止） */
 .new-reviews-scroll {
-  animation: newReviewsScroll 120s linear infinite;
+  animation: newReviewsScroll 90s linear infinite;
+}
+.carousel-auto-slide:hover .new-reviews-scroll {
+  animation-play-state: paused;
+}
+.carousel-auto-slide:focus-within .new-reviews-scroll {
+  animation-play-state: paused;
 }
 @keyframes newReviewsScroll {
   0% {

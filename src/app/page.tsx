@@ -116,25 +116,25 @@ export default async function HomePage() {
             Gear-Loom
           </h1>
           <p
-            className="text-gray-400 mb-10 leading-relaxed whitespace-nowrap mx-auto w-full max-w-3xl px-4"
-            style={{ fontSize: "clamp(0.625rem, 2.8vw + 0.5rem, 1.125rem)" }}
+            className="text-gray-400 mb-10 leading-relaxed mx-auto w-full max-w-3xl px-2 sm:px-4 sm:whitespace-nowrap"
+            style={{ fontSize: "clamp(0.75rem, 2.5vw + 0.5rem, 1.125rem)" }}
           >
             楽器・機材のレビューを共有し、みんなの音作りを応援する UGC プラットフォーム
           </p>
           <form
             action="/reviews"
             method="get"
-            className="mx-auto mb-8 flex max-w-xl gap-2 px-4"
+            className="mx-auto mb-8 flex max-w-xl gap-2 px-2 sm:px-4"
             role="search"
           >
             <input
               type="search"
               name="q"
               placeholder="レビューを検索（タイトル・機材名）"
-              className="flex-1 rounded-lg border border-surface-border bg-surface-card/80 px-4 py-2.5 text-gray-100 placeholder:text-gray-500 focus:border-electric-blue/50 focus:outline-none focus:ring-2 focus:ring-electric-blue/20"
+              className="flex-1 min-w-0 rounded-lg border border-surface-border bg-surface-card/80 px-4 py-3 sm:py-2.5 text-base text-gray-100 placeholder:text-gray-500 focus:border-electric-blue/50 focus:outline-none focus:ring-2 focus:ring-electric-blue/20 touch-manipulation"
               aria-label="レビューを検索"
             />
-            <Button type="submit" variant="default" className="shrink-0">
+            <Button type="submit" variant="default" className="shrink-0 min-h-[44px] touch-manipulation">
               検索
             </Button>
           </form>
@@ -142,7 +142,7 @@ export default async function HomePage() {
         </section>
 
         {/* 新着レビュー（カルーセル・横にゆっくりスライド） */}
-        <section className="opacity-0 animate-fade-in-up [animation-fill-mode:forwards] [animation-delay:150ms]">
+        <section className="opacity-0 animate-fade-in-up [animation-fill-mode:forwards] [animation-delay:150ms] overflow-hidden min-w-0">
           <h2 className="font-display text-xl md:text-2xl font-semibold tracking-tight text-white mb-2">
             新着レビュー
           </h2>
@@ -153,7 +153,7 @@ export default async function HomePage() {
         </section>
 
         {/* 人気機材（★数・いいね数でソート、カルーセル） */}
-        <section className="opacity-0 animate-fade-in-up [animation-fill-mode:forwards] [animation-delay:250ms]">
+        <section className="opacity-0 animate-fade-in-up [animation-fill-mode:forwards] [animation-delay:250ms] overflow-hidden min-w-0">
           <h2 className="font-display text-xl md:text-2xl font-semibold tracking-tight text-white mb-2">
             人気機材
           </h2>
@@ -212,7 +212,7 @@ export default async function HomePage() {
         </section>
 
         {/* 近くのお店・ライブハウスを探す */}
-        <section className="opacity-0 animate-fade-in-up [animation-fill-mode:forwards] [animation-delay:600ms]">
+        <section className="opacity-0 animate-fade-in-up [animation-fill-mode:forwards] [animation-delay:600ms] min-w-0">
           <h2 className="font-display text-xl md:text-2xl font-semibold tracking-tight text-white mb-2">
             近くのお店・ライブハウスを探す
           </h2>
