@@ -35,11 +35,12 @@ export function getRakutenSearchUrl(gearName: string, tag?: string): string {
 }
 
 /**
- * サウンドハウス 検索URL（URLパラメータ）
+ * サウンドハウス 検索URL（サイト内検索と同様のパラメータで遷移）
+ * 検索ボックス送信時に使われるパラメータに合わせています。
  */
 export function getSoundHouseSearchUrl(gearName: string): string {
   const base = "https://www.soundhouse.co.jp/search/search_result.php";
-  return `${base}?keyword=${encodeQuery(gearName)}`;
+  return `${base}?q=${encodeQuery(gearName)}`;
 }
 
 /**

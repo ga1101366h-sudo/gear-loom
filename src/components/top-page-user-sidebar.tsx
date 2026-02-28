@@ -62,6 +62,23 @@ function getOwnedGearLines(owned_gear: string | null, maxLines = 6): string[] {
   return lines.slice(0, maxLines);
 }
 
+/** PCサイドバー用：表示する行数と「他N件」用の総数 */
+function getOwnedGearSummary(
+  owned_gear: string | null,
+  displayMaxLines = 2,
+  lineMaxChars = 28
+): { lines: string[]; totalCount: number; hasMore: boolean } {
+  if (!owned_gear || !owned_gear.trim()) {
+    return { lines: [], totalCount: 0, hasMore: false };
+  }
+  const all = owned_gear.trim().split(/\r?\n/).filter((s) => s.trim());
+  const totalCount = all.length;
+  const lines = all.slice(0, displayMaxLines).map((line) =>
+    line.length <= lineMaxChars ? line : line.slice(0, lineMaxChars) + "…"
+  );
+  return { lines, totalCount, hasMore: totalCount > displayMaxLines };
+}
+
 function truncate(s: string | null, len: number): string {
   if (!s || !s.trim()) return "";
   const t = s.trim();
@@ -151,6 +168,7 @@ function TopPageUserSidebar({
       .filter(Boolean)
   );
   const ownedGearLines = getOwnedGearLines(profile.owned_gear);
+  const ownedGearSummary = getOwnedGearSummary(profile.owned_gear, 2, 26);
   const bioShort = truncate(profile.bio, 80);
 
   return (
@@ -265,14 +283,19 @@ function TopPageUserSidebar({
                 </p>
               </div>
             )}
-            {ownedGearLines.length > 0 && (
+            {ownedGearSummary.lines.length > 0 && (
               <div className="mb-2">
                 <p className="text-[10px] text-gray-500 mb-0.5">所有機材</p>
-                <ul className="text-xs text-gray-400 space-y-0.5 leading-relaxed">
-                  {ownedGearLines.map((line, i) => (
-                    <li key={i} className="line-clamp-1">{line}</li>
+                <ul className="text-xs text-gray-400 space-y-0.5 leading-snug line-clamp-2">
+                  {ownedGearSummary.lines.map((line, i) => (
+                    <li key={i} className="truncate">{line}</li>
                   ))}
                 </ul>
+                {ownedGearSummary.hasMore && (
+                  <p className="text-[10px] text-gray-500 mt-0.5">
+                    他{ownedGearSummary.totalCount - 2}件（プロフィールで全て表示）
+                  </p>
+                )}
               </div>
             )}
             <div>
