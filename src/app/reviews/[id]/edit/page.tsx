@@ -13,14 +13,17 @@ import {
   getDoc,
   updateDoc,
 } from "firebase/firestore";
+import Image from "next/image";
 import { ref, uploadBytes } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFirebaseFirestore, getFirebaseStorage } from "@/lib/firebase/client";
+import { getFirebaseStorageUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { CategoryDropdown } from "@/components/category-dropdown";
+import { ReviewFormPreview } from "@/components/review-form-preview";
 import { getGroupSlugByCategorySlug, isContentOnlyCategorySlug } from "@/data/post-categories";
 import type { Maker, SpecTag, ReviewImage } from "@/types/database";
 
@@ -50,6 +53,9 @@ export default function EditReviewPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [situations, setSituations] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewImageUrls, setPreviewImageUrls] = useState<string[]>([]);
 
   const SITUATION_OPTIONS: { id: string; label: string }[] = [
     { id: "home", label: "自宅・宅録" },
@@ -254,6 +260,35 @@ export default function EditReviewPage() {
     );
   }
 
+  function removeExistingImage(storagePath: string) {
+    setExistingImages((prev) => prev.filter((img) => img.storage_path !== storagePath));
+  }
+
+  async function handleDeleteArticle() {
+    if (!user || !reviewId) return;
+    if (!confirm("この記事を削除しますか？この操作は取り消せません。")) return;
+    setDeleting(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch(`/api/reviews/${reviewId}/delete`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data.error as string) || "削除に失敗しました。");
+        return;
+      }
+      router.push("/reviews");
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+      setError("削除に失敗しました。");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <div className="max-w-2xl mx-auto py-8">
@@ -404,9 +439,35 @@ export default function EditReviewPage() {
           <div className="space-y-2">
             <Label>画像（任意・複数可）</Label>
             {existingImages.length > 0 && (
-              <p className="text-xs text-gray-500">
-                既存の画像はそのまま残しつつ、新しい画像を追加できます。
-              </p>
+              <>
+                <p className="text-xs text-gray-500">
+                  既存の画像。×で削除（更新時に反映）。下から新しい画像を追加できます。
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {existingImages.map((img) => (
+                    <div
+                      key={img.storage_path}
+                      className="relative w-24 h-24 rounded-lg overflow-hidden border border-surface-border group"
+                    >
+                      <Image
+                        src={getFirebaseStorageUrl(img.storage_path)}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="96px"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeExistingImage(img.storage_path)}
+                        className="absolute top-0.5 right-0.5 h-6 w-6 rounded-full bg-red-600 text-white text-sm leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                        aria-label="この画像を削除"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
             <input
               type="file"
@@ -419,16 +480,59 @@ export default function EditReviewPage() {
 
           {error && <p className="text-sm text-red-400">{error}</p>}
 
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3 items-center">
             <Button type="submit" disabled={submitting}>
               {submitting ? "更新中..." : "更新する"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const urls = files.map((f) => URL.createObjectURL(f));
+                setPreviewImageUrls(urls);
+                setShowPreview(true);
+              }}
+              disabled={submitting}
+            >
+              プレビュー
             </Button>
             <Button type="button" variant="ghost" asChild>
               <Link href={`/reviews/${reviewId}`}>キャンセル</Link>
             </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDeleteArticle}
+              disabled={deleting || submitting}
+            >
+              {deleting ? "削除中..." : "記事を削除"}
+            </Button>
           </div>
         </Card>
       </form>
+
+      {showPreview && (
+        <ReviewFormPreview
+          data={{
+            title,
+            categoryNameJa,
+            gearName,
+            makerName,
+            rating,
+            bodyMd,
+            situations,
+            youtubeUrl,
+            existingImagePaths: existingImages.map((img) => ({ storage_path: img.storage_path, sort_order: img.sort_order })),
+            newImageUrls: previewImageUrls,
+            isContentOnlyCategory,
+          }}
+          onClose={() => {
+            previewImageUrls.forEach((u) => URL.revokeObjectURL(u));
+            setPreviewImageUrls([]);
+            setShowPreview(false);
+          }}
+        />
+      )}
     </div>
   );
 }

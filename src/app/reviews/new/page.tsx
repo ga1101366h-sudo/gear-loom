@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { CategoryDropdown } from "@/components/category-dropdown";
 import { getGroupSlugByCategorySlug, isContentOnlyCategorySlug } from "@/data/post-categories";
+import { ReviewFormPreview, type ReviewPreviewData } from "@/components/review-form-preview";
 import type { Maker } from "@/types/database";
 import type { SpecTag } from "@/types/database";
 
@@ -47,6 +48,8 @@ export default function NewReviewPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [situations, setSituations] = useState<string[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewImageUrls, setPreviewImageUrls] = useState<string[]>([]);
 
   const SITUATION_OPTIONS: { id: string; label: string }[] = [
     { id: "home", label: "自宅・宅録" },
@@ -372,9 +375,21 @@ export default function NewReviewPage() {
             <p className="text-sm text-red-400">{error}</p>
           )}
 
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Button type="submit" disabled={submitting}>
               {submitting ? "投稿中..." : "投稿する"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const urls = files.map((f) => URL.createObjectURL(f));
+                setPreviewImageUrls(urls);
+                setShowPreview(true);
+              }}
+              disabled={submitting}
+            >
+              プレビュー
             </Button>
             <Button type="button" variant="ghost" asChild>
               <Link href="/">キャンセル</Link>
@@ -382,6 +397,28 @@ export default function NewReviewPage() {
           </div>
         </Card>
       </form>
+
+      {showPreview && (
+        <ReviewFormPreview
+          data={{
+            title,
+            categoryNameJa,
+            gearName,
+            makerName,
+            rating,
+            bodyMd,
+            situations,
+            youtubeUrl,
+            newImageUrls: previewImageUrls,
+            isContentOnlyCategory,
+          }}
+          onClose={() => {
+            previewImageUrls.forEach((u) => URL.revokeObjectURL(u));
+            setPreviewImageUrls([]);
+            setShowPreview(false);
+          }}
+        />
+      )}
     </div>
   );
 }
