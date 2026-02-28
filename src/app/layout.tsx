@@ -22,11 +22,11 @@ const siteOrigin =
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
-  title: "Gear-Loom | 楽器・機材レビュー UGC プラットフォーム",
+  title: "Gear-Loom（ギアルーム）| 楽器・機材レビュー UGC プラットフォーム",
   description:
-    "楽器演奏者向けユーザー生成コンテンツプラットフォーム。機材レビューを共有し、EC検索リンクで購入までサポート。",
+    "ギアルーム（Gear-Loom）は楽器演奏者向けユーザー生成コンテンツプラットフォーム。機材レビューを共有し、EC検索リンクで購入までサポート。",
   openGraph: {
-    siteName: "Gear-Loom",
+    siteName: "Gear-Loom（ギアルーム）",
   },
   twitter: {
     card: "summary_large_image",
