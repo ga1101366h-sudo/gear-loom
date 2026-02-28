@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Syne, Noto_Sans_JP } from "next/font/google";
+import Script from "next/script";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SiteLayout } from "@/components/site-layout";
 import "./globals.css";
@@ -43,6 +44,11 @@ export default function RootLayout({
       <body
         className={`${syne.variable} ${notoSansJP.variable} font-sans antialiased min-h-screen`}
       >
+        <Script
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4447190031977944"
+          strategy="afterInteractive"
+          crossOrigin="anonymous"
+        />
         <AuthProvider>
           <SiteLayout>{children}</SiteLayout>
         </AuthProvider>
