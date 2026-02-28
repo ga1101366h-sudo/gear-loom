@@ -154,35 +154,36 @@ function TopPageUserSidebar({
   const bioShort = truncate(profile.bio, 80);
 
   return (
-    <aside
-      className="hidden lg:block shrink-0 pt-2 w-72"
-      aria-label="マイプロフィール"
-    >
-      <nav
-        className="w-full rounded-lg border border-surface-border bg-surface-card/80 py-4 px-3"
-        aria-label="ログイン中のプロフィール"
+    <>
+      {/* スマホ・タブレット：コンパクトなマイプロフィールバー（メイン上部に表示するため page 側で挿入） */}
+      <aside
+        className="lg:hidden shrink-0 w-full mb-4"
+        aria-label="マイプロフィール"
       >
-        <p className="px-2 pb-3 text-sm font-medium text-gray-400 border-b border-surface-border/50 mb-3">
-          マイプロフィール
-        </p>
-        <Link
-          href={`/users/${encodeURIComponent(profile.user_id)}`}
-          className="block rounded-lg border border-surface-border/50 bg-surface-dark/40 p-3 hover:border-electric-blue/30 hover:bg-electric-blue/5 transition-all group"
-          title={profile.display_name ? `${profile.display_name} @${profile.user_id}` : `@${profile.user_id}`}
+        <nav
+          className="w-full rounded-lg border border-surface-border bg-surface-card/80 py-3 px-3"
+          aria-label="ログイン中のプロフィール"
         >
-          <div className="flex gap-3 mb-2">
-            <div className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-surface-border flex items-center justify-center ring-1 ring-surface-border">
+          <p className="px-2 pb-2 text-xs font-medium text-gray-400 border-b border-surface-border/50 mb-2">
+            マイプロフィール
+          </p>
+          <Link
+            href={`/users/${encodeURIComponent(profile.user_id)}`}
+            className="flex items-center gap-3 rounded-lg border border-surface-border/50 bg-surface-dark/40 p-2.5 hover:border-electric-blue/30 hover:bg-electric-blue/5 transition-all group"
+            title={profile.display_name ? `${profile.display_name} @${profile.user_id}` : `@${profile.user_id}`}
+          >
+            <div className="shrink-0 w-10 h-10 rounded-full overflow-hidden bg-surface-border flex items-center justify-center ring-1 ring-surface-border">
               {profile.avatar_url ? (
                 <Image
                   src={profile.avatar_url}
                   alt=""
-                  width={48}
-                  height={48}
+                  width={40}
+                  height={40}
                   className="object-cover w-full h-full"
                   unoptimized
                 />
               ) : (
-                <span className="text-electric-blue/80 text-lg font-bold">
+                <span className="text-electric-blue/80 text-sm font-bold">
                   {(profile.display_name || profile.user_id).charAt(0).toUpperCase() || "?"}
                 </span>
               )}
@@ -193,51 +194,104 @@ function TopPageUserSidebar({
               </p>
               <p className="text-xs text-gray-500 truncate">@{profile.user_id}</p>
               {profile.main_instrument && (
-                <p className="text-xs text-electric-blue/90 mt-0.5 truncate">
-                  🎸 {truncate(profile.main_instrument, 18)}
-                </p>
-              )}
-              {profile.band_name && (
-                <p className="text-xs text-gray-400 mt-0.5 truncate">
-                  ／ {truncate(profile.band_name, 18)}
+                <p className="text-xs text-electric-blue/90 truncate">
+                  🎸 {truncate(profile.main_instrument, 16)}
                 </p>
               )}
             </div>
-          </div>
-          {bioShort && (
-            <div className="mb-2">
-              <p className="text-[10px] text-gray-500 mb-0.5">自己紹介</p>
-              <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
-                {bioShort}
-              </p>
-            </div>
-          )}
-          {ownedGearLines.length > 0 && (
-            <div className="mb-2">
-              <p className="text-[10px] text-gray-500 mb-0.5">所有機材</p>
-              <ul className="text-xs text-gray-400 space-y-0.5 leading-relaxed">
-                {ownedGearLines.map((line, i) => (
-                  <li key={i} className="line-clamp-1">{line}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <div>
-            <p className="text-[10px] text-gray-500 mb-0.5">ライブ日程</p>
-            <MiniCalendar
-              eventDates={userEventDates}
-              year={currentYear}
-              month={currentMonth}
-            />
-          </div>
-          <p className="text-[10px] text-electric-blue/80 mt-2 text-right group-hover:text-electric-blue">
-            プロフィールを見る →
+            <span className="text-xs text-electric-blue/80 shrink-0 group-hover:text-electric-blue">
+              見る →
+            </span>
+          </Link>
+        </nav>
+      </aside>
+
+      {/* PC：従来の右サイドバー */}
+      <aside
+        className="hidden lg:block shrink-0 pt-2 w-72"
+        aria-label="マイプロフィール（詳細）"
+      >
+        <nav
+          className="w-full rounded-lg border border-surface-border bg-surface-card/80 py-4 px-3"
+          aria-label="ログイン中のプロフィール"
+        >
+          <p className="px-2 pb-3 text-sm font-medium text-gray-400 border-b border-surface-border/50 mb-3">
+            マイプロフィール
           </p>
-        </Link>
-        <p className="px-2 pt-3 mt-2 text-xs text-gray-500 border-t border-surface-border/50">
-          クリックでプロフィールページへ
-        </p>
-      </nav>
-    </aside>
+          <Link
+            href={`/users/${encodeURIComponent(profile.user_id)}`}
+            className="block rounded-lg border border-surface-border/50 bg-surface-dark/40 p-3 hover:border-electric-blue/30 hover:bg-electric-blue/5 transition-all group"
+            title={profile.display_name ? `${profile.display_name} @${profile.user_id}` : `@${profile.user_id}`}
+          >
+            <div className="flex gap-3 mb-2">
+              <div className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-surface-border flex items-center justify-center ring-1 ring-surface-border">
+                {profile.avatar_url ? (
+                  <Image
+                    src={profile.avatar_url}
+                    alt=""
+                    width={48}
+                    height={48}
+                    className="object-cover w-full h-full"
+                    unoptimized
+                  />
+                ) : (
+                  <span className="text-electric-blue/80 text-lg font-bold">
+                    {(profile.display_name || profile.user_id).charAt(0).toUpperCase() || "?"}
+                  </span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-100 group-hover:text-electric-blue truncate">
+                  {profile.display_name || `@${profile.user_id}`}
+                </p>
+                <p className="text-xs text-gray-500 truncate">@{profile.user_id}</p>
+                {profile.main_instrument && (
+                  <p className="text-xs text-electric-blue/90 mt-0.5 truncate">
+                    🎸 {truncate(profile.main_instrument, 18)}
+                  </p>
+                )}
+                {profile.band_name && (
+                  <p className="text-xs text-gray-400 mt-0.5 truncate">
+                    ／ {truncate(profile.band_name, 18)}
+                  </p>
+                )}
+              </div>
+            </div>
+            {bioShort && (
+              <div className="mb-2">
+                <p className="text-[10px] text-gray-500 mb-0.5">自己紹介</p>
+                <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
+                  {bioShort}
+                </p>
+              </div>
+            )}
+            {ownedGearLines.length > 0 && (
+              <div className="mb-2">
+                <p className="text-[10px] text-gray-500 mb-0.5">所有機材</p>
+                <ul className="text-xs text-gray-400 space-y-0.5 leading-relaxed">
+                  {ownedGearLines.map((line, i) => (
+                    <li key={i} className="line-clamp-1">{line}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div>
+              <p className="text-[10px] text-gray-500 mb-0.5">ライブ日程</p>
+              <MiniCalendar
+                eventDates={userEventDates}
+                year={currentYear}
+                month={currentMonth}
+              />
+            </div>
+            <p className="text-[10px] text-electric-blue/80 mt-2 text-right group-hover:text-electric-blue">
+              プロフィールを見る →
+            </p>
+          </Link>
+          <p className="px-2 pt-3 mt-2 text-xs text-gray-500 border-t border-surface-border/50">
+            クリックでプロフィールページへ
+          </p>
+        </nav>
+      </aside>
+    </>
   );
 }

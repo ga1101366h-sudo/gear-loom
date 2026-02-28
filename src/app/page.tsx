@@ -11,7 +11,7 @@ import {
 import { HeroCta } from "@/components/hero-cta";
 import { NewReviewsCarousel, type NewReviewItem } from "@/components/new-reviews-carousel";
 import { TopPageLiveCalendar } from "@/components/top-page-live-calendar";
-import { TopPageCategoryNav } from "@/components/top-page-category-nav";
+import { TopPageCategoryNav, TopPageCategoryNavMobile } from "@/components/top-page-category-nav";
 import { TopPageUserSidebarGate } from "@/components/top-page-user-sidebar";
 import { NearbySpotsMap } from "@/components/nearby-spots-map";
 import { getExternalNewsForTopPage, type ExternalNewsItem } from "@/lib/news";
@@ -105,13 +105,15 @@ export default async function HomePage() {
   const popularReviewItems: NewReviewItem[] = popularReviews.map(toNewReviewItem);
 
   return (
-    <div className="flex gap-6 lg:gap-8">
-      <aside className="hidden md:block shrink-0 pt-2">
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 lg:gap-8">
+      <aside className="hidden md:block shrink-0 pt-2 order-2 lg:order-1">
         <TopPageCategoryNav />
       </aside>
-      <div className="flex-1 min-w-0 space-y-12 md:space-y-16">
+      <div className="flex-1 min-w-0 space-y-8 md:space-y-12 lg:space-y-16 order-3 lg:order-2">
+        {/* スマホ：カテゴリ横スクロール */}
+        <TopPageCategoryNavMobile />
         {/* ヒーロー：CTAs */}
-        <section className="text-center py-10 md:py-14 opacity-0 animate-fade-in-up [animation-fill-mode:forwards]">
+        <section className="text-center py-6 md:py-10 lg:py-14 opacity-0 animate-fade-in-up [animation-fill-mode:forwards]">
           <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white mb-4 drop-shadow-glow">
             Gear-Loom
           </h1>
@@ -222,7 +224,9 @@ export default async function HomePage() {
           <NearbySpotsMap />
         </section>
       </div>
-      <TopPageUserSidebarGate users={profilesList} liveEvents={liveEvents} />
+      <div className="w-full lg:w-auto shrink-0 order-1 lg:order-3 pt-0 lg:pt-2">
+        <TopPageUserSidebarGate users={profilesList} liveEvents={liveEvents} />
+      </div>
     </div>
   );
 }

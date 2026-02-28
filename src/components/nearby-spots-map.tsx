@@ -8,14 +8,17 @@ const MAP_OPTIONS = [
   { id: "livehouse" as const, label: "近くのライブハウスを探す", query: "ライブハウス" },
 ] as const;
 
+const ZOOM_NEARBY = 15; // 現在地付近に寄せる（15=町レベル、数km範囲）
+
 function getEmbedUrl(query: string, center: { lat: number; lng: number } | null): string {
   const base = "https://www.google.com/maps?output=embed";
-  // 現在地がある場合は「緯度,経度 検索語」でその付近を中心に検索（スマホ・PCとも同じ挙動に）
+  // 現在地がある場合は「緯度,経度 検索語」でその付近を中心に検索し、z でズームを指定
   const searchQuery = center
     ? `${center.lat},${center.lng} ${query}`
     : `日本 ${query}`;
   const q = encodeURIComponent(searchQuery);
-  return `${base}&q=${q}`;
+  const zoomParam = center ? `&z=${ZOOM_NEARBY}` : "";
+  return `${base}&q=${q}${zoomParam}`;
 }
 
 export function NearbySpotsMap() {
