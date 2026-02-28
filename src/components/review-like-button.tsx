@@ -16,7 +16,8 @@ export function ReviewLikeButton({
   reviewId,
   initialCount,
   initialLiked,
-}: ReviewLikeButtonProps) {
+  className,
+}: ReviewLikeButtonProps & { className?: string }) {
   const { user } = useAuth();
   const db = getFirebaseFirestore();
   const [count, setCount] = useState(initialCount);
@@ -79,7 +80,7 @@ export function ReviewLikeButton({
       size="sm"
       onClick={handleToggle}
       disabled={loading}
-      className="gap-1.5"
+      className={`gap-1.5 ${className ?? ""}`}
     >
       <span className={liked ? "text-electric-blue" : "text-gray-400"}>
         {liked ? "♥" : "♡"}

@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 
 interface ReviewCompareButtonProps {
   reviewId: string;
+  className?: string;
 }
 
-export function ReviewCompareButton({ reviewId }: ReviewCompareButtonProps) {
+export function ReviewCompareButton({ reviewId, className }: ReviewCompareButtonProps) {
   const { user } = useAuth();
   const db = getFirebaseFirestore();
   const [inList, setInList] = useState(false);
@@ -70,7 +71,7 @@ export function ReviewCompareButton({ reviewId }: ReviewCompareButtonProps) {
       size="sm"
       onClick={handleToggle}
       disabled={loading}
-      className="gap-1.5 text-xs"
+      className={`gap-1.5 text-xs ${className ?? ""}`}
     >
       <span className={inList ? "text-electric-blue" : "text-gray-300"}>⇄</span>
       <span>{inList ? "比較リストに追加済み" : "比較リストに追加"}</span>

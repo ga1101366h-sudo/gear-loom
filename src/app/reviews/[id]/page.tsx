@@ -217,29 +217,36 @@ export default async function ReviewDetailPage({
               ))}
             </div>
           )}
-          <div className="flex items-center gap-4 flex-wrap">
-            {!isContentOnlyCategory && review.rating > 0 && (
+          {/* 星評価（機材レビューの場合） */}
+          {!isContentOnlyCategory && review.rating > 0 && (
+            <div className="flex items-center">
               <StarRating rating={review.rating} />
-            )}
-            <ReviewLikeButton reviewId={review.id} initialCount={likeCount} initialLiked={false} />
-            <ReviewHelpfulButton reviewId={review.id} initialCount={helpfulCount} />
-            <ReviewCompareButton reviewId={review.id} />
-            <Button variant="outline" size="sm" asChild>
+            </div>
+          )}
+          {/* ハート・役に立った・比較リスト・Xでポスト：スマホは2列、PCは横並び */}
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
+            <ReviewLikeButton reviewId={review.id} initialCount={likeCount} initialLiked={false} className="w-full sm:w-auto justify-center sm:justify-start" />
+            <ReviewHelpfulButton reviewId={review.id} initialCount={helpfulCount} className="w-full sm:w-auto justify-center sm:justify-start" />
+            <ReviewCompareButton reviewId={review.id} className="w-full sm:w-auto justify-center sm:justify-start" />
+            <Button variant="outline" size="sm" asChild className="w-full sm:w-auto justify-center sm:justify-start">
               <ShareToXButton path={`/reviews/${review.id}`} text={review.title} />
             </Button>
+          </div>
+          {/* 投稿者・日付 */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             {profile && profile.user_id ? (
               <Link
                 href={`/users/${encodeURIComponent(profile.user_id)}`}
-                className="text-sm text-electric-blue hover:underline"
+                className="text-electric-blue hover:underline"
               >
                 {profile.display_name
                   ? `${profile.display_name} @${profile.user_id}`
                   : `@${profile.user_id}`}
               </Link>
             ) : profile?.display_name ? (
-              <span className="text-sm text-gray-500">{profile.display_name}</span>
+              <span className="text-gray-500">{profile.display_name}</span>
             ) : null}
-            <span className="text-sm text-gray-500">
+            <span className="text-gray-500">
               {new Date(review.created_at).toLocaleDateString("ja-JP")}
             </span>
           </div>

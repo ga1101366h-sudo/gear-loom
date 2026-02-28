@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Syne, Noto_Sans_JP } from "next/font/google";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { HeaderAuth } from "@/components/header-auth";
+import { MAIN_NAV_ITEMS } from "@/data/nav-items";
 import "./globals.css";
 
 const syne = Syne({
@@ -33,17 +34,6 @@ export const metadata: Metadata = {
   },
 };
 
-const navItems = [
-  { href: "/reviews", label: "レビュー" },
-  { href: "/reviews/compare", label: "比較リスト" },
-  { href: "/notebook", label: "カスタム手帳" },
-  { href: "/blog", label: "ブログ" },
-  { href: "/likes", label: "いいね" },
-  { href: "/photos", label: "フォト" },
-  { href: "/events", label: "イベント" },
-  { href: "/help", label: "ヘルプ" },
-];
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -63,12 +53,12 @@ export default function RootLayout({
             >
               Gear-Loom
             </a>
-            <div className="flex-1 min-w-0 overflow-hidden" aria-hidden>
+            <div className="hidden md:block flex-1 min-w-0 overflow-hidden" aria-hidden>
               <nav
                 className="flex items-center gap-0 sm:gap-1 overflow-x-auto scrollbar-hide w-full py-1 -mx-1"
                 aria-label="メインメニュー"
               >
-                {navItems.map(({ href, label }) => (
+                {MAIN_NAV_ITEMS.map(({ href, label }) => (
                   <a
                     key={href + label}
                     href={href}

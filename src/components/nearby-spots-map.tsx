@@ -8,9 +8,10 @@ const MAP_OPTIONS = [
   { id: "livehouse" as const, label: "近くのライブハウスを探す", query: "ライブハウス" },
 ] as const;
 
-const ZOOM_NEARBY = 15;
+/** デフォルト縮尺（小さいほど広い）。13＝市〜県レベル */
+const ZOOM_DEFAULT = 13;
 
-/** 緯度経度から市区町村名を取得（Nominatim 逆ジオコーディング）。日本で「〇〇県」「〇〇市」などが取れればマップ検索が安定する */
+/** 緯度経度から市区町村名を取得（Nominatim 逆ジオコーディング） */
 async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ja`;
@@ -36,18 +37,33 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | null> 
   }
 }
 
-function getEmbedUrl(query: string, placeName: string | null): string {
+/**
+ * 埋め込みURLを生成。
+ * 座標がある場合は ll と z で中心・縮尺を固定し、q は検索語のみにする。
+ * これで「楽器屋」「ライブハウス」を切り替えても位置が変わらない。
+ */
+function getEmbedUrl(
+  query: string,
+  placeName: string | null,
+  coords: { lat: number; lng: number } | null
+): string {
   const base = "https://www.google.com/maps?output=embed";
-  // 地名（例: 埼玉県 さいたま市）＋ 検索語 にすると、その地域で検索され表示が安定する
+  if (coords) {
+    const ll = `&ll=${coords.lat},${coords.lng}`;
+    const z = `&z=${ZOOM_DEFAULT}`;
+    const q = `&q=${encodeURIComponent(query)}`;
+    return `${base}${ll}${z}${q}`;
+  }
   const searchQuery = placeName ? `${query} ${placeName}` : `日本 ${query}`;
-  const q = encodeURIComponent(searchQuery);
-  const zoomParam = placeName ? `&z=${ZOOM_NEARBY}` : "";
-  return `${base}&q=${q}${zoomParam}`;
+  const q = `&q=${encodeURIComponent(searchQuery)}`;
+  const zoomParam = placeName ? `&z=${ZOOM_DEFAULT}` : "";
+  return `${base}${q}${zoomParam}`;
 }
 
 export function NearbySpotsMap() {
   const [active, setActive] = useState<"instrument" | "livehouse">("instrument");
   const [placeName, setPlaceName] = useState<string | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<"loading" | "ok" | "denied" | "error">("loading");
 
   useEffect(() => {
@@ -59,6 +75,7 @@ export function NearbySpotsMap() {
       async (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
+        setCoords({ lat, lng });
         const name = await reverseGeocode(lat, lng);
         setPlaceName(name);
         setLocationStatus("ok");
@@ -71,7 +88,7 @@ export function NearbySpotsMap() {
   }, []);
 
   const current = MAP_OPTIONS.find((o) => o.id === active) ?? MAP_OPTIONS[0];
-  const embedSrc = getEmbedUrl(current.query, placeName);
+  const embedSrc = getEmbedUrl(current.query, placeName, coords);
 
   return (
     <div className="space-y-4 w-full min-w-0">
