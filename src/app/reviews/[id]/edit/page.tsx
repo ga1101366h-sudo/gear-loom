@@ -54,6 +54,7 @@ export default function EditReviewPage() {
   const [specTagIds, setSpecTagIds] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
   const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [eventUrl, setEventUrl] = useState("");
   const [situations, setSituations] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -123,6 +124,7 @@ export default function EditReviewPage() {
         setBodyMd((data.body_md as string) ?? "");
         setSpecTagIds(((data.spec_tag_ids as string[]) ?? []).slice());
         setYoutubeUrl((data.youtube_url as string) ?? "");
+        setEventUrl((data.event_url as string) ?? "");
         setSituations(((data.situations as string[]) ?? []).slice());
         const imgs = ((data.review_images as ReviewImage[]) ?? []).slice();
         imgs.sort((a, b) => a.sort_order - b.sort_order);
@@ -247,6 +249,7 @@ export default function EditReviewPage() {
         body_md: bodyMd.trim() || null,
         body_html: null,
         youtube_url: youtubeUrl.trim() || null,
+        event_url: categorySlug === "event" ? (eventUrl.trim() || null) : null,
         situations: situations.length > 0 ? situations : null,
         updated_at: new Date().toISOString(),
         spec_tag_ids: specTagIds,
@@ -467,6 +470,22 @@ export default function EditReviewPage() {
               })}
             </div>
           </div>
+
+          {categorySlug === "event" && (
+            <div className="space-y-2">
+              <Label htmlFor="eventUrl">イベントURL（任意）</Label>
+              <Input
+                id="eventUrl"
+                type="url"
+                value={eventUrl}
+                onChange={(e) => setEventUrl(e.target.value)}
+                placeholder="https://..."
+              />
+              <p className="text-xs text-gray-500">
+                イベントの公式ページやチケット販売ページなどのURLを載せられます。記事ページにリンクとして表示されます。
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="youtubeUrl">YouTube URL（任意・埋め込み表示）</Label>
