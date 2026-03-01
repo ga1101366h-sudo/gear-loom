@@ -159,6 +159,7 @@ export default async function ReviewDetailPage({
   const profile = review.profiles as { display_name: string | null; user_id: string | null } | undefined;
   const images = (review as ReviewDetail).review_images ?? [];
   const youtubeEmbedUrl = getYouTubeEmbedUrl((review as ReviewDetail).youtube_url ?? null);
+  const eventUrl = (review as ReviewDetail).event_url ?? null;
   const situations = ((review as ReviewDetail).situations ?? []) as string[];
 
   const SITUATION_LABELS: Record<string, string> = {
@@ -262,6 +263,20 @@ export default async function ReviewDetailPage({
         </CardHeader>
         <CardContent className="space-y-6">
           {galleryImages.length > 0 && <ReviewImagesGallery images={galleryImages} />}
+
+          {categorySlug === "event" && eventUrl && (
+            <div className="rounded-lg border border-surface-border bg-surface-card/50 px-4 py-3">
+              <p className="text-sm text-gray-400 mb-1">イベントURL</p>
+              <a
+                href={eventUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-electric-blue hover:underline break-all"
+              >
+                {eventUrl}
+              </a>
+            </div>
+          )}
 
           {youtubeEmbedUrl && (
             <div className="w-full overflow-hidden rounded-lg border border-surface-border bg-black aspect-video">

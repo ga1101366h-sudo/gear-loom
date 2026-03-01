@@ -93,6 +93,8 @@ export interface Review {
   body_md: string | null;
   body_html: string | null;
   youtube_url?: string | null;
+  /** カテゴリが「イベント」のときのイベントURL（任意） */
+  event_url?: string | null;
   situations?: string[] | null;
   created_at: string;
   updated_at: string;

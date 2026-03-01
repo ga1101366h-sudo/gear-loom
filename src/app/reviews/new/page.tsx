@@ -49,6 +49,7 @@ export default function NewReviewPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [filePreviewUrls, setFilePreviewUrls] = useState<string[]>([]);
   const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [eventUrl, setEventUrl] = useState("");
   const [situations, setSituations] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [previewImageUrls, setPreviewImageUrls] = useState<string[]>([]);
@@ -183,6 +184,7 @@ export default function NewReviewPage() {
         body_md: bodyMd.trim() || null,
         body_html: null,
         youtube_url: youtubeUrl.trim() || null,
+        event_url: categorySlug === "event" ? (eventUrl.trim() || null) : null,
         situations: situations.length > 0 ? situations : null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -391,6 +393,22 @@ export default function NewReviewPage() {
               })}
             </div>
           </div>
+
+          {categorySlug === "event" && (
+            <div className="space-y-2">
+              <Label htmlFor="eventUrl">イベントURL（任意）</Label>
+              <Input
+                id="eventUrl"
+                type="url"
+                value={eventUrl}
+                onChange={(e) => setEventUrl(e.target.value)}
+                placeholder="https://..."
+              />
+              <p className="text-xs text-gray-500">
+                イベントの公式ページやチケット販売ページなどのURLを載せられます。記事ページにリンクとして表示されます。
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="youtubeUrl">YouTube URL（任意・埋め込み表示）</Label>
