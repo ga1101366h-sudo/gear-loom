@@ -22,10 +22,15 @@ import type { Review, LiveEvent } from "@/types/database";
 /** トップページは常に最新のレビュー・人気機材を表示するため、キャッシュせず毎回サーバーで描画する */
 export const dynamic = "force-dynamic";
 
+const EXCLUDED_FROM_MAIN_SECTIONS = ["event", "blog"];
+
 async function getRecentReviews(): Promise<Review[]> {
   try {
     const { getReviewsFromFirestore } = await import("@/lib/firebase/data");
-    return await getReviewsFromFirestore(12);
+    const all = await getReviewsFromFirestore(50);
+    return all
+      .filter((r) => !EXCLUDED_FROM_MAIN_SECTIONS.includes(r.category_id))
+      .slice(0, 12);
   } catch {
     return [];
   }
@@ -34,8 +39,24 @@ async function getRecentReviews(): Promise<Review[]> {
 async function getPopularReviews(): Promise<Review[]> {
   try {
     const { getPopularReviewsFromFirestore } = await import("@/lib/firebase/data");
-    const withLikes = await getPopularReviewsFromFirestore(20);
-    return withLikes;
+    const withLikes = await getPopularReviewsFromFirestore(30);
+    return withLikes.filter((r) => !EXCLUDED_FROM_MAIN_SECTIONS.includes(r.category_id)).slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
+async function getEventAndBlogReviews(): Promise<Review[]> {
+  try {
+    const { getReviewsFromFirestore } = await import("@/lib/firebase/data");
+    const [eventReviews, blogReviews] = await Promise.all([
+      getReviewsFromFirestore(12, "event"),
+      getReviewsFromFirestore(12, "blog"),
+    ]);
+    const merged = [...eventReviews, ...blogReviews].sort(
+      (a, b) => (b.created_at || "").localeCompare(a.created_at || "")
+    );
+    return merged.slice(0, 12);
   } catch {
     return [];
   }
@@ -93,10 +114,11 @@ function toNewReviewItem(r: Review): NewReviewItem {
 }
 
 export default async function HomePage() {
-  const [recentReviews, popularReviews, liveEvents, externalNews, profilesList] =
+  const [recentReviews, popularReviews, eventBlogReviews, liveEvents, externalNews, profilesList] =
     await Promise.all([
       getRecentReviews(),
       getPopularReviews(),
+      getEventAndBlogReviews(),
       getLiveEvents(),
       getExternalNewsForTopPage(),
       getProfilesListForTopPage(20),
@@ -104,6 +126,7 @@ export default async function HomePage() {
 
   const newReviewItems: NewReviewItem[] = recentReviews.map(toNewReviewItem);
   const popularReviewItems: NewReviewItem[] = popularReviews.map(toNewReviewItem);
+  const eventBlogItems: NewReviewItem[] = eventBlogReviews.map(toNewReviewItem);
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 lg:gap-8">
@@ -173,6 +196,25 @@ export default async function HomePage() {
             </Card>
           ) : (
             <NewReviewsCarousel items={popularReviewItems} />
+          )}
+        </section>
+
+        {/* イベント・ブログ（新着順、カルーセル） */}
+        <section className="opacity-0 animate-fade-in-up [animation-fill-mode:forwards] [animation-delay:300ms] overflow-hidden min-w-0">
+          <h2 className="font-display text-xl md:text-2xl font-semibold tracking-tight text-white mb-2">
+            イベント・ブログ
+          </h2>
+          <p className="text-gray-400 text-sm mb-6">
+            イベントやブログ記事の新着。クリックで記事へ
+          </p>
+          {eventBlogItems.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-gray-400">
+                まだイベント・ブログ記事がありません。
+              </CardContent>
+            </Card>
+          ) : (
+            <NewReviewsCarousel items={eventBlogItems} />
           )}
         </section>
 
