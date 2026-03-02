@@ -128,7 +128,7 @@ service firebase.storage {
 
 ## 6. X (Twitter) ログイン
 
-Firebase Console の Authentication → サインイン方法で **X** を有効にし、X Developer Portal でアプリを作成して API Key / Secret を Firebase に登録します。
+ログイン画面の「Xでログイン」は **Firebase のポップアップ方式**（自前のコールバックURLは使わない）です。Firebase Console の Authentication → サインイン方法で **X** を有効にし、X Developer Portal でアプリを作成して API Key / Secret を Firebase に登録します。コールバックURL は Firebase の認証ドメイン 1 件だけで十分です。
 
 ### X ログインで `auth/invalid-credential` が出る場合
 
