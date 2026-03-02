@@ -22,7 +22,7 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const modeSignUp = searchParams.get("mode") === "signup";
   const [isSignUp, setIsSignUp] = useState(modeSignUp);
-  const { loading: authLoading, signIn, signUp, sendPasswordReset, signInWithGoogle } = useAuth();
+  const { loading: authLoading, signIn, signUp, sendPasswordReset, signInWithGoogle, signInWithX } = useAuth();
   const auth = getFirebaseAuth();
 
   useEffect(() => {
@@ -180,9 +180,38 @@ function LoginPageContent() {
     }
   }
 
-  function handleXSignIn() {
-    const next = searchParams.get("next") ?? "/";
-    window.location.href = `/signup/x?next=${encodeURIComponent(next)}`;
+  async function handleXSignIn() {
+    setMessage(null);
+    setLoading(true);
+    try {
+      await signInWithX();
+      let next = searchParams.get("next") ?? "/";
+      next = next.startsWith("/") ? next : `/${next}`;
+      const uid = auth?.currentUser?.uid;
+      if (uid && db) {
+        const profileSnap = await getDoc(doc(db, "profiles", uid));
+        const profile = profileSnap.data();
+        const userIdSet = profile && profile.user_id != null && String(profile.user_id).trim() !== "";
+        if (!userIdSet) {
+          next = "/profile";
+        } else if (isAdminUserId(profile?.user_id)) {
+          next = "/admin";
+        }
+      }
+      window.location.href = next;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Xログインに失敗しました。";
+      let friendlyMessage = msg;
+      if (msg.includes("auth/popup-closed-by-user") || msg.includes("popup-closed-by-user")) {
+        friendlyMessage = "ログインがキャンセルされました。";
+      } else if (msg.includes("auth/invalid-credential")) {
+        friendlyMessage =
+          "X認証の設定に問題があります。Firebase Console の「認証 → サインイン方法 → X」で API Key / API Secret（X Developer の Consumer Key・Secret）が正しいか、X Developer の Callback URL が「https://あなたのプロジェクト.firebaseapp.com/__/auth/handler」になっているか、開発中ならテストユーザーに追加されているか確認してください。";
+      }
+      setMessage({ type: "error", text: friendlyMessage });
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (authLoading) {
