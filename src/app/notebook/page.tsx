@@ -14,7 +14,7 @@ import {
   updateDoc,
   deleteDoc,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, listAll, deleteObject } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFirebaseFirestore, getFirebaseStorage } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/button";
@@ -260,6 +260,12 @@ export default function NotebookPage() {
     if (!confirm("このカスタム記録を削除しますか？")) return;
     setDeletingId(entryId);
     try {
+      const storage = getFirebaseStorage();
+      if (storage) {
+        const listRef = ref(storage, `notebook-images/${user.uid}/${entryId}`);
+        const { items } = await listAll(listRef);
+        await Promise.all(items.map((itemRef) => deleteObject(itemRef)));
+      }
       await deleteDoc(doc(db, "gear_notebook_entries", entryId));
       setEntries((prev) => prev.filter((e) => e.id !== entryId));
     } catch (err) {

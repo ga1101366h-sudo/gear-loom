@@ -12,3 +12,14 @@ export function getFirebaseStorageUrl(storagePath: string): string {
   const encoded = encodeURIComponent(storagePath);
   return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encoded}?alt=media`;
 }
+
+/** Firebase Storage のダウンロード URL からストレージパスを取得（削除用） */
+export function getStoragePathFromDownloadUrl(downloadUrl: string): string | null {
+  try {
+    const m = downloadUrl.match(/\/o\/(.+?)(?:\?|$)/);
+    if (!m) return null;
+    return decodeURIComponent(m[1]);
+  } catch {
+    return null;
+  }
+}

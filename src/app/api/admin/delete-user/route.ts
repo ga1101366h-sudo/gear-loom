@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminAuth, getAdminFirestore } from "@/lib/firebase/admin";
+import { getAdminAuth, getAdminFirestore, deleteUserStorageFiles } from "@/lib/firebase/admin";
 import { verifyAdminFromRequest } from "../verify-admin";
 
 export async function POST(request: Request) {
@@ -46,6 +46,7 @@ export async function POST(request: Request) {
     } catch (profileErr) {
       console.warn("[admin delete-user] profile delete (ignored):", profileErr);
     }
+    await deleteUserStorageFiles(targetUid);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[admin delete-user]", err);

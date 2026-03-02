@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminFirestore } from "@/lib/firebase/admin";
+import { getAdminFirestore, deleteReviewImagesFromStorage } from "@/lib/firebase/admin";
 import { verifyAdminFromRequest } from "../verify-admin";
 
 export async function POST(request: Request) {
@@ -25,6 +25,7 @@ export async function POST(request: Request) {
 
   try {
     await db.collection("reviews").doc(reviewId).delete();
+    await deleteReviewImagesFromStorage(reviewId);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[admin delete-review]", err);
