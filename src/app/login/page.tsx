@@ -169,10 +169,12 @@ function LoginPageContent() {
       }
       window.location.href = next;
     } catch (err: unknown) {
-      setMessage({
-        type: "error",
-        text: err instanceof Error ? err.message : "Googleログインに失敗しました。",
-      });
+      const msg = err instanceof Error ? err.message : "Googleログインに失敗しました。";
+      const friendlyMessage =
+        msg.includes("auth/popup-closed-by-user") || msg.includes("popup-closed-by-user")
+          ? "ログインがキャンセルされました。"
+          : msg;
+      setMessage({ type: "error", text: friendlyMessage });
     } finally {
       setLoading(false);
     }
