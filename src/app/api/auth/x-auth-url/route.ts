@@ -37,7 +37,10 @@ export async function POST(request: Request) {
   const stateSecret = process.env.X_OAUTH_STATE_SECRET;
   if (!clientId || !redirectUri || !stateSecret) {
     return NextResponse.json(
-      { error: "X OAuth が設定されていません。" },
+      {
+        error:
+          "X OAuth が設定されていません。本番では Vercel の「Environment Variables」に X_OAUTH_CLIENT_ID, X_OAUTH_CLIENT_SECRET, X_OAUTH_REDIRECT_URI, X_OAUTH_STATE_SECRET を追加してください。",
+      },
       { status: 503 }
     );
   }

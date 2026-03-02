@@ -31,12 +31,22 @@ export async function POST(request: Request) {
 
   try {
     await auth.deleteUser(targetUid);
-    await db.collection("profiles").doc(targetUid).delete();
+    try {
+      await db.collection("profiles").doc(targetUid).delete();
+    } catch (profileErr) {
+      console.warn("[admin delete-user] profile delete (ignored):", profileErr);
+      // プロフィールが存在しない場合も続行
+    }
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[admin delete-user]", err);
+    const message = err instanceof Error ? err.message : "不明なエラー";
+    const isPermission = /permission|権限|insufficient|forbidden/i.test(message);
+    const errorText = isPermission
+      ? "Firebase のサービスアカウントに「Authentication のユーザー削除」権限を付与してください。"
+      : message || "ユーザー削除に失敗しました。";
     return NextResponse.json(
-      { error: "ユーザー削除に失敗しました。" },
+      { error: errorText },
       { status: 500 }
     );
   }
