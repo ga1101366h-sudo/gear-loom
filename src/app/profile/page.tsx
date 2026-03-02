@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -25,6 +25,8 @@ const ACCEPT_IMAGE = "image/jpeg,image/png,image/webp,image/gif";
 
 export default function ProfilePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextUrl = searchParams.get("next") ?? "/profile";
   const { user, loading: authLoading } = useAuth();
   const db = getFirebaseFirestore();
   const storage = getFirebaseStorage();
@@ -72,7 +74,7 @@ export default function ProfilePage() {
       const userIdSet = data && data.user_id != null && String(data.user_id).trim() !== "";
       if (!userIdSet) {
         setLoading(false);
-        router.replace("/onboarding?next=/profile");
+        router.replace(`/onboarding?next=${encodeURIComponent(nextUrl)}`);
         return;
       }
       if (data) {

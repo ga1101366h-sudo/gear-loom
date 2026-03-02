@@ -23,7 +23,7 @@ function OnboardingPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/";
-  const { user, loading: authLoading } = useAuth();
+  const { user, signOut, loading: authLoading } = useAuth();
   const db = getFirebaseFirestore();
   const [displayName, setDisplayName] = useState("");
   const [userId, setUserId] = useState("");
@@ -90,8 +90,9 @@ function OnboardingPageContent() {
         },
         { merge: true }
       );
-      // 初回設定後はマイページ編集（プロフィール設定）へ遷移
-      router.replace("/profile");
+      // 初回設定後は next があればそこへ、なければプロフィールへ
+      const target = next.startsWith("/") ? next : `/${next}`;
+      router.replace(target || "/profile");
     } catch (err: unknown) {
       setMessage({
         type: "error",
@@ -166,9 +167,16 @@ function OnboardingPageContent() {
         </CardContent>
       </Card>
       <p className="mt-6 text-center">
-        <Link href="/" className="text-sm text-gray-400 hover:text-electric-blue">
+        <button
+          type="button"
+          onClick={async () => {
+            await signOut();
+            router.push("/");
+          }}
+          className="text-sm text-gray-400 hover:text-electric-blue"
+        >
           ← トップに戻る
-        </Link>
+        </button>
       </p>
     </div>
   );

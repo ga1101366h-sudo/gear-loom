@@ -99,6 +99,12 @@ export default function EditReviewPage() {
         const data = reviewSnap.data();
         const uid = (profileSnap.data()?.user_id as string) ?? null;
         setProfileUserId(uid);
+        const userIdSet = uid != null && String(uid).trim() !== "";
+        if (!userIdSet) {
+          setLoading(false);
+          router.push(`/profile?next=${encodeURIComponent(`/reviews/${reviewId}/edit`)}`);
+          return;
+        }
         const canEdit = data.author_id === user.uid || isAdminUserId(uid);
         if (!canEdit) {
           router.push(`/reviews/${reviewId}`);
