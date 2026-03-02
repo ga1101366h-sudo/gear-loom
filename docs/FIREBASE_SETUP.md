@@ -129,3 +129,25 @@ service firebase.storage {
 ## 6. X (Twitter) ログイン
 
 Firebase Console の Authentication → サインイン方法で **X** を有効にし、X Developer Portal でアプリを作成して API Key / Secret を Firebase に登録します。
+
+### X ログインで `auth/invalid-credential` が出る場合
+
+1. **Firebase Console の設定**
+   - Authentication → サインイン方法 → **X** を有効化
+   - **API キー** と **API シークレット** に、X Developer Portal で発行した **Consumer Key (API Key)** と **Consumer Secret (API Secret)** をそのまま貼り付ける（OAuth 2.0 の Client ID / Secret ではなく、OAuth 1.0a 用のキー）
+
+2. **X Developer Portal（developer.x.com）**
+   - 対象アプリ → **Settings** → **User authentication settings** を編集
+   - **Callback URL / Redirect URL** を次の形式で 1 件だけ登録する（`xxx` は Firebase の認証ドメイン）:
+     - `https://xxx.firebaseapp.com/__/auth/handler`
+   - **Website URL** に本番のサイト URL（例: `https://gear-loom.com`）を設定
+   - **App permissions**: Read 以上（必要に応じて Read and Write）
+   - 保存後、**Keys and tokens** で **Consumer Keys** の **API Key** と **API Key Secret** を再確認し、Firebase に登録している値と完全一致しているか確認
+
+3. **開発中（ローカル）の場合**
+   - Callback URL は **Firebase の認証ドメイン** のみでよい（ローカル URL は不要）
+   - 同一の API Key / Secret で、ローカル・本番どちらからでも同じ Firebase プロジェクトにサインインできる
+
+4. **それでもエラーになる場合**
+   - X のアプリが **Development** のときは、ログインする X アカウントを **User authentication settings** の **App permissions** 下のテストユーザーとして追加する必要がある
+   - API Key / Secret を再生成した場合は、Firebase Console 側も必ず更新する
