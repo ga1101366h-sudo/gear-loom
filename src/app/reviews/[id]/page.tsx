@@ -109,7 +109,6 @@ export async function generateMetadata({
       title,
       description,
       images: [ogImageUrl],
-      imageAlt,
     },
     alternates: { canonical: url },
   };
