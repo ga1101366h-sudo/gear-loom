@@ -1,13 +1,46 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { doc, getDoc } from "firebase/firestore";
+import { useAuth } from "@/contexts/AuthContext";
+import { getFirebaseFirestore } from "@/lib/firebase/client";
 import { HeaderAuth } from "@/components/header-auth";
 import { MAIN_NAV_ITEMS } from "@/data/nav-items";
 
+const ALLOWED_WITHOUT_USER_ID = ["/onboarding", "/login", "/profile"];
+
+function isAllowedWithoutUserId(path: string | null): boolean {
+  if (!path) return true;
+  return ALLOWED_WITHOUT_USER_ID.some((p) => path === p || path.startsWith(`${p}?`));
+}
+
 export function SiteLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, signOut } = useAuth();
+  const db = getFirebaseFirestore();
   const isEmbed = pathname?.startsWith("/embed");
+
+  // 初回ログインで user_id 未設定のままオンボーディング以外へ遷移した場合はログアウトしてトップへ
+  useEffect(() => {
+    if (isEmbed || !user || !db || isAllowedWithoutUserId(pathname ?? null)) return;
+    let cancelled = false;
+    (async () => {
+      const profileSnap = await getDoc(doc(db, "profiles", user.uid));
+      if (cancelled) return;
+      const data = profileSnap.data();
+      const userIdSet = data && data.user_id != null && String(data.user_id).trim() !== "";
+      if (!userIdSet) {
+        await signOut();
+        router.replace("/");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, user?.uid, db, signOut, router]);
 
   if (isEmbed) {
     return (

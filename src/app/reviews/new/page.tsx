@@ -75,6 +75,14 @@ export default function NewReviewPage() {
       return;
     }
     (async () => {
+      const profileSnap = await getDoc(doc(db, "profiles", user.uid));
+      const profile = profileSnap.data();
+      const userIdSet = profile && profile.user_id != null && String(profile.user_id).trim() !== "";
+      if (!userIdSet) {
+        setLoading(false);
+        window.location.href = `/profile?next=${encodeURIComponent("/reviews/new")}`;
+        return;
+      }
       const tagSnap = await getDocs(collection(db, "spec_tags"));
       const tags: SpecTag[] = tagSnap.docs.map((d) => {
         const data = d.data();
