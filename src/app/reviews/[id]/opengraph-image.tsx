@@ -6,6 +6,45 @@ export const alt = "Gear-Loom レビュー";
 export const size = { width: 1200, height: 675 }; // X推奨 1.78:1
 export const contentType = "image/png";
 
+const FETCH_TIMEOUT_MS = 8000;
+const FETCH_MAX_BYTES = 4 * 1024 * 1024; // 4MB
+
+/** ArrayBuffer を base64 に（Node / Edge 両対応） */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(buffer).toString("base64");
+  }
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return typeof btoa !== "undefined" ? btoa(binary) : "";
+}
+
+/** 画像URLを取得して Data URL に変換。失敗時は null */
+async function fetchImageAsDataUrl(url: string): Promise<string | null> {
+  if (!url.startsWith("https://") || url.includes("/b//o/")) return null;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": "Gear-Loom-OG/1.0" },
+    });
+    clearTimeout(timeout);
+    if (!res.ok || !res.headers.get("content-type")?.startsWith("image/")) return null;
+    const contentType = res.headers.get("content-type") ?? "image/jpeg";
+    const buf = await res.arrayBuffer();
+    if (buf.byteLength > FETCH_MAX_BYTES) return null;
+    const base64 = arrayBufferToBase64(buf);
+    if (!base64) return null;
+    return `data:${contentType.split(";")[0]};base64,${base64}`;
+  } catch {
+    return null;
+  }
+}
+
 export default async function OpenGraphImage({
   params,
 }: {
@@ -41,7 +80,8 @@ export default async function OpenGraphImage({
     ? [...images].sort((a, b) => a.sort_order - b.sort_order)[0]
     : null;
   const imageUrl = firstImage ? getFirebaseStorageUrl(firstImage.storage_path) : null;
-  const hasValidImage = imageUrl && imageUrl.startsWith("https://") && !imageUrl.includes("/b//o/");
+  const imageDataUrl = imageUrl ? await fetchImageAsDataUrl(imageUrl) : null;
+  const hasValidImage = !!imageDataUrl;
 
   const title = review.title.length > 50 ? review.title.slice(0, 47) + "…" : review.title;
   const subtitle = review.gear_name ? `${review.gear_name} | Gear-Loom` : "Gear-Loom";
@@ -71,7 +111,7 @@ export default async function OpenGraphImage({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={imageUrl}
+              src={imageDataUrl}
               alt=""
               style={{
                 width: "100%",
