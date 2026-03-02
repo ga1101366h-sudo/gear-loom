@@ -24,6 +24,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CategoryDropdown } from "@/components/category-dropdown";
 import { getGroupSlugByCategorySlug, isContentOnlyCategorySlug } from "@/data/post-categories";
 import { ReviewFormPreview, type ReviewPreviewData } from "@/components/review-form-preview";
+import { BodyTextareaWithAi } from "@/components/body-textarea-with-ai";
 import type { Maker } from "@/types/database";
 import type { SpecTag } from "@/types/database";
 
@@ -355,17 +356,14 @@ export default function NewReviewPage() {
             </>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="body">本文</Label>
-            <textarea
-              id="body"
-              value={bodyMd}
-              onChange={(e) => setBodyMd(e.target.value)}
-              placeholder="使い心地や音の特徴などを書いてください"
-              rows={8}
-              className="flex w-full rounded-lg border border-surface-border bg-surface-card px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-electric-blue"
-            />
-          </div>
+          <BodyTextareaWithAi
+            id="body"
+            value={bodyMd}
+            onChange={setBodyMd}
+            placeholder="使い心地や音の特徴などを書いてください"
+            rows={8}
+            disabled={submitting}
+          />
 
           <div className="space-y-2">
             <Label>使用シチュエーション（任意・複数選択可）</Label>
