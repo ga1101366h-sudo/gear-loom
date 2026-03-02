@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -23,7 +23,7 @@ import type { Profile } from "@/types/database";
 
 const ACCEPT_IMAGE = "image/jpeg,image/png,image/webp,image/gif";
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextUrl = searchParams.get("next") ?? "/profile";
@@ -675,5 +675,19 @@ export default function ProfilePage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-md py-12 text-center text-gray-400">
+          読み込み中...
+        </div>
+      }
+    >
+      <ProfilePageContent />
+    </Suspense>
   );
 }
