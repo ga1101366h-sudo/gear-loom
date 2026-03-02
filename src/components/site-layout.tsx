@@ -9,33 +9,18 @@ import { getFirebaseFirestore } from "@/lib/firebase/client";
 import { HeaderAuth } from "@/components/header-auth";
 import { MAIN_NAV_ITEMS } from "@/data/nav-items";
 
-// user_id 未設定でもログアウトせず表示を許可するパス（公開ページ＋設定系）
+// user_id 未設定のとき許可するパス（設定・認証まわりのみ）。それ以外へ遷移したら即ログアウト
 const ALLOWED_WITHOUT_USER_ID = [
   "/onboarding",
   "/login",
   "/profile",
   "/signup",
-  "/",
-  "/reviews",
-  "/events",
-  "/blog",
-  "/photos",
-  "/likes",
-  "/instruments",
-  "/help",
-  "/privacy",
-  "/contact",
 ];
 
 function isAllowedWithoutUserId(path: string | null): boolean {
   if (!path) return true;
   const base = path.split("?")[0];
-  if (ALLOWED_WITHOUT_USER_ID.some((p) => p !== "/" && (base === p || base.startsWith(p + "/")))) return true;
-  if (base === "/") return true;
-  // レビュー一覧・個別閲覧は許可。編集・新規は許可しない
-  if (base === "/reviews") return true;
-  if (/^\/reviews\/[^/]+$/.test(base)) return true; // /reviews/xxx のみ
-  return false;
+  return ALLOWED_WITHOUT_USER_ID.some((p) => base === p || base.startsWith(p + "/"));
 }
 
 export function SiteLayout({ children }: { children: React.ReactNode }) {
@@ -44,7 +29,7 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
   const db = getFirebaseFirestore();
   const isEmbed = pathname?.startsWith("/embed");
 
-  // user_id 未設定のユーザーが許可外の画面に遷移した場合は自動ログアウト（遷移先のページはそのまま表示）
+  // user_id 未設定のユーザーが許可外の画面に遷移した場合は遷移先で即座にログアウト
   useEffect(() => {
     if (isEmbed || !user || !db || isAllowedWithoutUserId(pathname ?? null)) return;
     let cancelled = false;
@@ -55,7 +40,6 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
       const userIdSet = data && data.user_id != null && String(data.user_id).trim() !== "";
       if (!userIdSet) {
         await signOut();
-        // ログアウトのみ。遷移先のページはそのまま（未ログイン状態で表示）
       }
     })();
     return () => {

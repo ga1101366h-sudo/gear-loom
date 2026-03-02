@@ -30,7 +30,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   user_id_taken: "このユーザーIDはすでに使われています。",
   invalid_user_id: "ユーザーIDが不正です。",
   missing_params: "認証パラメータが不足しています。",
-  access_denied: "Xでの認証がキャンセルされました。",
+  access_denied:
+    "Xでアプリへのアクセスが許可されませんでした。X Developer Portal で Callback URL が本番・ローカルで一致しているか、アプリ権限（Read）とテストユーザー設定を確認してください。",
+  consent_denied:
+    "Xでアプリへのアクセスが許可されませんでした。Callback URL とアプリ設定を確認してください。",
 };
 
 function SignupXContent() {
@@ -50,8 +53,9 @@ function SignupXContent() {
 
   useEffect(() => {
     const error = searchParams.get("error");
-    if (error && ERROR_MESSAGES[error]) {
-      setMessage({ type: "error", text: ERROR_MESSAGES[error] });
+    if (error) {
+      const text = ERROR_MESSAGES[error] ?? "X認証で問題が発生しました。もう一度お試しください。";
+      setMessage({ type: "error", text });
     }
   }, [searchParams]);
 
