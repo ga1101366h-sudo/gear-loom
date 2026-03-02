@@ -9,6 +9,13 @@ export const contentType = "image/png";
 const FETCH_TIMEOUT_MS = 4000; // Vercel の制限内で返すため短め
 const FETCH_MAX_BYTES = 3 * 1024 * 1024; // 3MB
 
+/** レビュー画像がないときのデフォルト背景（常に画像レイヤーがあるようにする） */
+const DEFAULT_BG_DATA_URL =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1a2332"/><stop offset="100%" stop-color="#0f172a"/></linearGradient></defs><rect width="1200" height="675" fill="url(#g)"/><text x="600" y="320" font-family="sans-serif" font-size="32" fill="#475569" text-anchor="middle">Gear-Loom</text></svg>'
+  );
+
 /** ArrayBuffer を base64 に（Node / Edge 両対応） */
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   if (typeof Buffer !== "undefined") {
@@ -52,29 +59,37 @@ function FallbackCard({ title }: { title?: string }) {
         width: "100%",
         height: "100%",
         display: "flex",
+        position: "relative",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #1a2332 0%, #0f172a 100%)",
         padding: 48,
       }}
     >
-      {title && (
-        <div
-          style={{
-            color: "#f1f5f9",
-            fontSize: 36,
-            fontWeight: 700,
-            textAlign: "center",
-            maxWidth: 1000,
-            lineHeight: 1.3,
-            marginBottom: 16,
-          }}
-        >
-          {title.length > 50 ? title.slice(0, 47) + "…" : title}
-        </div>
-      )}
-      <div style={{ color: "#64748b", fontSize: 20 }}>楽器・機材レビュー | gear-loom.com</div>
+      {/* エラー時も画像レイヤーを置いて「画像＋タイトル」形式を維持 */}
+      <div style={{ position: "absolute", inset: 0 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={DEFAULT_BG_DATA_URL} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </div>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        {title && (
+          <div
+            style={{
+              color: "#f1f5f9",
+              fontSize: 36,
+              fontWeight: 700,
+              textAlign: "center",
+              maxWidth: 1000,
+              lineHeight: 1.3,
+              marginBottom: 16,
+              textShadow: "0 2px 8px rgba(0,0,0,0.8)",
+            }}
+          >
+            {title.length > 50 ? title.slice(0, 47) + "…" : title}
+          </div>
+        )}
+        <div style={{ color: "#64748b", fontSize: 20 }}>楽器・機材レビュー | gear-loom.com</div>
+      </div>
     </div>
   );
 }
@@ -98,7 +113,7 @@ export default async function OpenGraphImage({
       : null;
     const imageUrl = firstImage ? getFirebaseStorageUrl(firstImage.storage_path) : null;
     const imageDataUrl = imageUrl ? await fetchImageAsDataUrl(imageUrl) : null;
-    const hasValidImage = !!imageDataUrl;
+    const bgImageUrl = imageDataUrl ?? DEFAULT_BG_DATA_URL;
 
     const title = review.title.length > 50 ? review.title.slice(0, 47) + "…" : review.title;
     const subtitle = review.gear_name ? `${review.gear_name} | Gear-Loom` : "Gear-Loom";
@@ -114,37 +129,36 @@ export default async function OpenGraphImage({
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "flex-end",
-            background: hasValidImage ? "#1a2332" : "linear-gradient(135deg, #1a2332 0%, #0f172a 100%)",
+            background: "#1a2332",
             padding: 40,
           }}
         >
-          {hasValidImage && (
+          {/* 常に画像レイヤーを置き、全記事で「画像＋タイトル」のカードになるようにする */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={bgImageUrl}
+              alt=""
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
             <div
               style={{
                 position: "absolute",
                 inset: 0,
-                display: "flex",
+                background: "linear-gradient(to top, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.4) 50%, transparent 100%)",
               }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imageDataUrl}
-                alt=""
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: "linear-gradient(to top, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.4) 50%, transparent 100%)",
-                }}
-              />
-            </div>
-          )}
+            />
+          </div>
           <div
             style={{
               position: "relative",
@@ -163,7 +177,7 @@ export default async function OpenGraphImage({
                 textAlign: "center",
                 maxWidth: 1000,
                 lineHeight: 1.3,
-                textShadow: hasValidImage ? "0 2px 8px rgba(0,0,0,0.8)" : "none",
+                textShadow: "0 2px 8px rgba(0,0,0,0.8)",
               }}
             >
               {title}
