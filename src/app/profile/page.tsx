@@ -5,9 +5,10 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFirebaseFirestore, getFirebaseStorage } from "@/lib/firebase/client";
+import { getStoragePathFromDownloadUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -131,6 +132,16 @@ function ProfilePageContent() {
     setMessage(null);
     setUploadingAvatar(true);
     try {
+      if (avatarUrl) {
+        const oldPath = getStoragePathFromDownloadUrl(avatarUrl);
+        if (oldPath && storage) {
+          try {
+            await deleteObject(ref(storage, oldPath));
+          } catch {
+            // 旧アイコン削除は失敗しても続行
+          }
+        }
+      }
       const ext = file.name.split(".").pop() ?? "jpg";
       const storagePath = `avatars/${user.uid}/${Date.now()}.${ext}`;
       const storageRef = ref(storage, storagePath);
@@ -277,6 +288,14 @@ function ProfilePageContent() {
     setGearError(null);
     setGearSaving(true);
     try {
+      const path = getStoragePathFromDownloadUrl(url);
+      if (path && storage) {
+        try {
+          await deleteObject(ref(storage, path));
+        } catch {
+          // Storage 削除失敗は無視（Firestore の整合は取る）
+        }
+      }
       await updateDoc(doc(db, "profiles", user.uid), {
         owned_gear_images: newList,
         updated_at: new Date().toISOString(),

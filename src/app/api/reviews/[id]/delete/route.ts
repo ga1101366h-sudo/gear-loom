@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminAuth, getAdminFirestore } from "@/lib/firebase/admin";
+import { getAdminAuth, getAdminFirestore, deleteReviewImagesFromStorage } from "@/lib/firebase/admin";
 
 /** 投稿者本人が自分のレビューを削除する */
 export async function POST(
@@ -37,6 +37,7 @@ export async function POST(
     }
 
     await db.collection("reviews").doc(reviewId).delete();
+    await deleteReviewImagesFromStorage(reviewId);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[reviews delete]", err);
