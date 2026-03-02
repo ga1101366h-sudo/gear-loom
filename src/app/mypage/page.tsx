@@ -36,6 +36,10 @@ function StarRating({ rating }: { rating: number }) {
 const PLACEHOLDER_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260' viewBox='0 0 400 260'%3E%3Crect fill='%231a2332' width='400' height='260'/%3E%3Ctext fill='%236b7280' x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='14'%3EGear-Loom%3C/text%3E%3C/svg%3E";
 
+/** ゼロ件時も枠を表示するための空状態エリア */
+const EMPTY_SECTION_CLASS =
+  "min-h-[72px] flex items-center rounded-lg border border-dashed border-surface-border bg-surface-card/20 px-4 py-4 text-gray-500 text-sm";
+
 function getFirstReviewImageUrl(r: Review): string | null {
   if (!r.review_images?.length) return null;
   const first = [...r.review_images].sort((a, b) => a.sort_order - b.sort_order)[0];
@@ -343,13 +347,15 @@ export default function MypagePage() {
               )}
             </div>
           ) : (
-            <p className="text-sm text-gray-500">
-              まだ所有機材が登録されていません。
-              <Link href="/profile" className="text-electric-blue hover:underline ml-1">
-                プロフィール編集
-              </Link>
-              で追加できます。
-            </p>
+            <div className={EMPTY_SECTION_CLASS}>
+              <p className="text-sm text-gray-500">
+                まだ所有機材が登録されていません。
+                <Link href="/profile" className="text-electric-blue hover:underline ml-1">
+                  プロフィール編集
+                </Link>
+                で追加できます。
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -362,7 +368,9 @@ export default function MypagePage() {
         </CardHeader>
         <CardContent>
           {likedReviews.length === 0 ? (
-            <p className="text-gray-500 text-sm">まだいいねした記事がありません。</p>
+            <div className={EMPTY_SECTION_CLASS}>
+              <p className="text-gray-500 text-sm">まだいいねした記事がありません。</p>
+            </div>
           ) : (
             <ul className="space-y-3">
               {likedReviews.map((r) => {
@@ -412,7 +420,9 @@ export default function MypagePage() {
         </CardHeader>
         <CardContent>
           {myReviews.length === 0 ? (
-            <p className="text-gray-500 text-sm">まだ投稿がありません。</p>
+            <div className={EMPTY_SECTION_CLASS}>
+              <p className="text-gray-500 text-sm">まだ投稿がありません。</p>
+            </div>
           ) : (
             <ul className="space-y-3">
               {myReviews.map((r) => {
@@ -466,17 +476,17 @@ export default function MypagePage() {
           <CardDescription>自分の投稿へのいいね合計</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-3xl font-bold text-white">{totalLikes}</p>
+          <p className="text-3xl font-bold text-white">{totalLikes} <span className="text-gray-500 text-base font-normal ml-1">件</span></p>
         </CardContent>
       </Card>
 
-      {/* マイカレンダー */}
+      {/* マイカレンダー（ゼロ件でも枠表示） */}
       <Card>
         <CardHeader>
           <CardTitle className="text-electric-blue">マイカレンダー</CardTitle>
           <CardDescription>ライブ予定を追加してカレンダーで管理</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-h-[120px]">
           <LiveEventCalendar initialEvents={liveEvents} />
         </CardContent>
       </Card>

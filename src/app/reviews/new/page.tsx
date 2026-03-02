@@ -56,6 +56,8 @@ export default function NewReviewPage() {
   const [previewImageUrls, setPreviewImageUrls] = useState<string[]>([]);
   /** 機材レビュー時のみ。マイページの所持機材に追加するか */
   const [addToOwnedGear, setAddToOwnedGear] = useState(true);
+  /** 投稿後にXでシェアするか（intentで投稿画面を開く） */
+  const [shareToXAfterSubmit, setShareToXAfterSubmit] = useState(false);
 
   const SITUATION_OPTIONS: { id: string; label: string }[] = [
     { id: "home", label: "自宅・宅録" },
@@ -236,6 +238,18 @@ export default function NewReviewPage() {
             { merge: true }
           );
         }
+      }
+
+      if (shareToXAfterSubmit && typeof window !== "undefined") {
+        const reviewUrl = `${window.location.origin}/reviews/${reviewRef.id}`;
+        const shareText = title.trim()
+          ? `「${title.trim()}」をGear-Loomに投稿しました`
+          : "Gear-Loomにレビューを投稿しました";
+        const shareUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
+          text: shareText,
+          url: reviewUrl,
+        }).toString()}`;
+        window.open(shareUrl, "_blank", "noopener,noreferrer");
       }
 
       router.push(`/reviews/${reviewRef.id}`);
@@ -482,6 +496,16 @@ export default function NewReviewPage() {
           {error && (
             <p className="text-sm text-red-400">{error}</p>
           )}
+
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-300 mt-2">
+            <input
+              type="checkbox"
+              checked={shareToXAfterSubmit}
+              onChange={(e) => setShareToXAfterSubmit(e.target.checked)}
+              className="rounded border-surface-border bg-surface-card text-electric-blue focus:ring-electric-blue"
+            />
+            <span>投稿後にXでシェアする（Xの投稿画面を開く）</span>
+          </label>
 
           <div className="flex flex-wrap gap-3">
             <Button type="submit" disabled={submitting}>

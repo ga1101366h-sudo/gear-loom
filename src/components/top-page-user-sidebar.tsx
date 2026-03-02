@@ -186,9 +186,9 @@ function TopPageUserSidebar({
             マイプロフィール
           </p>
           <Link
-            href={`/users/${encodeURIComponent(profile.user_id)}`}
+            href="/mypage"
             className="flex items-center gap-3 rounded-lg border border-surface-border/50 bg-surface-dark/40 p-2.5 hover:border-electric-blue/30 hover:bg-electric-blue/5 transition-all group"
-            title={profile.display_name ? `${profile.display_name} @${profile.user_id}` : `@${profile.user_id}`}
+            title="マイページへ"
           >
             <div className="shrink-0 w-10 h-10 rounded-full overflow-hidden bg-surface-border flex items-center justify-center ring-1 ring-surface-border">
               {profile.avatar_url ? (
@@ -237,9 +237,9 @@ function TopPageUserSidebar({
             マイプロフィール
           </p>
           <Link
-            href={`/users/${encodeURIComponent(profile.user_id)}`}
+            href="/mypage"
             className="block rounded-lg border border-surface-border/50 bg-surface-dark/40 p-3 hover:border-electric-blue/30 hover:bg-electric-blue/5 transition-all group"
-            title={profile.display_name ? `${profile.display_name} @${profile.user_id}` : `@${profile.user_id}`}
+            title="マイページへ"
           >
             <div className="flex gap-3 mb-2">
               <div className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-surface-border flex items-center justify-center ring-1 ring-surface-border">
