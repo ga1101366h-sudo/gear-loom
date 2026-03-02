@@ -50,23 +50,9 @@ function getSiteOrigin(): string {
   );
 }
 
-/** X・Facebook 等でシェア時の「写真付きリンクカード」用メタデータ。Xで画像を安定表示するため絶対URL・推奨サイズを利用 */
-const OG_IMAGE_DEFAULT =
-  process.env.NEXT_PUBLIC_OG_IMAGE_DEFAULT ?? "https://placehold.co/1200x675/1a2332/7dd3fc?text=Gear-Loom";
+/** X・Facebook 等でシェア時の画像は同一ドメインの動的OG画像（opengraph-image）を指定し、確実に表示されるようにする */
 const OG_IMAGE_WIDTH = 1200;
 const OG_IMAGE_HEIGHT = 675; // X推奨 1.78:1
-
-function ensureAbsoluteImageUrl(url: string | null, fallback: string): string {
-  if (!url || typeof url !== "string" || !url.startsWith("https://")) return fallback;
-  // Firebase Storage のバケット未設定などで /b//o/ になっている場合は無効
-  if (url.includes("/b//o/")) return fallback;
-  try {
-    new URL(url);
-    return url;
-  } catch {
-    return fallback;
-  }
-}
 
 export async function generateMetadata({
   params,
@@ -83,13 +69,7 @@ export async function generateMetadata({
     (review.gear_name ? `${review.gear_name}のレビュー` : "楽器・機材のレビュー");
   const origin = getSiteOrigin();
   const url = `${origin}/reviews/${id}`;
-
-  const images = (review as ReviewDetail).review_images ?? [];
-  const firstImage = images.length > 0
-    ? [...images].sort((a, b) => a.sort_order - b.sort_order)[0]
-    : null;
-  const rawReviewImageUrl = firstImage ? getFirebaseStorageUrl(firstImage.storage_path) : null;
-  const ogImageUrl = ensureAbsoluteImageUrl(rawReviewImageUrl, OG_IMAGE_DEFAULT);
+  const ogImageUrl = `${origin}/reviews/${id}/opengraph-image`;
   const imageAlt = review.title || review.gear_name || "Gear-Loom レビュー";
   const ogImages = [{ url: ogImageUrl, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: imageAlt }];
 
