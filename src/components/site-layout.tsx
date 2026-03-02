@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFirebaseFirestore } from "@/lib/firebase/client";
@@ -40,12 +40,11 @@ function isAllowedWithoutUserId(path: string | null): boolean {
 
 export function SiteLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, signOut } = useAuth();
   const db = getFirebaseFirestore();
   const isEmbed = pathname?.startsWith("/embed");
 
-  // 初回ログインで user_id 未設定のままオンボーディング以外へ遷移した場合はログアウトしてトップへ
+  // user_id 未設定のユーザーが許可外の画面に遷移した場合は自動ログアウト（遷移先のページはそのまま表示）
   useEffect(() => {
     if (isEmbed || !user || !db || isAllowedWithoutUserId(pathname ?? null)) return;
     let cancelled = false;
@@ -56,13 +55,13 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
       const userIdSet = data && data.user_id != null && String(data.user_id).trim() !== "";
       if (!userIdSet) {
         await signOut();
-        router.replace("/");
+        // ログアウトのみ。遷移先のページはそのまま（未ログイン状態で表示）
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [pathname, user?.uid, db, signOut, router]);
+  }, [pathname, user?.uid, db, signOut]);
 
   if (isEmbed) {
     return (
