@@ -126,6 +126,13 @@ async function improveWithOpenAI(apiKey: string, text: string): Promise<string |
   return null;
 }
 
+/** キーが設定されていれば AI 補正が利用可能 */
+export async function GET() {
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  const openaiKey = process.env.OPENAI_API_KEY?.trim();
+  return NextResponse.json({ available: !!(geminiKey || openaiKey) });
+}
+
 export async function POST(request: Request) {
   const geminiKey = process.env.GEMINI_API_KEY?.trim();
   const openaiKey = process.env.OPENAI_API_KEY?.trim();

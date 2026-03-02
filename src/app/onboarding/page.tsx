@@ -84,8 +84,10 @@ function OnboardingPageContent() {
       await setDoc(
         doc(db, "profiles", user.uid),
         {
-          display_name: displayName.trim() || null,
+          display_name: displayName.trim() || user.displayName || user.email?.split("@")[0] || null,
           user_id: uid,
+          avatar_url: user.photoURL ?? null,
+          created_at: now,
           updated_at: now,
         },
         { merge: true }

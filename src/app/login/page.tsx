@@ -22,7 +22,7 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const modeSignUp = searchParams.get("mode") === "signup";
   const [isSignUp, setIsSignUp] = useState(modeSignUp);
-  const { loading: authLoading, signIn, signUp, sendPasswordReset, signInWithGoogle, signInWithX } = useAuth();
+  const { loading: authLoading, signIn, signUp, sendPasswordReset, signInWithGoogle } = useAuth();
   const auth = getFirebaseAuth();
 
   useEffect(() => {
@@ -178,33 +178,9 @@ function LoginPageContent() {
     }
   }
 
-  async function handleXSignIn() {
-    setMessage(null);
-    setLoading(true);
-    try {
-      await signInWithX();
-      let next = searchParams.get("next") ?? "/";
-      next = next.startsWith("/") ? next : `/${next}`;
-      const uid = auth?.currentUser?.uid;
-      if (uid && db) {
-        const profileSnap = await getDoc(doc(db, "profiles", uid));
-        const profile = profileSnap.data();
-        const userIdSet = profile && profile.user_id != null && String(profile.user_id).trim() !== "";
-        if (!userIdSet) {
-          next = "/profile";
-        } else if (isAdminUserId(profile.user_id)) {
-          next = "/admin";
-        }
-      }
-      window.location.href = next;
-    } catch (err: unknown) {
-      setMessage({
-        type: "error",
-        text: err instanceof Error ? err.message : "X（Twitter）ログインに失敗しました。",
-      });
-    } finally {
-      setLoading(false);
-    }
+  function handleXSignIn() {
+    const next = searchParams.get("next") ?? "/";
+    window.location.href = `/signup/x?next=${encodeURIComponent(next)}`;
   }
 
   if (authLoading) {
