@@ -9,11 +9,33 @@ import { getFirebaseFirestore } from "@/lib/firebase/client";
 import { HeaderAuth } from "@/components/header-auth";
 import { MAIN_NAV_ITEMS } from "@/data/nav-items";
 
-const ALLOWED_WITHOUT_USER_ID = ["/onboarding", "/login", "/profile"];
+// user_id 未設定でもログアウトせず表示を許可するパス（公開ページ＋設定系）
+const ALLOWED_WITHOUT_USER_ID = [
+  "/onboarding",
+  "/login",
+  "/profile",
+  "/signup",
+  "/",
+  "/reviews",
+  "/events",
+  "/blog",
+  "/photos",
+  "/likes",
+  "/instruments",
+  "/help",
+  "/privacy",
+  "/contact",
+];
 
 function isAllowedWithoutUserId(path: string | null): boolean {
   if (!path) return true;
-  return ALLOWED_WITHOUT_USER_ID.some((p) => path === p || path.startsWith(`${p}?`));
+  const base = path.split("?")[0];
+  if (ALLOWED_WITHOUT_USER_ID.some((p) => p !== "/" && (base === p || base.startsWith(p + "/")))) return true;
+  if (base === "/") return true;
+  // レビュー一覧・個別閲覧は許可。編集・新規は許可しない
+  if (base === "/reviews") return true;
+  if (/^\/reviews\/[^/]+$/.test(base)) return true; // /reviews/xxx のみ
+  return false;
 }
 
 export function SiteLayout({ children }: { children: React.ReactNode }) {

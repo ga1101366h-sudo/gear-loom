@@ -23,7 +23,7 @@ import {
   TwitterAuthProvider,
   type User,
 } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 
 type AuthContextValue = {
   user: User | null;
@@ -99,38 +99,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     if (!auth) throw new Error("Firebase Auth が利用できません");
     const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    if (!db) return;
-    const profileRef = doc(db, "profiles", result.user.uid);
-    const snap = await getDoc(profileRef);
-    if (!snap.exists()) {
-      await setDoc(profileRef, {
-        display_name: result.user.displayName || result.user.email?.split("@")[0] || "",
-        user_id: null,
-        avatar_url: result.user.photoURL ?? null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-    }
-  }, [auth, db]);
+    await signInWithPopup(auth, provider);
+    // プロフィール（user_id）はオンボーディングで設定するまで作成しない
+  }, [auth]);
 
   const signInWithX = useCallback(async () => {
     if (!auth) throw new Error("Firebase Auth が利用できません");
     const provider = new TwitterAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    if (!db) return;
-    const profileRef = doc(db, "profiles", result.user.uid);
-    const snap = await getDoc(profileRef);
-    if (!snap.exists()) {
-      await setDoc(profileRef, {
-        display_name: result.user.displayName || result.user.email?.split("@")[0] || "",
-        user_id: null,
-        avatar_url: result.user.photoURL ?? null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-    }
-  }, [auth, db]);
+    await signInWithPopup(auth, provider);
+    // プロフィール（user_id）はオンボーディングで設定するまで作成しない
+  }, [auth]);
 
   const value: AuthContextValue = {
     user,

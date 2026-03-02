@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -22,10 +22,18 @@ export function BodyTextareaWithAi({
   rows = 8,
   disabled = false,
 }: Props) {
+  const [aiAvailable, setAiAvailable] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [suggested, setSuggested] = useState("");
   const [aiError, setAiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/ai/improve-body")
+      .then((r) => r.json())
+      .then((data: { available?: boolean }) => setAiAvailable(data.available === true))
+      .catch(() => setAiAvailable(false));
+  }, []);
 
   async function handleAiImprove() {
     if (!value.trim()) {
@@ -80,22 +88,24 @@ export function BodyTextareaWithAi({
         disabled={disabled}
         className="flex w-full rounded-lg border border-surface-border bg-surface-card px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-electric-blue"
       />
-      <div className="flex items-center gap-2 flex-wrap">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={disabled || aiLoading}
-          onClick={handleAiImprove}
-          className="min-h-[44px] touch-manipulation"
-          aria-label={aiLoading ? "補正案を生成中" : "AIで補正案を表示"}
-        >
-          {aiLoading ? "補正案を生成中..." : "AIで補正案を表示"}
-        </Button>
-        {aiError && (
-          <span className="text-sm text-red-400">{aiError}</span>
-        )}
-      </div>
+      {aiAvailable && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled || aiLoading}
+            onClick={handleAiImprove}
+            className="min-h-[44px] touch-manipulation"
+            aria-label={aiLoading ? "補正案を生成中" : "AIで補正案を表示"}
+          >
+            {aiLoading ? "補正案を生成中..." : "AIで補正案を表示"}
+          </Button>
+          {aiError && (
+            <span className="text-sm text-red-400">{aiError}</span>
+          )}
+        </div>
+      )}
 
       <Dialog.Root open={dialogOpen} onOpenChange={setDialogOpen}>
         <Dialog.Portal>

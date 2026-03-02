@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 
 type AdminUserItem = { id: string; display_name: string | null; user_id: string | null; created_at: string };
+type IncompleteUserItem = { uid: string; email: string | null; display_name: string | null };
 type AdminReviewItem = { id: string; title: string; author_id: string; created_at: string };
 
 export default function AdminPage() {
@@ -26,10 +27,13 @@ export default function AdminPage() {
   const db = getFirebaseFirestore();
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [users, setUsers] = useState<AdminUserItem[]>([]);
+  const [incompleteUsers, setIncompleteUsers] = useState<IncompleteUserItem[]>([]);
   const [reviews, setReviews] = useState<AdminReviewItem[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingIncompleteUsers, setLoadingIncompleteUsers] = useState(false);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [deletingIncompleteUserId, setDeletingIncompleteUserId] = useState<string | null>(null);
   const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -71,6 +75,24 @@ export default function AdminPage() {
     }
   }
 
+  async function fetchIncompleteUsers() {
+    if (!auth?.currentUser) return;
+    setLoadingIncompleteUsers(true);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch("/api/admin/incomplete-users", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(json.users)) setIncompleteUsers(json.users);
+      else setIncompleteUsers([]);
+    } catch {
+      setIncompleteUsers([]);
+    } finally {
+      setLoadingIncompleteUsers(false);
+    }
+  }
+
   async function fetchReviews() {
     if (!auth?.currentUser) return;
     setLoadingReviews(true);
@@ -92,6 +114,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (!isAdmin || !user) return;
     fetchUsers();
+    fetchIncompleteUsers();
     fetchReviews();
   }, [isAdmin, user?.uid]);
 
@@ -116,6 +139,30 @@ export default function AdminPage() {
       alert("削除に失敗しました。");
     } finally {
       setDeletingUserId(null);
+    }
+  }
+
+  async function handleDeleteIncompleteUser(uid: string) {
+    if (!auth?.currentUser || uid === user?.uid) return;
+    if (!confirm("このユーザー（ID未設定）を削除しますか？\nFirebase Auth のアカウントとプロフィールが削除されます。")) return;
+    setDeletingIncompleteUserId(uid);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ uid }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setIncompleteUsers((prev) => prev.filter((u) => u.uid !== uid));
+      } else {
+        alert(json.error ?? "削除に失敗しました。");
+      }
+    } catch {
+      alert("削除に失敗しました。");
+    } finally {
+      setDeletingIncompleteUserId(null);
     }
   }
 
@@ -199,6 +246,51 @@ export default function AdminPage() {
                         onClick={() => handleDeleteUser(u.id)}
                       >
                         {deletingUserId === u.id ? "削除中..." : "削除"}
+                      </Button>
+                    ) : (
+                      <span className="text-gray-500 text-xs">（自分）</span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-electric-blue">ID未設定のユーザー（未完了）</CardTitle>
+          <CardDescription>
+            X・Googleでログインしたがプロフィール（ユーザーID）を未設定のまま離脱したユーザーです。削除すると Firebase Auth のアカウントとプロフィールが削除されます。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadingIncompleteUsers ? (
+            <p className="text-gray-500 text-sm">読み込み中...</p>
+          ) : incompleteUsers.length === 0 ? (
+            <p className="text-gray-500 text-sm">該当ユーザーはいません。</p>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {incompleteUsers.map((u) => (
+                <li
+                  key={u.uid}
+                  className="flex items-center justify-between gap-4 py-2 border-b border-surface-border last:border-0"
+                >
+                  <span className="text-gray-300 truncate">
+                    {u.display_name ?? u.email ?? "(表示名なし)"}
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-gray-500 text-xs">{u.uid.slice(0, 8)}…</span>
+                    {u.uid !== user?.uid ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-400 border-red-400/50 hover:bg-red-400/10"
+                        disabled={deletingIncompleteUserId === u.uid}
+                        onClick={() => handleDeleteIncompleteUser(u.uid)}
+                      >
+                        {deletingIncompleteUserId === u.uid ? "削除中..." : "削除"}
                       </Button>
                     ) : (
                       <span className="text-gray-500 text-xs">（自分）</span>
