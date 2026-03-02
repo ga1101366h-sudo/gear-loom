@@ -141,7 +141,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "AI補正機能は設定されていません。.env.local に GEMINI_API_KEY または OPENAI_API_KEY のいずれかを追加し、開発サーバーを再起動してください。",
+          "AI補正機能は設定されていません。ローカルでは .env.local に、本番では Vercel の環境変数に GEMINI_API_KEY または OPENAI_API_KEY のいずれかを追加し、サーバーを再起動してください。",
       },
       { status: 503 }
     );

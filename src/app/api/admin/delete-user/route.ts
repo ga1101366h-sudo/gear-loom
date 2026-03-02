@@ -30,12 +30,21 @@ export async function POST(request: Request) {
   }
 
   try {
-    await auth.deleteUser(targetUid);
+    try {
+      await auth.deleteUser(targetUid);
+    } catch (authErr) {
+      const msg = authErr instanceof Error ? authErr.message : "";
+      const isNoUser = /no user record|provided identifier|user-not-found/i.test(msg);
+      if (isNoUser) {
+        // Auth にユーザーが存在しない（既に削除済みなど）→ プロフィールのみ削除して成功とする
+      } else {
+        throw authErr;
+      }
+    }
     try {
       await db.collection("profiles").doc(targetUid).delete();
     } catch (profileErr) {
       console.warn("[admin delete-user] profile delete (ignored):", profileErr);
-      // プロフィールが存在しない場合も続行
     }
     return NextResponse.json({ success: true });
   } catch (err) {
