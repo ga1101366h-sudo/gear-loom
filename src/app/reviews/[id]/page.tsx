@@ -50,7 +50,24 @@ function getSiteOrigin(): string {
   );
 }
 
-/** X・Facebook 等でシェア時の「写真付きリンクカード」用メタデータ */
+/** X・Facebook 等でシェア時の「写真付きリンクカード」用メタデータ。Xで画像を安定表示するため絶対URL・推奨サイズを利用 */
+const OG_IMAGE_DEFAULT =
+  process.env.NEXT_PUBLIC_OG_IMAGE_DEFAULT ?? "https://placehold.co/1200x675/1a2332/7dd3fc?text=Gear-Loom";
+const OG_IMAGE_WIDTH = 1200;
+const OG_IMAGE_HEIGHT = 675; // X推奨 1.78:1
+
+function ensureAbsoluteImageUrl(url: string | null, fallback: string): string {
+  if (!url || typeof url !== "string" || !url.startsWith("https://")) return fallback;
+  // Firebase Storage のバケット未設定などで /b//o/ になっている場合は無効
+  if (url.includes("/b//o/")) return fallback;
+  try {
+    new URL(url);
+    return url;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -71,11 +88,10 @@ export async function generateMetadata({
   const firstImage = images.length > 0
     ? [...images].sort((a, b) => a.sort_order - b.sort_order)[0]
     : null;
-  const reviewImageUrl = firstImage ? getFirebaseStorageUrl(firstImage.storage_path) : null;
-  const ogImageUrl =
-    reviewImageUrl ??
-    "https://placehold.co/1200x630/1a2332/7dd3fc?text=Gear-Loom";
-  const ogImages = [{ url: ogImageUrl, width: 1200, height: 630, alt: review.title }];
+  const rawReviewImageUrl = firstImage ? getFirebaseStorageUrl(firstImage.storage_path) : null;
+  const ogImageUrl = ensureAbsoluteImageUrl(rawReviewImageUrl, OG_IMAGE_DEFAULT);
+  const imageAlt = review.title || review.gear_name || "Gear-Loom レビュー";
+  const ogImages = [{ url: ogImageUrl, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: imageAlt }];
 
   return {
     title,
@@ -93,6 +109,7 @@ export async function generateMetadata({
       title,
       description,
       images: [ogImageUrl],
+      imageAlt,
     },
     alternates: { canonical: url },
   };
