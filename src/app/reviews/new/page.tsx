@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   collection,
@@ -31,7 +31,6 @@ import type { SpecTag } from "@/types/database";
 
 export default function NewReviewPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const db = getFirebaseFirestore();
   const storage = getFirebaseStorage();
@@ -111,7 +110,9 @@ export default function NewReviewPage() {
   }, [user, authLoading, db]);
 
   useEffect(() => {
-    if (searchParams.get("from") !== "rakuten") return;
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("from") !== "rakuten") return;
     const pending = getPendingGear();
     if (pending) {
       setPendingGearFromApi(pending);
@@ -119,7 +120,7 @@ export default function NewReviewPage() {
       if (pending.categorySlug) setCategorySlug(pending.categorySlug);
       if (pending.categoryNameJa) setCategoryNameJa(pending.categoryNameJa);
     }
-  }, [searchParams]);
+  }, []);
 
   const groupSlug = categorySlug ? getGroupSlugByCategorySlug(categorySlug) : "";
   const isContentOnlyCategory = categorySlug ? isContentOnlyCategorySlug(categorySlug) : false;
