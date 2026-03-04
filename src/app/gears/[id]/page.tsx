@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ECSearchLinks } from "@/components/ec-search-links";
 import { getGearByIdFromFirestore } from "@/lib/firebase/data";
 
 const PLACEHOLDER_IMG =
@@ -58,7 +59,7 @@ export default async function GearDetailPage({ params }: Props) {
             <CardDescription>レビュー {gear.reviewCount}件</CardDescription>
           )}
         </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+        <CardContent className="flex flex-col gap-4">
           {gear.affiliateUrl && (
             <Button asChild>
               <a
@@ -66,7 +67,7 @@ export default async function GearDetailPage({ params }: Props) {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                購入ページへ（楽天）
+                購入ページへ（楽天・この商品を開く）
               </a>
             </Button>
           )}
@@ -75,6 +76,10 @@ export default async function GearDetailPage({ params }: Props) {
           </Link>
         </CardContent>
       </Card>
+
+      <div className="mt-4">
+        <ECSearchLinks gearName={gear.name} />
+      </div>
     </div>
   );
 }
