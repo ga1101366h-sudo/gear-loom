@@ -7,7 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { HeroCta } from "@/components/hero-cta";
 import {
   NewReviewsCarousel,
   type NewReviewItem,
@@ -174,7 +173,7 @@ export default async function HomePage() {
             <h1 className="font-display text-[2rem] font-bold leading-tight tracking-tight text-white sm:text-[2.3rem] md:text-[2.6rem] lg:text-[3rem]">
               あなたの愛機を語ろう。
             </h1>
-            <p className="text-[0.9rem] leading-relaxed text-gray-300 sm:text-sm md:text-base">
+            <p className="text-[0.9rem] font-medium leading-relaxed text-gray-200 drop-shadow-md sm:text-sm md:text-base">
               こだわりのセッティングを共有して、みんなの音作りを応援しよう。機材の歴史を
               <span className="font-semibold text-electric-blue">
                 「カスタム手帳」
@@ -246,9 +245,6 @@ export default async function HomePage() {
               <p className="mt-2 text-[11px] text-gray-500 md:text-xs">
                 例：ストラトキャスター、JCM800、空間系、ベースアンプ…
               </p>
-              <div className="mt-4 border-t border-surface-border/60 pt-3">
-                <HeroCta />
-              </div>
             </div>
           </section>
 
