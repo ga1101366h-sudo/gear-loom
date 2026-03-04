@@ -1,5 +1,5 @@
 import { getAdminFirestore } from "./admin";
-import type { Review, Category, Maker, LiveEvent, Profile } from "@/types/database";
+import type { Review, Category, Maker, LiveEvent, Profile, Gear } from "@/types/database";
 
 export type ReviewDetail = Review & {
   categories?: { id: string; name_ja: string; slug: string };
@@ -295,6 +295,29 @@ export async function getReviewByIdFromFirestore(id: string): Promise<ReviewDeta
       review_images: (data.review_images as { storage_path: string; sort_order: number }[]) ?? [],
       review_spec_tags: (data.review_spec_tags as { spec_tags: { id: string; name_ja: string } }[]) ?? [],
     } as ReviewDetail;
+  } catch {
+    return null;
+  }
+}
+
+/** 機材IDで1件取得（詳細ページ用） */
+export async function getGearByIdFromFirestore(id: string): Promise<Gear | null> {
+  const db = getAdminFirestore();
+  if (!db || !id) return null;
+  try {
+    const snap = await db.collection("gears").doc(id).get();
+    if (!snap.exists) return null;
+    const data = snap.data()!;
+    return {
+      id: snap.id,
+      name: String(data.name ?? ""),
+      imageUrl: String(data.imageUrl ?? ""),
+      affiliateUrl: String(data.affiliateUrl ?? ""),
+      reviewCount: Number(data.reviewCount ?? 0),
+      createdAt: data.createdAt?.toMillis?.()
+        ? new Date(data.createdAt.toMillis()).toISOString()
+        : String(data.createdAt ?? ""),
+    };
   } catch {
     return null;
   }

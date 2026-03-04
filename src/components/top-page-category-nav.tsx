@@ -12,7 +12,8 @@ function getCategoryHref(slug: string): string {
     case "event":
       return "/events";
     default:
-      return `/reviews?category=${encodeURIComponent(slug)}`;
+      // レビュー＋機材カタログをまとめて見られるカテゴリページへ遷移
+      return `/category/${encodeURIComponent(slug)}`;
   }
 }
 

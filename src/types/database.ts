@@ -119,6 +119,16 @@ export interface ReviewCompareEntry {
   created_at: string;
 }
 
+/** 機材マスタ（検索で楽天API連携しつつDBに登録） */
+export interface Gear {
+  id: string;
+  name: string;
+  imageUrl: string;
+  affiliateUrl: string;
+  reviewCount: number;
+  createdAt: string;
+}
+
 export interface GearNotebookEntry {
   id: string;
   user_id: string;

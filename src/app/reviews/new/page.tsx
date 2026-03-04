@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   collection,
@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { CategoryDropdown } from "@/components/category-dropdown";
 import { getGroupSlugByCategorySlug, isContentOnlyCategorySlug } from "@/data/post-categories";
+import { getPendingGear, clearPendingGear } from "@/lib/pending-gear";
 import { ReviewFormPreview, type ReviewPreviewData } from "@/components/review-form-preview";
 import { BodyTextareaWithAi } from "@/components/body-textarea-with-ai";
 import type { Maker } from "@/types/database";
@@ -30,6 +31,7 @@ import type { SpecTag } from "@/types/database";
 
 export default function NewReviewPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const db = getFirebaseFirestore();
   const storage = getFirebaseStorage();
@@ -58,6 +60,14 @@ export default function NewReviewPage() {
   const [addToOwnedGear, setAddToOwnedGear] = useState(true);
   /** 投稿後にXでシェアするか（intentで投稿画面を開く） */
   const [shareToXAfterSubmit, setShareToXAfterSubmit] = useState(false);
+  /** 楽天API等から渡された未登録機材（レビューSubmit時に gears + reviews を同時保存） */
+  const [pendingGearFromApi, setPendingGearFromApi] = useState<{
+    name: string;
+    imageUrl: string;
+    affiliateUrl: string;
+    categorySlug?: string;
+    categoryNameJa?: string;
+  } | null>(null);
 
   const SITUATION_OPTIONS: { id: string; label: string }[] = [
     { id: "home", label: "自宅・宅録" },
@@ -100,6 +110,17 @@ export default function NewReviewPage() {
     })();
   }, [user, authLoading, db]);
 
+  useEffect(() => {
+    if (searchParams.get("from") !== "rakuten") return;
+    const pending = getPendingGear();
+    if (pending) {
+      setPendingGearFromApi(pending);
+      setGearName(pending.name);
+      if (pending.categorySlug) setCategorySlug(pending.categorySlug);
+      if (pending.categoryNameJa) setCategoryNameJa(pending.categoryNameJa);
+    }
+  }, [searchParams]);
+
   const groupSlug = categorySlug ? getGroupSlugByCategorySlug(categorySlug) : "";
   const isContentOnlyCategory = categorySlug ? isContentOnlyCategorySlug(categorySlug) : false;
 
@@ -137,12 +158,105 @@ export default function NewReviewPage() {
     return () => urls.forEach((u) => URL.revokeObjectURL(u));
   }, [files]);
 
+  /** 未登録機材＋レビューを同時保存（Submit時のみDBに書き込む） */
+  async function handleSubmitWithNewGear(pending: {
+    name: string;
+    imageUrl: string;
+    affiliateUrl: string;
+    categorySlug?: string;
+    categoryNameJa?: string;
+  }) {
+    if (!user || !db) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const idToken = await user.getIdToken(true);
+      const res = await fetch("/api/reviews/with-gear", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          gear: {
+            name: pending.name,
+            imageUrl: pending.imageUrl,
+            affiliateUrl: pending.affiliateUrl,
+          },
+          review: {
+            categorySlug,
+            categoryNameJa,
+            title: title.trim(),
+            gearName: gearName.trim() || pending.name,
+            makerName: makerName.trim(),
+            rating: isContentOnlyCategory ? 0 : rating,
+            bodyMd: bodyMd.trim(),
+            youtubeUrl: youtubeUrl.trim() || undefined,
+            eventUrl: categorySlug === "event" ? eventUrl.trim() || undefined : undefined,
+            situations: situations.length > 0 ? situations : undefined,
+            specTagIds,
+            addToOwnedGear: addToOwnedGear && !isContentOnlyCategory,
+          },
+        }),
+      });
+      const data = (await res.json()) as { reviewId?: string; gearId?: string; error?: string };
+      if (!res.ok || !data.reviewId) {
+        setError(data.error ?? "保存に失敗しました。");
+        return;
+      }
+      const reviewId = data.reviewId;
+
+      if (storage && files.length > 0) {
+        const reviewImages: { storage_path: string; sort_order: number }[] = [];
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const ext = file.name.split(".").pop() ?? "jpg";
+          const storagePath = `review-images/${reviewId}/${Date.now()}-${i}.${ext}`;
+          const storageRef = ref(storage, storagePath);
+          await uploadBytes(storageRef, file);
+          reviewImages.push({ storage_path: storagePath, sort_order: i });
+        }
+        await updateDoc(doc(db, "reviews", reviewId), {
+          review_images: reviewImages,
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      clearPendingGear();
+      setPendingGearFromApi(null);
+
+      if (shareToXAfterSubmit && typeof window !== "undefined") {
+        const reviewUrl = `${window.location.origin}/reviews/${reviewId}`;
+        const shareText = title.trim()
+          ? `「${title.trim()}」をGear-Loomに投稿しました`
+          : "Gear-Loomにレビューを投稿しました";
+        const shareUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
+          text: shareText,
+          url: reviewUrl,
+        }).toString()}`;
+        window.open(shareUrl, "_blank", "noopener,noreferrer");
+      }
+      router.push(`/reviews/${reviewId}`);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "保存に失敗しました。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user || !db) return;
     setError(null);
     if (!categorySlug || !categoryNameJa) {
       setError("カテゴリを選択してください。");
+      return;
+    }
+
+    const pending = pendingGearFromApi ?? getPendingGear();
+    if (pending) {
+      await handleSubmitWithNewGear(pending);
       return;
     }
 
@@ -282,6 +396,13 @@ export default function NewReviewPage() {
   return (
     <div className="max-w-2xl mx-auto py-6">
       <h1 className="text-2xl font-bold text-white mb-6">レビューを投稿</h1>
+      {(pendingGearFromApi ?? getPendingGear()) && (
+        <Card className="mb-6 border-electric-blue/50 bg-electric-blue/5 p-4">
+          <p className="text-sm text-gray-200">
+            この機材でレビューを投稿すると、機材がサイトに登録され、今回のレビューと紐づきます。投稿を確定するまで機材は保存されません。
+          </p>
+        </Card>
+      )}
       <form onSubmit={handleSubmit}>
         <Card className="space-y-6 p-6">
           <div className="space-y-2">
