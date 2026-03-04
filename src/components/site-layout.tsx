@@ -25,17 +25,18 @@ function isAllowedWithoutUserId(path: string | null): boolean {
 export function SiteLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  const { profile } = useUserProfile();
+  const { profile, loading: profileLoading } = useUserProfile();
   const isEmbed = pathname?.startsWith("/embed");
 
   // user_id 未設定のユーザーが許可外の画面に遷移した場合は遷移先で即座にログアウト
   useEffect(() => {
     if (isEmbed || !user || isAllowedWithoutUserId(pathname ?? null)) return;
+    if (profileLoading) return;
     const userIdSet = profile && profile.user_id != null && String(profile.user_id).trim() !== "";
     if (!userIdSet) {
       void signOut();
     }
-  }, [pathname, user?.uid, profile?.user_id, isEmbed, signOut]);
+  }, [pathname, user?.uid, profile?.user_id, profileLoading, isEmbed, signOut]);
 
   if (isEmbed) {
     return (
