@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -58,6 +59,13 @@ type Props = { searchParams: Promise<{ category?: string; q?: string }> };
 export default async function ReviewsListPage({ searchParams }: Props) {
   const params = await searchParams;
   const categorySlug = params.category;
+
+  // カテゴリ付きのレビュー一覧URLに直接アクセスされた場合は
+  // 新しい機材カタログ付きカテゴリページへリダイレクトする
+  if (categorySlug) {
+    redirect(`/category/${encodeURIComponent(categorySlug)}`);
+  }
+
   const searchQuery = params.q ?? "";
   const allReviews = await getReviews(categorySlug);
   const reviews = filterReviewsByQuery(allReviews, searchQuery);
