@@ -28,10 +28,7 @@ export function ECSearchLinks({ gearName, makerName, className }: ECSearchLinksP
   const query = [makerName, gearName].filter((v) => v && v.trim().length > 0).join(" ");
   if (!query) return null;
 
-  const links = getECSearchLinks(query, {
-    // Amazon アソシエイトIDを明示指定
-    amazonTag: "gearloom0f-22",
-  });
+  const links = getECSearchLinks(query);
   if (links.length === 0) return null;
 
   const xQuery = gearName.trim();
