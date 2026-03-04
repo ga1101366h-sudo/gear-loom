@@ -1,37 +1,36 @@
 /**
  * 機材名をクエリとして外部ECサイトの検索URLを生成する。
- * アソシエイトIDは環境変数で設定可能。
  */
 
 function encodeQuery(q: string): string {
   return encodeURIComponent(q.trim());
 }
 
-export interface ECLinkConfig {
-  amazonTag?: string;
-  rakutenTag?: string;
-}
+const RAKUTEN_AFFILIATE_BASE =
+  "https://hb.afl.rakuten.co.jp/hgc/518afa09.b7d684be.518afa0a.c16c0ffd/";
 
 /**
- * Amazon 検索URL（アソシエイトID埋め込み可能）
+ * Amazon 検索URL（アソシエイトIDを固定で付与）
+ * https://www.amazon.co.jp/s?k={機材名}&tag=gearloom0f-22
  */
-export function getAmazonSearchUrl(gearName: string, tag?: string): string {
+export function getAmazonSearchUrl(gearName: string): string {
   const base = "https://www.amazon.co.jp/s";
-  const params = new URLSearchParams({ k: gearName });
-  const affiliateTag = tag ?? process.env.NEXT_PUBLIC_AMAZON_ASSOCIATE_TAG;
-  if (affiliateTag) params.set("tag", affiliateTag);
+  const params = new URLSearchParams({
+    k: gearName.trim(),
+    tag: "gearloom0f-22",
+  });
   return `${base}?${params.toString()}`;
 }
 
 /**
- * 楽天市場 検索URL（アフィリエイトID埋め込み可能）
+ * 楽天市場 検索URL（アフィリエイトリンクにラップ）
+ * https://hb.afl.rakuten.co.jp/.../?pc={ENCODED(https://search.rakuten.co.jp/search/mall/{機材名}/)}
  */
-export function getRakutenSearchUrl(gearName: string, tag?: string): string {
-  const base = "https://search.rakuten.co.jp/search/mall";
-  const q = encodeQuery(gearName);
-  const affiliateTag = tag ?? process.env.NEXT_PUBLIC_RAKUTEN_AFFILIATE_TAG;
-  const path = affiliateTag ? `${q}/?af=${affiliateTag}` : `${q}/`;
-  return `${base}/${path}`;
+export function getRakutenSearchUrl(gearName: string): string {
+  const encodedKeyword = encodeQuery(gearName);
+  const searchUrl = `https://search.rakuten.co.jp/search/mall/${encodedKeyword}/`;
+  const encodedSearchUrl = encodeURIComponent(searchUrl);
+  return `${RAKUTEN_AFFILIATE_BASE}?pc=${encodedSearchUrl}`;
 }
 
 /**
@@ -48,7 +47,7 @@ export function getSoundHouseSearchUrl(gearName: string): string {
  */
 export function getDigimartSearchUrl(gearName: string): string {
   const base = "https://www.digimart.net/search";
-  return `${base}?keyword=${encodeQuery(gearName)}`;
+  return `${base}?keywordAnd=${encodeQuery(gearName)}`;
 }
 
 export interface ECLinkItem {
@@ -59,12 +58,12 @@ export interface ECLinkItem {
 /**
  * 機材名から全EC検索リンクを取得
  */
-export function getECSearchLinks(gearName: string, config?: ECLinkConfig): ECLinkItem[] {
+export function getECSearchLinks(gearName: string): ECLinkItem[] {
   if (!gearName?.trim()) return [];
 
   return [
-    { name: "Amazon", url: getAmazonSearchUrl(gearName, config?.amazonTag) },
-    { name: "楽天市場", url: getRakutenSearchUrl(gearName, config?.rakutenTag) },
+    { name: "Amazon", url: getAmazonSearchUrl(gearName) },
+    { name: "楽天市場", url: getRakutenSearchUrl(gearName) },
     { name: "デジマート", url: getDigimartSearchUrl(gearName) },
     { name: "サウンドハウス", url: getSoundHouseSearchUrl(gearName) },
   ];
