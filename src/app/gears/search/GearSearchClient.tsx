@@ -19,6 +19,7 @@ const PLACEHOLDER_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a2332' width='200' height='200'/%3E%3Ctext fill='%236b7280' x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='12'%3E機材%3C/text%3E%3C/svg%3E";
 
 export function GearSearchClient() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const qFromUrl = searchParams.get("q") ?? "";
   const [query, setQuery] = useState(qFromUrl);
