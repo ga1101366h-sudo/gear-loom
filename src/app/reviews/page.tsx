@@ -10,7 +10,11 @@ import {
 } from "@/components/ui/card";
 import { getFirebaseStorageUrl } from "@/lib/utils";
 import { isContentOnlyCategorySlug } from "@/data/post-categories";
+import { RAKUTEN_GENRE_INSTRUMENTS } from "@/data/rakuten-genres";
+import { fetchRakutenItems } from "@/lib/rakuten";
 import type { Review } from "@/types/database";
+import type { RakutenItem } from "@/types/rakuten";
+import { SearchCatalogSection, type CatalogItem } from "./SearchCatalogSection";
 
 async function getReviews(categorySlug?: string): Promise<Review[]> {
   try {
@@ -66,108 +70,129 @@ export default async function ReviewsListPage({ searchParams }: Props) {
     redirect(`/category/${encodeURIComponent(categorySlug)}`);
   }
 
-  const searchQuery = params.q ?? "";
-  const allReviews = await getReviews(categorySlug);
+  const rawQuery = params.q ?? "";
+  const searchQuery = rawQuery.trim();
+
+  const [allReviews, rakutenItems] = await Promise.all([
+    getReviews(undefined),
+    searchQuery
+      ? fetchRakutenItems(searchQuery, { genreId: RAKUTEN_GENRE_INSTRUMENTS })
+      : Promise.resolve<RakutenItem[]>([]),
+  ] as const);
+
   const reviews = filterReviewsByQuery(allReviews, searchQuery);
 
-  const title =
-    searchQuery.trim()
-      ? `「${searchQuery.trim()}」の検索結果`
-      : categorySlug
-        ? "レビュー一覧"
-        : "レビュー一覧";
+  const existingGearNames = new Set(
+    reviews
+      .map((r) => (r.gear_name ?? "").trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  const catalogItems: CatalogItem[] = rakutenItems
+    .filter((item) => {
+      const name = (item.itemName ?? "").trim().toLowerCase();
+      if (!name) return false;
+      if (existingGearNames.has(name)) return false;
+      existingGearNames.add(name);
+      return true;
+    })
+    .map((item) => ({
+      itemName: item.itemName,
+      itemUrl: item.itemUrl,
+      affiliateUrl: item.affiliateUrl,
+      imageUrl:
+        item.mediumImageUrls?.[0]?.imageUrl ||
+        item.smallImageUrls?.[0]?.imageUrl ||
+        "",
+      itemPrice: item.itemPrice,
+      shopName: item.shopName,
+    }));
+
+  const title = searchQuery ? `「${searchQuery}」の検索結果` : "レビュー一覧";
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold text-white">{title}</h1>
-        {categorySlug && (
-          <Link
-            href={`/category/${categorySlug}`}
-            className="text-sm text-electric-blue hover:underline"
-          >
-            機材カタログ付きカテゴリページへ →
-          </Link>
-        )}
-      </div>
-      {reviews.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-gray-400">
-            {searchQuery.trim()
-              ? "該当するレビューはありません。別のキーワードで検索してみてください。"
-              : categorySlug
-                ? "このカテゴリにはまだレビューがありません。上のリンクから機材カタログ付きカテゴリページを開いて、レビュー対象の機材を選んでみてください。"
+    <div className="container mx-auto max-w-5xl space-y-10 px-4 py-6">
+      <h1 className="text-2xl font-bold text-white">{title}</h1>
+
+      <section>
+        <h2 className="mb-4 text-lg font-semibold text-white">みんなのレビュー</h2>
+        {reviews.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-gray-400">
+              {searchQuery
+                ? "該当するレビューはありません。下の機材カタログから「レビューを書く」で投稿してみませんか？"
                 : "まだレビューがありません。"}
-          </CardContent>
-        </Card>
-      ) : (
-        <ul className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          {reviews.map((r) => {
-            const imageUrl = getFirstReviewImageUrl(r);
-            const showStars = !isContentOnlyCategorySlug(r.category_id) && r.rating > 0;
-            const categorySlug = (r.categories && "slug" in r.categories && (r.categories as { slug: string }).slug)
-              ? (r.categories as { slug: string }).slug
-              : r.category_id;
-            const categoryName = r.categories && "name_ja" in r.categories
-              ? (r.categories as { name_ja: string }).name_ja
-              : null;
-            return (
-              <li key={r.id}>
-                <Card className="h-full overflow-hidden transition-all hover:border-electric-blue/50">
-                  <Link href={`/reviews/${r.id}`} className="block">
-                    <div className="relative aspect-[2/1] w-full bg-surface-card overflow-hidden">
-                      {imageUrl ? (
-                        <Image
-                          src={imageUrl}
-                          alt=""
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
-                        />
-                      ) : (
-                        <Image
-                          src={PLACEHOLDER_IMG}
-                          alt=""
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
-                          unoptimized
-                        />
-                      )}
-                    </div>
-                    <CardHeader className="p-2 pb-0">
-                      <CardTitle className="text-xs line-clamp-1">{r.title}</CardTitle>
-                      <CardDescription className="flex flex-col gap-0.5 text-[11px]">
-                        {!r.categories && r.maker_name && (
-                          <span className="text-gray-400">{r.maker_name}</span>
+            </CardContent>
+          </Card>
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {reviews.map((r) => {
+              const imageUrl = getFirstReviewImageUrl(r);
+              const showStars = !isContentOnlyCategorySlug(r.category_id) && r.rating > 0;
+              const slug =
+                r.categories && "slug" in r.categories && (r.categories as { slug: string }).slug
+                  ? (r.categories as { slug: string }).slug
+                  : r.category_id;
+              const categoryName = r.categories && "name_ja" in r.categories
+                ? (r.categories as { name_ja: string }).name_ja
+                : null;
+              return (
+                <li key={r.id}>
+                  <Card className="h-full overflow-hidden transition-all hover:border-electric-blue/50">
+                    <Link href={`/reviews/${r.id}`} className="block">
+                      <div className="relative aspect-[2/1] w-full bg-surface-card overflow-hidden">
+                        {imageUrl ? (
+                          <Image
+                            src={imageUrl}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            sizes="(max-width:640px) 50vw, 25vw"
+                          />
+                        ) : (
+                          <Image
+                            src={PLACEHOLDER_IMG}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            sizes="(max-width:640px) 50vw, 25vw"
+                            unoptimized
+                          />
                         )}
-                        <span className="flex items-center gap-1 flex-wrap">
-                          {r.maker_name && (
-                            <span className="text-gray-400">{r.maker_name}</span>
-                          )}
+                      </div>
+                      <CardHeader className="p-3">
+                        <CardTitle className="line-clamp-2 text-sm text-white">
+                          {r.title}
+                        </CardTitle>
+                        <CardDescription className="flex flex-wrap gap-1 text-xs text-gray-400">
+                          {r.maker_name && <span>{r.maker_name}</span>}
                           <span>{r.gear_name}</span>
-                        </span>
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="px-2 pt-0 pb-1.5 flex items-center">
-                      {showStars && <StarRating rating={r.rating} />}
-                    </CardContent>
-                  </Link>
-                  {categoryName && (
-                    <div className="px-2 pb-1.5 -mt-0.5">
-                      <Link
-                        href={`/reviews?category=${encodeURIComponent(categorySlug)}`}
-                        className="text-[11px] text-electric-blue hover:underline"
-                      >
-                        {categoryName}
-                      </Link>
-                    </div>
-                  )}
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="px-3 pb-2 pt-0">
+                        {showStars && <StarRating rating={r.rating} />}
+                      </CardContent>
+                    </Link>
+                    {categoryName && (
+                      <div className="px-3 pb-2">
+                        <Link
+                          href={`/category/${encodeURIComponent(slug)}`}
+                          className="text-xs text-electric-blue hover:underline"
+                        >
+                          {categoryName}
+                        </Link>
+                      </div>
+                    )}
+                  </Card>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      {searchQuery && (
+        <SearchCatalogSection keyword={searchQuery} catalogItems={catalogItems} />
       )}
     </div>
   );
