@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
-import { getFirebaseFirestore } from "@/lib/firebase/client";
 import type { ProfileListItem } from "@/lib/firebase/data";
 import type { LiveEvent } from "@/types/database";
+import { useUserProfile } from "@/hooks/use-user-profile";
 
 /** ログイン時のみ右サイドバーを表示。表示するのはログイン中ユーザー1人分のプロフィールのみ */
 export function TopPageUserSidebarGate({
@@ -18,37 +16,23 @@ export function TopPageUserSidebarGate({
   liveEvents: LiveEvent[];
 }) {
   const { user, loading } = useAuth();
-  const [fetchedProfile, setFetchedProfile] = useState<ProfileListItem | null>(null);
+  const { profile: profileFromSWR } = useUserProfile();
 
   const fromList = user ? users.find((u) => u.profile_id === user.uid) : null;
-  const profile = fromList ?? fetchedProfile;
-
-  useEffect(() => {
-    if (!user?.uid || fromList) {
-      setFetchedProfile(null);
-      return;
-    }
-    const db = getFirebaseFirestore();
-    if (!db) return;
-    getDoc(doc(db, "profiles", user.uid)).then((snap) => {
-      const data = snap.data();
-      const user_id = (data?.user_id as string)?.trim();
-      if (!user_id) {
-        setFetchedProfile(null);
-        return;
-      }
-      setFetchedProfile({
-        profile_id: user.uid,
-        user_id,
-        display_name: (data?.display_name as string) ?? null,
-        avatar_url: (data?.avatar_url as string) ?? null,
-        owned_gear: (data?.owned_gear as string) ?? null,
-        main_instrument: (data?.main_instrument as string) ?? null,
-        bio: (data?.bio as string) ?? null,
-        band_name: (data?.band_name as string) ?? null,
-      });
-    });
-  }, [user?.uid, fromList]);
+  const profile: ProfileListItem | null =
+    fromList ||
+    (user && profileFromSWR && profileFromSWR.user_id
+      ? {
+          profile_id: user.uid,
+          user_id: String(profileFromSWR.user_id),
+          display_name: (profileFromSWR.display_name as string) ?? null,
+          avatar_url: (profileFromSWR.avatar_url as string) ?? null,
+          owned_gear: (profileFromSWR.owned_gear as string) ?? null,
+          main_instrument: (profileFromSWR.main_instrument as string) ?? null,
+          bio: (profileFromSWR.bio as string) ?? null,
+          band_name: (profileFromSWR.band_name as string) ?? null,
+        }
+      : null);
 
   if (loading) return null;
   if (!user) return null;

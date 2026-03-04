@@ -1,29 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
-import { getFirebaseFirestore } from "@/lib/firebase/client";
 import { isAdminUserId } from "@/lib/admin";
+import { useUserProfile } from "@/hooks/use-user-profile";
 
 export function HeaderAuth() {
   const { user, loading, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
-  const [profileUserId, setProfileUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user?.uid) {
-      setProfileUserId(null);
-      return;
-    }
-    const db = getFirebaseFirestore();
-    if (!db) return;
-    getDoc(doc(db, "profiles", user.uid)).then((snap) => {
-      const data = snap.data();
-      setProfileUserId((data?.user_id as string) ?? null);
-    });
-  }, [user?.uid]);
+  const { profile } = useUserProfile();
+  const profileUserId = (profile?.user_id as string | null) ?? null;
 
   async function handleSignOut() {
     setSigningOut(true);
