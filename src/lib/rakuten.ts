@@ -55,7 +55,7 @@ function parseRakutenResponse(data: RakutenSearchResponse & { Items?: { Item: Ra
   const rawItems: RakutenItem[] = [];
   if (Array.isArray(data.Items)) {
     for (const row of data.Items) {
-      if (row?.Item) rawItems.push(normalizeLegacyItem(row.Item));
+      if (row?.Item) rawItems.push(normalizeLegacyItem(row.Item as unknown as Record<string, unknown>));
     }
   }
   if (rawItems.length === 0 && Array.isArray(data.items)) {
