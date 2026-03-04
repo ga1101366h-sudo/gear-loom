@@ -24,7 +24,7 @@ export function useUserProfile() {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
 
-  const { data, error, isValidating, mutate } = useSWR(
+  const { data, error, mutate } = useSWR(
     uid ? ["profiles", uid] : null,
     ([, id]) => fetchUserProfile(id),
     {
@@ -34,9 +34,11 @@ export function useUserProfile() {
     }
   );
 
+  const isLoading = !!uid && data === undefined && !error;
+
   return {
     profile: data,
-    loading: !!uid && !data && !error && isValidating,
+    loading: isLoading,
     error,
     refresh: () => mutate(),
   };
