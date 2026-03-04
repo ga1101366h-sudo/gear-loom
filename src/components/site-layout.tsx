@@ -3,11 +3,10 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
-import { getFirebaseFirestore } from "@/lib/firebase/client";
 import { HeaderAuth } from "@/components/header-auth";
 import { MAIN_NAV_ITEMS } from "@/data/nav-items";
+import { useUserProfile } from "@/hooks/use-user-profile";
 
 // user_id 未設定のとき許可するパス（設定・認証まわりのみ）。それ以外へ遷移したら即ログアウト
 const ALLOWED_WITHOUT_USER_ID = [
@@ -26,26 +25,17 @@ function isAllowedWithoutUserId(path: string | null): boolean {
 export function SiteLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  const db = getFirebaseFirestore();
+  const { profile } = useUserProfile();
   const isEmbed = pathname?.startsWith("/embed");
 
   // user_id 未設定のユーザーが許可外の画面に遷移した場合は遷移先で即座にログアウト
   useEffect(() => {
-    if (isEmbed || !user || !db || isAllowedWithoutUserId(pathname ?? null)) return;
-    let cancelled = false;
-    (async () => {
-      const profileSnap = await getDoc(doc(db, "profiles", user.uid));
-      if (cancelled) return;
-      const data = profileSnap.data();
-      const userIdSet = data && data.user_id != null && String(data.user_id).trim() !== "";
-      if (!userIdSet) {
-        await signOut();
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [pathname, user?.uid, db, signOut]);
+    if (isEmbed || !user || isAllowedWithoutUserId(pathname ?? null)) return;
+    const userIdSet = profile && profile.user_id != null && String(profile.user_id).trim() !== "";
+    if (!userIdSet) {
+      void signOut();
+    }
+  }, [pathname, user?.uid, profile?.user_id, isEmbed, signOut]);
 
   if (isEmbed) {
     return (
