@@ -71,13 +71,25 @@ export default async function ReviewsListPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-white">{title}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold text-white">{title}</h1>
+        {categorySlug && (
+          <Link
+            href={`/category/${categorySlug}`}
+            className="text-sm text-electric-blue hover:underline"
+          >
+            機材カタログ付きカテゴリページへ →
+          </Link>
+        )}
+      </div>
       {reviews.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-gray-400">
             {searchQuery.trim()
               ? "該当するレビューはありません。別のキーワードで検索してみてください。"
-              : "まだレビューがありません。"}
+              : categorySlug
+                ? "このカテゴリにはまだレビューがありません。上のリンクから機材カタログ付きカテゴリページを開いて、レビュー対象の機材を選んでみてください。"
+                : "まだレビューがありません。"}
           </CardContent>
         </Card>
       ) : (

@@ -52,6 +52,12 @@ service cloud.firestore {
       allow update, delete: if request.auth != null;
     }
 
+    // 機材マスタ（検索・楽天API連携。作成はAPI経由のためクライアント書込は不可）
+    match /gears/{gearId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // それ以外は拒否
     match /{document=**} {
       allow read, write: if false;
