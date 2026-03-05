@@ -21,11 +21,13 @@ export function ShareToXButton({
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const url = urlProp ?? (typeof window !== "undefined" && path ? `${window.location.origin}${path}` : "");
+    const url =
+      urlProp ??
+      (typeof window !== "undefined" && path ? `${window.location.origin}${path}` : "");
     if (!url) return;
+    const fullText = `${text}\n${url}`;
     const shareUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
-      text,
-      url,
+      text: fullText,
     }).toString()}`;
     window.open(shareUrl, "_blank", "noopener,noreferrer");
   };

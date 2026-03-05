@@ -243,6 +243,7 @@ export default async function ReviewDetailPage({
                   makerName,
                   gearName: review.gear_name,
                   categoryNameJa: categoryName,
+                  categorySlug,
                 })}
               />
             </Button>
