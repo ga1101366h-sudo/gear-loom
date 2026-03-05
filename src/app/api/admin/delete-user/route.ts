@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { getAdminAuth, getAdminFirestore, deleteUserStorageFiles } from "@/lib/firebase/admin";
+import {
+  getAdminAuth,
+  getAdminFirestore,
+  deleteUserStorageFiles,
+  deleteAllUserDataFromFirestore,
+} from "@/lib/firebase/admin";
 import { verifyAdminFromRequest } from "../verify-admin";
 
 export async function POST(request: Request) {
@@ -30,23 +35,22 @@ export async function POST(request: Request) {
   }
 
   try {
+    // 1. Firestore: 記事・予定・手帳・フォロー・プロフィールをすべて削除
+    await deleteAllUserDataFromFirestore(db, targetUid);
+    // 2. Storage: アバター・所持機材画像・ノート画像を削除
+    await deleteUserStorageFiles(targetUid);
+    // 3. Firebase Auth からユーザー削除
     try {
       await auth.deleteUser(targetUid);
     } catch (authErr) {
       const msg = authErr instanceof Error ? authErr.message : "";
       const isNoUser = /no user record|provided identifier|user-not-found/i.test(msg);
       if (isNoUser) {
-        // Auth にユーザーが存在しない（既に削除済みなど）→ プロフィールのみ削除して成功とする
+        // Auth にユーザーが存在しない（既に削除済みなど）→ 上記まで完了していれば成功とする
       } else {
         throw authErr;
       }
     }
-    try {
-      await db.collection("profiles").doc(targetUid).delete();
-    } catch (profileErr) {
-      console.warn("[admin delete-user] profile delete (ignored):", profileErr);
-    }
-    await deleteUserStorageFiles(targetUid);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[admin delete-user]", err);

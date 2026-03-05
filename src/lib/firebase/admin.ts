@@ -87,3 +87,67 @@ export async function deleteUserStorageFiles(uid: string): Promise<void> {
     deleteStoragePrefix(`notebook-images/${uid}/`),
   ]);
 }
+
+/**
+ * 管理者によるユーザー削除時：そのユーザーが作成した記事・予定・手帳・フォロー関係を
+ * Firestore と Storage からすべて削除する（プロフィール・Auth は呼び出し元で削除）
+ */
+export async function deleteAllUserDataFromFirestore(db: admin.firestore.Firestore, targetUid: string): Promise<void> {
+  if (!targetUid.trim()) return;
+
+  const BATCH_SIZE = 450;
+
+  // 1. そのユーザーが投稿したレビュー：関連データ・Storage 画像・レビュードキュメントを削除
+  const reviewsSnap = await db.collection("reviews").where("author_id", "==", targetUid).get();
+  const reviewIds = reviewsSnap.docs.map((d) => d.id);
+  for (const reviewId of reviewIds) {
+    await deleteReviewRelatedFirestore(db, reviewId);
+    await deleteReviewImagesFromStorage(reviewId);
+  }
+  for (let i = 0; i < reviewsSnap.docs.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    reviewsSnap.docs.slice(i, i + BATCH_SIZE).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+
+  // 2. このユーザーが付けたいいね・役に立った・比較リスト（他者の記事への紐づき）
+  for (const coll of ["review_likes", "review_helpfuls", "review_compares"] as const) {
+    const snap = await db.collection(coll).where("user_id", "==", targetUid).get();
+    for (let i = 0; i < snap.docs.length; i += BATCH_SIZE) {
+      const batch = db.batch();
+      snap.docs.slice(i, i + BATCH_SIZE).forEach((d) => batch.delete(d.ref));
+      if (snap.docs.slice(i, i + BATCH_SIZE).length > 0) await batch.commit();
+    }
+  }
+
+  // 3. ライブ予定
+  const eventsSnap = await db.collection("live_events").where("user_id", "==", targetUid).get();
+  for (let i = 0; i < eventsSnap.docs.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    eventsSnap.docs.slice(i, i + BATCH_SIZE).forEach((d) => batch.delete(d.ref));
+    if (eventsSnap.docs.slice(i, i + BATCH_SIZE).length > 0) await batch.commit();
+  }
+
+  // 4. カスタム手帳
+  const notebookSnap = await db.collection("gear_notebook_entries").where("user_id", "==", targetUid).get();
+  for (let i = 0; i < notebookSnap.docs.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    notebookSnap.docs.slice(i, i + BATCH_SIZE).forEach((d) => batch.delete(d.ref));
+    if (notebookSnap.docs.slice(i, i + BATCH_SIZE).length > 0) await batch.commit();
+  }
+
+  // 5. フォロー関係（フォローしている・されている）
+  const followSnap1 = await db.collection("follows").where("follower_id", "==", targetUid).get();
+  const followSnap2 = await db.collection("follows").where("following_id", "==", targetUid).get();
+  const allFollowDocs = [...followSnap1.docs, ...followSnap2.docs];
+  for (let i = 0; i < allFollowDocs.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    allFollowDocs.slice(i, i + BATCH_SIZE).forEach((d) => batch.delete(d.ref));
+    if (allFollowDocs.slice(i, i + BATCH_SIZE).length > 0) await batch.commit();
+  }
+
+  // 6. プロフィール
+  const profileRef = db.collection("profiles").doc(targetUid);
+  const profileSnap = await profileRef.get();
+  if (profileSnap.exists) await profileRef.delete();
+}
