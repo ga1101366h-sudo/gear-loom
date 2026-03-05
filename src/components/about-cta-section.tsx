@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
 const BUTTON_CLASS =
-  "min-w-[260px] rounded-lg border border-cyan-400/80 bg-transparent px-8 py-3 text-base font-medium text-cyan-300 shadow-none hover:bg-cyan-500/10 hover:text-cyan-200 transition-colors";
+  "w-full sm:w-auto rounded-lg border border-cyan-400 bg-transparent px-6 py-3 text-base font-medium text-cyan-400 shadow-none hover:bg-cyan-500/10 hover:text-cyan-200 transition-colors";
 
 export function AboutCtaSection() {
   const { user, loading } = useAuth();
@@ -19,7 +19,7 @@ export function AboutCtaSection() {
         <div className="mx-auto max-w-2xl text-center">
           <div className="h-8 w-64 mx-auto animate-pulse rounded bg-gray-700/60" />
           <div className="mt-4 h-5 w-80 mx-auto animate-pulse rounded bg-gray-700/50" />
-          <div className="mt-10 h-12 w-[260px] mx-auto animate-pulse rounded-lg bg-gray-700/50" />
+          <div className="mt-10 h-12 w-full max-w-[260px] mx-auto animate-pulse rounded-lg bg-gray-700/50" />
           <div className="mt-8 h-4 w-24 mx-auto animate-pulse rounded bg-gray-700/40" />
         </div>
       </section>
