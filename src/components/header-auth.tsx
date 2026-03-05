@@ -43,13 +43,13 @@ export function HeaderAuth() {
         )}
         <Link
           href="/mypage"
-          className="text-xs sm:text-sm text-gray-300 hover:text-electric-blue transition-all duration-200 px-2 py-1.5 sm:px-0 sm:py-0 min-h-[40px] sm:min-h-0 flex items-center"
+          className="text-xs sm:text-sm text-gray-300 hover:text-electric-blue transition-all duration-200 px-1.5 py-1.5 sm:px-0 sm:py-0 min-h-[40px] sm:min-h-0 flex items-center whitespace-nowrap"
         >
           マイページ
         </Link>
         <Link
           href="/reviews/new"
-          className="inline-flex items-center justify-center rounded-lg bg-electric-blue px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-surface-dark hover:bg-electric-blue-dim transition-all duration-300 hover:scale-105 hover:shadow-electric-glow shrink-0"
+          className="inline-flex items-center justify-center rounded-lg bg-electric-blue px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-surface-dark hover:bg-electric-blue-dim transition-all duration-300 hover:scale-105 hover:shadow-electric-glow shrink-0 whitespace-nowrap"
         >
           投稿する
         </Link>
@@ -57,7 +57,7 @@ export function HeaderAuth() {
           type="button"
           onClick={handleSignOut}
           disabled={signingOut}
-          className="text-xs sm:text-sm text-gray-400 hover:text-gray-300 transition-colors disabled:opacity-50 px-2 py-1.5 sm:px-0 sm:py-0 min-h-[40px] sm:min-h-0 flex items-center"
+          className="text-xs sm:text-sm text-gray-400 hover:text-gray-300 transition-colors disabled:opacity-50 px-1.5 py-1.5 sm:px-0 sm:py-0 min-h-[40px] sm:min-h-0 flex items-center whitespace-nowrap"
         >
           {signingOut ? "…" : "ログアウト"}
         </button>
@@ -75,13 +75,13 @@ export function HeaderAuth() {
       </Link>
       <Link
         href="/login"
-        className="text-xs sm:text-sm text-gray-300 hover:text-electric-blue transition-all duration-200 hover:translate-y-[-1px] px-2 py-1.5 sm:px-0 sm:py-0 min-h-[40px] sm:min-h-0 flex items-center"
+        className="text-xs sm:text-sm text-gray-300 hover:text-electric-blue transition-all duration-200 hover:translate-y-[-1px] px-1.5 py-1.5 sm:px-0 sm:py-0 min-h-[40px] sm:min-h-0 flex items-center whitespace-nowrap"
       >
         ログイン
       </Link>
       <Link
         href="/login?next=/reviews/new"
-        className="inline-flex items-center justify-center rounded-lg border border-electric-blue/50 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-electric-blue hover:bg-electric-blue/10 transition-all duration-300 shrink-0"
+        className="inline-flex items-center justify-center rounded-lg border border-electric-blue/50 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-electric-blue hover:bg-electric-blue/10 transition-all duration-300 shrink-0 whitespace-nowrap"
       >
         投稿する
       </Link>

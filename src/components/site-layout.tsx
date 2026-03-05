@@ -50,11 +50,11 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full glass-card border-b border-surface-border transition-shadow duration-300 hover:shadow-electric-glow/20 pt-[env(safe-area-inset-top)]">
-        <div className="container mx-auto w-full min-[1708px]:max-w-[min(90vw,2200px)] flex min-h-[44px] sm:h-12 md:h-14 items-center gap-2 sm:gap-3 px-2 sm:px-4">
+      <header className="sticky top-0 z-50 w-full min-w-0 glass-card border-b border-surface-border transition-shadow duration-300 hover:shadow-electric-glow/20 pt-[env(safe-area-inset-top)]">
+        <div className="container mx-auto w-full min-w-0 min-[1708px]:max-w-[min(90vw,2200px)] flex flex-nowrap min-h-[44px] sm:h-12 md:h-14 items-center gap-1.5 sm:gap-3 px-2 sm:px-4 overflow-x-auto scrollbar-hide">
           <a
             href="/"
-            className="font-display text-lg sm:text-xl font-bold tracking-tight text-electric-blue shrink-0 transition-all duration-300 hover:tracking-wide hover:drop-shadow-glow py-1.5 sm:py-2 min-h-[40px] sm:min-h-[44px] flex items-center touch-manipulation"
+            className="font-display text-base sm:text-xl font-bold tracking-tight text-electric-blue shrink-0 transition-all duration-300 hover:tracking-wide hover:drop-shadow-glow py-1.5 sm:py-2 min-h-[40px] sm:min-h-[44px] flex items-center touch-manipulation"
           >
             Gear-Loom
           </a>
@@ -76,7 +76,7 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
           </div>
           <Link
             href="/about"
-            className="shrink-0 text-xs sm:text-sm text-cyan-400 transition-all duration-200 py-2 sm:py-2.5 min-h-[40px] sm:min-h-[44px] flex items-center px-2 sm:px-3 hover:text-cyan-300 hover:drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]"
+            className="shrink-0 text-xs sm:text-sm text-cyan-400 transition-all duration-200 py-2 sm:py-2.5 min-h-[40px] sm:min-h-[44px] flex items-center px-1.5 sm:px-3 hover:text-cyan-300 hover:drop-shadow-[0_0_8px_rgba(34,211,238,0.5)] whitespace-nowrap"
           >
             Gear-Loomとは？
           </Link>
