@@ -31,6 +31,7 @@ import { ReviewFormPreview, type ReviewPreviewData } from "@/components/review-f
 import { BodyTextareaWithAi } from "@/components/body-textarea-with-ai";
 import type { Maker } from "@/types/database";
 import type { SpecTag } from "@/types/database";
+import { buildReviewShareText } from "@/lib/x-share";
 
 export default function NewReviewPage() {
   const router = useRouter();
@@ -242,9 +243,12 @@ export default function NewReviewPage() {
 
       if (shareToXAfterSubmit && typeof window !== "undefined") {
         const reviewUrl = `${window.location.origin}/reviews/${reviewId}`;
-        const shareText = title.trim()
-          ? `「${title.trim()}」をGear-Loomに投稿しました`
-          : "Gear-Loomにレビューを投稿しました";
+        const shareText = buildReviewShareText({
+          title: title.trim() || pending.name,
+          makerName: makerName.trim() || undefined,
+          gearName: gearName.trim() || pending.name,
+          categoryNameJa: categoryNameJa || undefined,
+        });
         const shareUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
           text: shareText,
           url: reviewUrl,
@@ -372,9 +376,12 @@ export default function NewReviewPage() {
 
       if (shareToXAfterSubmit && typeof window !== "undefined") {
         const reviewUrl = `${window.location.origin}/reviews/${reviewRef.id}`;
-        const shareText = title.trim()
-          ? `「${title.trim()}」をGear-Loomに投稿しました`
-          : "Gear-Loomにレビューを投稿しました";
+        const shareText = buildReviewShareText({
+          title: title.trim() || undefined,
+          makerName: makerName.trim() || undefined,
+          gearName: gearName.trim() || undefined,
+          categoryNameJa: categoryNameJa || undefined,
+        });
         const shareUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
           text: shareText,
           url: reviewUrl,
