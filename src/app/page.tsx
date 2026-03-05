@@ -120,6 +120,7 @@ function toNewReviewItem(r: Review): NewReviewItem {
     id: r.id,
     title: r.title,
     gear_name: r.gear_name,
+    maker_name: r.maker_name ?? null,
     rating: r.rating,
     excerpt: "レビューを読む →",
     image,

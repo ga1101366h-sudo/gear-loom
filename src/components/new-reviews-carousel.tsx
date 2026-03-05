@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { ShareToXButton } from "@/components/share-to-x-button";
 import { Button } from "@/components/ui/button";
+import { buildReviewShareText } from "@/lib/x-share";
 
 const ARROW_SCROLL_PX = 280;
 
@@ -19,6 +20,7 @@ export interface NewReviewItem {
   id: string;
   title: string;
   gear_name: string;
+  maker_name?: string | null;
   rating: number;
   excerpt: string;
   image: string | null;
@@ -43,6 +45,12 @@ function StarRating({ rating }: { rating: number }) {
 const PLACEHOLDER_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260' viewBox='0 0 400 260'%3E%3Crect fill='%231a2332' width='400' height='260'/%3E%3Ctext fill='%236b7280' x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='14'%3EGear-Loom%3C/text%3E%3C/svg%3E";
 
 function ReviewCard({ item }: { item: NewReviewItem }) {
+  const shareText = buildReviewShareText({
+    title: item.title,
+    makerName: item.maker_name ?? undefined,
+    gearName: item.gear_name,
+    categoryNameJa: item.category,
+  });
   return (
     <div className="relative shrink-0 w-[160px] sm:w-[220px] md:w-[280px] group">
       <Link href={`/reviews/${item.id}`} className="block">
@@ -112,7 +120,7 @@ function ReviewCard({ item }: { item: NewReviewItem }) {
         <Button variant="secondary" size="sm" asChild className="h-7 w-7 p-0 sm:h-auto sm:w-auto sm:px-2">
           <ShareToXButton
             path={`/reviews/${item.id}`}
-            text={item.title}
+            text={shareText}
             className="text-xs"
           />
         </Button>
