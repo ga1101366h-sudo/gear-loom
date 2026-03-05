@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Menu, PenSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { HeaderAuth } from "@/components/header-auth";
+import { HeaderMobileMenu } from "@/components/header-mobile-menu";
 import { MAIN_NAV_ITEMS } from "@/data/nav-items";
 import { useUserProfile } from "@/hooks/use-user-profile";
 
@@ -27,6 +29,7 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useUserProfile();
   const isEmbed = pathname?.startsWith("/embed");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // user_id 未設定のユーザーが許可外の画面に遷移した場合は遷移先で即座にログアウト
   // ※プロフィール未取得・取得失敗時（profile === undefined）は signOut しない＝ログイン状態を維持
@@ -51,38 +54,76 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <header className="sticky top-0 z-50 w-full min-w-0 glass-card border-b border-surface-border transition-shadow duration-300 hover:shadow-electric-glow/20 pt-[env(safe-area-inset-top)]">
-        <div className="container mx-auto w-full min-w-0 min-[1708px]:max-w-[min(90vw,2200px)] flex flex-nowrap min-h-[44px] sm:h-12 md:h-14 items-center gap-1.5 sm:gap-3 px-2 sm:px-4 overflow-x-auto scrollbar-hide">
-          <a
-            href="/"
-            className="font-display text-base sm:text-xl font-bold tracking-tight text-electric-blue shrink-0 transition-all duration-300 hover:tracking-wide hover:drop-shadow-glow py-1.5 sm:py-2 min-h-[40px] sm:min-h-[44px] flex items-center touch-manipulation"
-          >
-            Gear-Loom
-          </a>
-          <div className="hidden md:block flex-1 min-w-0 overflow-hidden" aria-hidden>
-            <nav
-              className="flex items-center gap-0 sm:gap-1 overflow-x-auto scrollbar-hide w-full py-1 -mx-1"
-              aria-label="メインメニュー"
+        <div className="container mx-auto w-full min-w-0 min-[1708px]:max-w-[min(90vw,2200px)] flex min-h-[44px] sm:h-12 md:h-14 items-center justify-between gap-2 px-3 sm:px-4">
+          {/* モバイル: ロゴ ＋ 投稿 or ログイン ＋ ハンバーガー */}
+          <div className="flex md:hidden w-full min-w-0 items-center gap-2">
+            <a
+              href="/"
+              className="font-display text-base font-bold tracking-tight text-electric-blue shrink-0 transition-all duration-300 hover:drop-shadow-glow py-2 min-h-[44px] flex items-center touch-manipulation"
             >
-              {MAIN_NAV_ITEMS.map(({ href, label }) => (
-                <a
-                  key={href + label}
-                  href={href}
-                  className="shrink-0 text-xs sm:text-sm text-gray-300 hover:text-electric-blue transition-all duration-200 whitespace-nowrap px-2 py-2 sm:px-3 sm:py-2.5 min-h-[40px] sm:min-h-[44px] flex items-center touch-manipulation rounded-md active:bg-white/5"
-                >
-                  {label}
-                </a>
-              ))}
-            </nav>
+              Gear-Loom
+            </a>
+            <div className="flex-1 min-w-0" aria-hidden />
+            {user ? (
+              <Link
+                href="/reviews/new"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-electric-blue px-2.5 py-2 text-xs font-medium text-surface-dark hover:bg-electric-blue-dim transition-all hover:shadow-electric-glow"
+              >
+                <PenSquare className="h-4 w-4" aria-hidden />
+                <span>投稿</span>
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="inline-flex shrink-0 items-center justify-center rounded-lg border border-electric-blue/50 bg-electric-blue/10 px-3 py-2 text-xs font-medium text-electric-blue hover:bg-electric-blue/20 transition-all"
+              >
+                ログイン
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-300 hover:bg-electric-blue/10 hover:text-electric-blue transition-colors touch-manipulation"
+              aria-label="メニューを開く"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
           </div>
-          <Link
-            href="/about"
-            className="shrink-0 text-xs sm:text-sm text-cyan-400 transition-all duration-200 py-2 sm:py-2.5 min-h-[40px] sm:min-h-[44px] flex items-center px-1.5 sm:px-3 hover:text-cyan-300 hover:drop-shadow-[0_0_8px_rgba(34,211,238,0.5)] whitespace-nowrap"
-          >
-            Gear-Loomとは？
-          </Link>
-          <HeaderAuth />
+          {/* PC: 従来の横並びナビ */}
+          <div className="hidden md:flex md:w-full md:min-w-0 md:items-center md:gap-3">
+            <a
+              href="/"
+              className="font-display text-xl font-bold tracking-tight text-electric-blue shrink-0 transition-all duration-300 hover:tracking-wide hover:drop-shadow-glow py-2 min-h-[44px] flex items-center touch-manipulation"
+            >
+              Gear-Loom
+            </a>
+            <div className="flex-1 min-w-0 overflow-hidden" aria-hidden>
+              <nav
+                className="flex items-center gap-1 overflow-x-auto scrollbar-hide w-full py-1 -mx-1"
+                aria-label="メインメニュー"
+              >
+                {MAIN_NAV_ITEMS.map(({ href, label }) => (
+                  <a
+                    key={href + label}
+                    href={href}
+                    className="shrink-0 text-sm text-gray-300 hover:text-electric-blue transition-all duration-200 whitespace-nowrap px-3 py-2.5 min-h-[44px] flex items-center touch-manipulation rounded-md active:bg-white/5"
+                  >
+                    {label}
+                  </a>
+                ))}
+              </nav>
+            </div>
+            <Link
+              href="/about"
+              className="shrink-0 text-sm text-cyan-400 transition-all duration-200 py-2.5 min-h-[44px] flex items-center px-3 hover:text-cyan-300 hover:drop-shadow-[0_0_8px_rgba(34,211,238,0.5)] whitespace-nowrap"
+            >
+              Gear-Loomとは？
+            </Link>
+            <HeaderAuth />
+          </div>
         </div>
       </header>
+      <HeaderMobileMenu open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-20 w-full min-w-0 min-[1708px]:max-w-[min(90vw,2200px)] [padding-bottom:max(5rem,env(safe-area-inset-bottom))]">
         {children}
       </main>

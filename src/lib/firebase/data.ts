@@ -714,6 +714,89 @@ export async function getFollowingIdsFromFirestore(
   }
 }
 
+/** トップページ用：フォロー中ユーザーのレビュー一覧（created_at 降順・新着順、最大 limit 件） */
+export async function getReviewsFromFollowedUsersFromFirestore(
+  myUid: string,
+  limit = 12
+): Promise<Review[]> {
+  const db = getAdminFirestore();
+  if (!db || !myUid.trim()) return [];
+  const followingIds = await getFollowingIdsFromFirestore(myUid, 30);
+  if (followingIds.length === 0) return [];
+
+  const chunkSize = 10;
+  // orderBy を使うと複合インデックスが必要になるため、取得後にメモリで新着順ソートする
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allDocs: any[] = [];
+  for (let i = 0; i < followingIds.length; i += chunkSize) {
+    const chunk = followingIds.slice(i, i + chunkSize);
+    const snap = await db
+      .collection("reviews")
+      .where("author_id", "in", chunk)
+      .limit(80)
+      .get();
+    snap.docs.forEach((d) => allDocs.push(d));
+  }
+  allDocs.sort((a, b) => (b.data().created_at ?? "").localeCompare(a.data().created_at ?? ""));
+  const trimmed = allDocs.slice(0, limit);
+  const authorIds = trimmed.map((d) => (d.data().author_id as string) ?? "").filter(Boolean);
+  const profileMap = await getProfilesByAuthorIds(db, authorIds);
+
+  const reviews: Review[] = trimmed.map((d) => {
+    const data = d.data();
+    const authorId = (data.author_id as string) ?? "";
+    const profile = authorId ? profileMap.get(authorId) : null;
+    return {
+      id: d.id,
+      author_id: authorId,
+      category_id: (data.category_id as string) ?? "",
+      maker_id: (data.maker_id as string) ?? null,
+      maker_name: (data.maker_name as string) ?? null,
+      title: (data.title as string) ?? "",
+      gear_name: (data.gear_name as string) ?? "",
+      rating: (data.rating as number) ?? 0,
+      body_md: (data.body_md as string) ?? null,
+      body_html: (data.body_html as string) ?? null,
+      youtube_url: (data.youtube_url as string) ?? null,
+      event_url: (data.event_url as string) ?? null,
+      situations: (data.situations as string[]) ?? null,
+      created_at: (data.created_at as string) ?? "",
+      updated_at: (data.updated_at as string) ?? "",
+      categories: data.category_name_ja
+        ? {
+            id: "",
+            slug: (data.category_slug as string) ?? "",
+            name_ja: data.category_name_ja as string,
+            name_en: null,
+            sort_order: 0,
+            created_at: "",
+          }
+        : undefined,
+      profiles: profile
+        ? {
+            id: authorId,
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
+            user_id: profile.user_id,
+            phone: null,
+            bio: null,
+            main_instrument: null,
+            owned_gear: null,
+            sns_twitter: null,
+            sns_instagram: null,
+            sns_youtube: null,
+            sns_twitch: null,
+            contact_email: null,
+            created_at: "",
+            updated_at: "",
+          }
+        : undefined,
+      review_images: (data.review_images as { storage_path: string; sort_order: number }[]) ?? [],
+    } as Review;
+  });
+  return reviews;
+}
+
 export type TimelineItemReview = {
   type: "review";
   id: string;
