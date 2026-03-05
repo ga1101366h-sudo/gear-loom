@@ -80,7 +80,7 @@ export async function generateMetadata({
       .sort((a, b) => a.sort_order - b.sort_order)[0];
     ogImageUrl = getFirebaseStorageUrl(first.storage_path);
   } else {
-    ogImageUrl = `${origin}/images/mock/mock-1.png`;
+    ogImageUrl = `${origin}/images/mock/ogp-final.png`;
   }
   const imageAlt = review.title || review.gear_name || "Gear-Loom レビュー";
   const ogImages = [

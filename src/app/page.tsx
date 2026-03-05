@@ -38,7 +38,7 @@ import type { Review, LiveEvent } from "@/types/database";
 export const revalidate = 60;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.gear-loom.com";
-const DEFAULT_OG_IMAGE = `${SITE_URL}/images/mock/mock-1.png`;
+const DEFAULT_OG_IMAGE = `${SITE_URL}/images/mock/ogp-final.png`;
 
 export const metadata: Metadata = {
   title: "Gear-Loom | あなたの愛機を語ろう",
