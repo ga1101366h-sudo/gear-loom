@@ -154,15 +154,17 @@ export default async function AboutPage() {
                 key={f.title}
                 className="rounded-2xl border border-surface-border/80 bg-gray-900/80 p-6 shadow-lg shadow-cyan-500/5 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(34,211,238,0.08)]"
               >
-                <div className="flex items-center justify-center h-10 w-10 rounded-full bg-cyan-500/10 text-cyan-400">
-                  {f.icon}
+                <div className="flex flex-col gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-500/10 text-cyan-400">
+                    {f.icon}
+                  </div>
+                  <h3 className="font-display text-lg font-semibold text-white">
+                    {f.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-gray-400">
+                    {f.description}
+                  </p>
                 </div>
-                <h3 className="mt-4 font-display text-lg font-semibold text-white">
-                  {f.title}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-gray-400">
-                  {f.description}
-                </p>
               </div>
             ))}
           </div>
