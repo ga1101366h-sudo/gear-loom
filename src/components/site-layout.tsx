@@ -29,14 +29,16 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
   const isEmbed = pathname?.startsWith("/embed");
 
   // user_id 未設定のユーザーが許可外の画面に遷移した場合は遷移先で即座にログアウト
+  // ※プロフィール未取得・取得失敗時（profile === undefined）は signOut しない＝ログイン状態を維持
   useEffect(() => {
     if (isEmbed || !user || isAllowedWithoutUserId(pathname ?? null)) return;
     if (profileLoading) return;
+    if (profile === undefined) return;
     const userIdSet = profile && profile.user_id != null && String(profile.user_id).trim() !== "";
     if (!userIdSet) {
       void signOut();
     }
-  }, [pathname, user?.uid, profile?.user_id, profileLoading, isEmbed, signOut]);
+  }, [pathname, user?.uid, profile, profileLoading, isEmbed, signOut]);
 
   if (isEmbed) {
     return (
@@ -72,6 +74,12 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
               ))}
             </nav>
           </div>
+          <Link
+            href="/about"
+            className="shrink-0 text-xs sm:text-sm text-cyan-400 transition-all duration-200 py-2 sm:py-2.5 min-h-[40px] sm:min-h-[44px] flex items-center px-2 sm:px-3 hover:text-cyan-300 hover:drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]"
+          >
+            Gear-Loomとは？
+          </Link>
           <HeaderAuth />
         </div>
       </header>

@@ -108,6 +108,32 @@ export async function getProfilesListForTopPage(limit = 20): Promise<ProfileList
   }
 }
 
+type FirestoreDb = NonNullable<ReturnType<typeof getAdminFirestore>>;
+
+/** author_id 一覧から profiles を一括取得し Map で返す */
+async function getProfilesByAuthorIds(
+  db: FirestoreDb,
+  authorIds: string[]
+): Promise<Map<string, { display_name: string | null; user_id: string | null; avatar_url: string | null }>> {
+  const unique = [...new Set(authorIds.filter((id) => id?.trim()))];
+  if (unique.length === 0) return new Map();
+  const snaps = await Promise.all(
+    unique.map((id) => db.collection("profiles").doc(id).get())
+  );
+  const map = new Map<string, { display_name: string | null; user_id: string | null; avatar_url: string | null }>();
+  snaps.forEach((snap, i) => {
+    const uid = unique[i];
+    if (!snap.exists || !uid) return;
+    const data = snap.data();
+    map.set(uid, {
+      display_name: (data?.display_name as string) ?? null,
+      user_id: (data?.user_id as string) ?? null,
+      avatar_url: (data?.avatar_url as string) ?? null,
+    });
+  });
+  return map;
+}
+
 export async function getReviewsFromFirestore(
   limit?: number,
   categorySlug?: string
@@ -124,11 +150,25 @@ export async function getReviewsFromFirestore(
       if (limit) q = q.limit(limit) as ReturnType<typeof q.limit>;
       snap = await q.get();
     }
+    const authorIds = snap.docs.map((d) => (d.data().author_id as string) ?? "").filter(Boolean);
+    const profileMap = await getProfilesByAuthorIds(db, authorIds);
+
     const reviews: Review[] = snap.docs.map((d) => {
       const data = d.data();
+      const authorId = data.author_id ?? "";
+      const fromDoc =
+        data.author_user_id != null || data.author_display_name != null
+          ? {
+              display_name: data.author_display_name ?? null,
+              user_id: data.author_user_id ?? null,
+              avatar_url: (data.author_avatar_url as string) ?? null,
+            }
+          : null;
+      const fromProfile = authorId ? profileMap.get(authorId) : null;
+      const profile = fromDoc ?? fromProfile;
       return {
         id: d.id,
-        author_id: data.author_id ?? "",
+        author_id: authorId,
         category_id: data.category_id ?? "",
         maker_id: data.maker_id ?? null,
         maker_name: (data.maker_name as string | null) ?? null,
@@ -145,12 +185,12 @@ export async function getReviewsFromFirestore(
         categories: data.category_name_ja
           ? { id: "", slug: (data.category_slug as string) ?? "", name_ja: data.category_name_ja, name_en: null, sort_order: 0, created_at: "" }
           : undefined,
-        profiles: data.author_user_id != null || data.author_display_name != null
+        profiles: profile
           ? {
-              id: "",
-              display_name: data.author_display_name ?? null,
-              avatar_url: null,
-              user_id: data.author_user_id ?? null,
+              id: authorId,
+              display_name: profile.display_name,
+              avatar_url: profile.avatar_url,
+              user_id: profile.user_id,
               phone: null,
               bio: null,
               main_instrument: null,
@@ -334,6 +374,29 @@ export async function getReviewLikeCountFromFirestore(reviewId: string): Promise
   }
 }
 
+/** 複数レビューIDのいいね数を一括取得（公開プロフィール等で使用） */
+export async function getReviewLikeCountsForIdsFromFirestore(
+  reviewIds: string[]
+): Promise<Record<string, number>> {
+  const db = getAdminFirestore();
+  const result: Record<string, number> = {};
+  if (!db || reviewIds.length === 0) return result;
+  const CHUNK = 10;
+  try {
+    for (let i = 0; i < reviewIds.length; i += CHUNK) {
+      const chunk = reviewIds.slice(i, i + CHUNK);
+      const snap = await db.collection("review_likes").where("review_id", "in", chunk).get();
+      snap.docs.forEach((d) => {
+        const rid = d.data().review_id as string;
+        if (rid) result[rid] = (result[rid] ?? 0) + 1;
+      });
+    }
+    return result;
+  } catch {
+    return result;
+  }
+}
+
 export async function getReviewHelpfulCountFromFirestore(reviewId: string): Promise<number> {
   const db = getAdminFirestore();
   if (!db) return 0;
@@ -361,12 +424,26 @@ export async function getPopularReviewsFromFirestore(limit = 20): Promise<Review
       const rid = d.data().review_id;
       if (rid) likeCountByReviewId[rid] = (likeCountByReviewId[rid] ?? 0) + 1;
     });
+    const authorIds = reviewsSnap.docs.map((d) => (d.data().author_id as string) ?? "").filter(Boolean);
+    const profileMap = await getProfilesByAuthorIds(db, authorIds);
+
     const reviews: ReviewWithLikes[] = reviewsSnap.docs.map((d) => {
       const data = d.data();
+      const authorId = data.author_id ?? "";
+      const fromDoc =
+        data.author_user_id != null || data.author_display_name != null
+          ? {
+              display_name: data.author_display_name ?? null,
+              user_id: data.author_user_id ?? null,
+              avatar_url: (data.author_avatar_url as string) ?? null,
+            }
+          : null;
+      const fromProfile = authorId ? profileMap.get(authorId) : null;
+      const profile = fromDoc ?? fromProfile;
       const likeCount = likeCountByReviewId[d.id] ?? 0;
       return {
         id: d.id,
-        author_id: data.author_id ?? "",
+        author_id: authorId,
         category_id: data.category_id ?? "",
         maker_id: data.maker_id ?? null,
         maker_name: (data.maker_name as string | null) ?? null,
@@ -383,12 +460,12 @@ export async function getPopularReviewsFromFirestore(limit = 20): Promise<Review
         categories: data.category_name_ja
           ? { id: "", slug: (data.category_slug as string) ?? "", name_ja: data.category_name_ja, name_en: null, sort_order: 0, created_at: "" }
           : undefined,
-        profiles: data.author_user_id != null || data.author_display_name != null
+        profiles: profile
           ? {
-              id: "",
-              display_name: data.author_display_name ?? null,
-              avatar_url: null,
-              user_id: data.author_user_id ?? null,
+              id: authorId,
+              display_name: profile.display_name,
+              avatar_url: profile.avatar_url,
+              user_id: profile.user_id,
               phone: null,
               bio: null,
               main_instrument: null,
@@ -498,4 +575,261 @@ export async function getLiveEventsByUserIdFromFirestore(userId: string): Promis
   } catch {
     return [];
   }
+}
+
+/** トップページ「Gear-Loomからのおしらせ」用。公開で読む（記事風：タイトル＋本文） */
+export type SiteAnnouncement = {
+  id: string;
+  date: string;
+  title: string;
+  body: string;
+  url: string | null;
+  is_important: boolean;
+  created_at: string;
+};
+
+export async function getSiteAnnouncementsFromFirestore(limit = 10): Promise<SiteAnnouncement[]> {
+  const db = getAdminFirestore();
+  if (!db) return [];
+  try {
+    const snap = await db
+      .collection("site_announcements")
+      .orderBy("date", "desc")
+      .limit(limit)
+      .get();
+    return snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        date: (data.date as string) ?? "",
+        title: (data.title as string) ?? "",
+        body: (data.body as string) ?? "",
+        url: (data.url as string)?.trim() || null,
+        is_important: Boolean(data.is_important),
+        created_at: (data.created_at as string) ?? "",
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function getSiteAnnouncementByIdFromFirestore(id: string): Promise<SiteAnnouncement | null> {
+  const db = getAdminFirestore();
+  if (!db || !id?.trim()) return null;
+  try {
+    const snap = await db.collection("site_announcements").doc(id).get();
+    if (!snap.exists) return null;
+    const data = snap.data()!;
+    return {
+      id: snap.id,
+      date: (data.date as string) ?? "",
+      title: (data.title as string) ?? "",
+      body: (data.body as string) ?? "",
+      url: (data.url as string)?.trim() || null,
+      is_important: Boolean(data.is_important),
+      created_at: (data.created_at as string) ?? "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Aboutページ用：集計クエリ（count）で件数を取得。読み取りコストを抑える */
+export type AboutPageCounts = {
+  reviews: number;
+  profiles: number;
+  notebookEntries: number;
+  liveEvents: number;
+};
+
+export async function getAboutPageCountsFromFirestore(): Promise<AboutPageCounts> {
+  const db = getAdminFirestore();
+  const fallback: AboutPageCounts = { reviews: 0, profiles: 0, notebookEntries: 0, liveEvents: 0 };
+  if (!db) return fallback;
+
+  async function getCount(collectionName: string): Promise<number> {
+    try {
+      const colRef = db.collection(collectionName);
+      const countSnap = await (colRef as import("@google-cloud/firestore").Query).count().get();
+      return countSnap.data().count ?? 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  try {
+    const [reviews, profiles, notebookEntries, liveEvents] = await Promise.all([
+      getCount("reviews"),
+      getCount("profiles"),
+      getCount("gear_notebook_entries"),
+      getCount("live_events"),
+    ]);
+    return { reviews, profiles, notebookEntries, liveEvents };
+  } catch {
+    return fallback;
+  }
+}
+
+// --- フォロー機能 ---
+
+export type FollowCounts = { followingCount: number; followersCount: number };
+
+/** 指定プロフィールのフォロー数・フォロワー数（集計クエリで取得） */
+export async function getFollowCountsFromFirestore(profileUid: string): Promise<FollowCounts> {
+  const db = getAdminFirestore();
+  if (!db || !profileUid.trim()) return { followingCount: 0, followersCount: 0 };
+  try {
+    const followingRef = db.collection("follows").where("follower_id", "==", profileUid);
+    const followersRef = db.collection("follows").where("following_id", "==", profileUid);
+    const [followingSnap, followersSnap] = await Promise.all([
+      (followingRef as import("@google-cloud/firestore").Query).count().get(),
+      (followersRef as import("@google-cloud/firestore").Query).count().get(),
+    ]);
+    return {
+      followingCount: followingSnap.data().count ?? 0,
+      followersCount: followersSnap.data().count ?? 0,
+    };
+  } catch {
+    return { followingCount: 0, followersCount: 0 };
+  }
+}
+
+/** 自分がフォローしているユーザーID一覧（タイムライン用・最大30件） */
+export async function getFollowingIdsFromFirestore(
+  myUid: string,
+  limit = 30
+): Promise<string[]> {
+  const db = getAdminFirestore();
+  if (!db || !myUid.trim()) return [];
+  try {
+    const snap = await db
+      .collection("follows")
+      .where("follower_id", "==", myUid)
+      .limit(limit)
+      .get();
+    return snap.docs.map((d) => (d.data().following_id as string) ?? "").filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+export type TimelineItemReview = {
+  type: "review";
+  id: string;
+  created_at: string;
+  author_id: string;
+  title: string;
+  gear_name: string;
+  category_id: string;
+  rating: number;
+  review_images?: { storage_path: string; sort_order: number }[];
+  category_name_ja?: string;
+  profile_display_name?: string | null;
+  profile_user_id?: string | null;
+};
+export type TimelineItemLiveEvent = {
+  type: "live_event";
+  id: string;
+  created_at: string;
+  user_id: string;
+  title: string;
+  event_date: string;
+  venue: string | null;
+  profile_display_name?: string | null;
+  profile_user_id?: string | null;
+};
+export type TimelineItem = TimelineItemReview | TimelineItemLiveEvent;
+
+const FOLLOW_TIMELINE_REVIEW_LIMIT = 40;
+const FOLLOW_TIMELINE_EVENT_LIMIT = 30;
+
+/** フォロー中ユーザーのレビュー＋ライブ予定を時系列で取得（in は10件までなのでチャンクで取得） */
+export async function getFollowingTimelineFromFirestore(
+  myUid: string,
+  limit = 50
+): Promise<TimelineItem[]> {
+  const db = getAdminFirestore();
+  if (!db || !myUid.trim()) return [];
+  const followingIds = await getFollowingIdsFromFirestore(myUid, 30);
+  if (followingIds.length === 0) return [];
+
+  const items: TimelineItem[] = [];
+  const chunkSize = 10;
+
+  for (let i = 0; i < followingIds.length; i += chunkSize) {
+    const chunk = followingIds.slice(i, i + chunkSize);
+    const reviewsSnap = await db
+      .collection("reviews")
+      .where("author_id", "in", chunk)
+      .orderBy("created_at", "desc")
+      .limit(Math.ceil(FOLLOW_TIMELINE_REVIEW_LIMIT / (followingIds.length / chunkSize)) || 15)
+      .get();
+    reviewsSnap.docs.forEach((d) => {
+      const data = d.data();
+      items.push({
+        type: "review",
+        id: d.id,
+        created_at: (data.created_at as string) ?? "",
+        author_id: (data.author_id as string) ?? "",
+        title: (data.title as string) ?? "",
+        gear_name: (data.gear_name as string) ?? "",
+        category_id: (data.category_id as string) ?? "",
+        rating: (data.rating as number) ?? 0,
+        review_images: (data.review_images as { storage_path: string; sort_order: number }[]) ?? [],
+        category_name_ja: data.category_name_ja as string | undefined,
+      });
+    });
+  }
+
+  for (let i = 0; i < followingIds.length; i += chunkSize) {
+    const chunk = followingIds.slice(i, i + chunkSize);
+    const eventsSnap = await db
+      .collection("live_events")
+      .where("user_id", "in", chunk)
+      .orderBy("created_at", "desc")
+      .limit(Math.ceil(FOLLOW_TIMELINE_EVENT_LIMIT / (followingIds.length / chunkSize)) || 10)
+      .get();
+    eventsSnap.docs.forEach((d) => {
+      const data = d.data();
+      items.push({
+        type: "live_event",
+        id: d.id,
+        created_at: (data.created_at as string) ?? "",
+        user_id: (data.user_id as string) ?? "",
+        title: (data.title as string) ?? "",
+        event_date: (data.event_date as string) ?? "",
+        venue: (data.venue as string) ?? null,
+      });
+    });
+  }
+
+  items.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+  const trimmed = items.slice(0, limit);
+
+  const authorUids = [...new Set(trimmed.map((x) => (x.type === "review" ? x.author_id : x.user_id)))].filter(Boolean);
+  const profileMap = new Map<string, { display_name: string | null; user_id: string | null }>();
+  await Promise.all(
+    authorUids.map(async (uid) => {
+      try {
+        const snap = await db.collection("profiles").doc(uid).get();
+        const d = snap.data();
+        profileMap.set(uid, {
+          display_name: (d?.display_name as string) ?? null,
+          user_id: (d?.user_id as string) ?? null,
+        });
+      } catch {
+        profileMap.set(uid, { display_name: null, user_id: null });
+      }
+    })
+  );
+
+  return trimmed.map((item) => {
+    const uid = item.type === "review" ? item.author_id : item.user_id;
+    const profile = profileMap.get(uid);
+    if (item.type === "review") {
+      return { ...item, profile_display_name: profile?.display_name ?? null, profile_user_id: profile?.user_id ?? null };
+    }
+    return { ...item, profile_display_name: profile?.display_name ?? null, profile_user_id: profile?.user_id ?? null };
+  });
 }

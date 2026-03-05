@@ -24,6 +24,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CategoryDropdown } from "@/components/category-dropdown";
 import { getGroupSlugByCategorySlug, isContentOnlyCategorySlug } from "@/data/post-categories";
 import { getPendingGear, clearPendingGear } from "@/lib/pending-gear";
+
+const REVIEW_TITLE_MAX = 100;
+const REVIEW_BODY_MAX = 10000;
 import { ReviewFormPreview, type ReviewPreviewData } from "@/components/review-form-preview";
 import { BodyTextareaWithAi } from "@/components/body-textarea-with-ai";
 import type { Maker } from "@/types/database";
@@ -160,6 +163,16 @@ export default function NewReviewPage() {
   }, [files]);
 
   /** 未登録機材＋レビューを同時保存（Submit時のみDBに書き込む） */
+  function validateLengths(): boolean {
+    if (title.length > REVIEW_TITLE_MAX || bodyMd.length > REVIEW_BODY_MAX) {
+      setError(
+        `タイトルは${REVIEW_TITLE_MAX}文字以内、本文は${REVIEW_BODY_MAX.toLocaleString()}文字以内で入力してください。`
+      );
+      return false;
+    }
+    return true;
+  }
+
   async function handleSubmitWithNewGear(pending: {
     name: string;
     imageUrl: string;
@@ -168,6 +181,7 @@ export default function NewReviewPage() {
     categoryNameJa?: string;
   }) {
     if (!user || !db) return;
+    if (!validateLengths()) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -250,6 +264,7 @@ export default function NewReviewPage() {
     e.preventDefault();
     if (!user || !db) return;
     setError(null);
+    if (!validateLengths()) return;
     if (!categorySlug || !categoryNameJa) {
       setError("カテゴリを選択してください。");
       return;
@@ -426,10 +441,17 @@ export default function NewReviewPage() {
             <Input
               id="title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setTitle(v.length > REVIEW_TITLE_MAX ? v.slice(0, REVIEW_TITLE_MAX) : v);
+              }}
               placeholder="例: 初の真空管プリアンプ"
+              maxLength={REVIEW_TITLE_MAX}
               required
             />
+            <p className="text-xs text-gray-500 tabular-nums">
+              {title.length} / {REVIEW_TITLE_MAX} 文字
+            </p>
           </div>
 
           {!isContentOnlyCategory && (
@@ -507,7 +529,11 @@ export default function NewReviewPage() {
             placeholder="使い心地や音の特徴などを書いてください"
             rows={8}
             disabled={submitting}
+            maxLength={REVIEW_BODY_MAX}
           />
+          <p className="text-xs text-gray-500 tabular-nums">
+            {bodyMd.length.toLocaleString()} / {REVIEW_BODY_MAX.toLocaleString()} 文字
+          </p>
 
           <div className="space-y-2">
             <Label>使用シチュエーション（任意・複数選択可）</Label>

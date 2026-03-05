@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -19,6 +19,17 @@ import {
 } from "@/components/ui/card";
 import { LiveEventCalendar } from "@/components/live-event-calendar";
 import { ProfilePreviewOverlay } from "@/components/profile-preview-overlay";
+import {
+  fetchFollowingTimelineClient,
+  getFirstReviewImageUrl as getTimelineReviewImageUrl,
+  type TimelineItem,
+} from "@/lib/firebase/follow-timeline-client";
+import {
+  fetchFollowingListClient,
+  fetchFollowersListClient,
+  type FollowListItem,
+} from "@/lib/firebase/follow-list-client";
+import { FollowButton } from "@/components/follow-button";
 import type { Profile } from "@/types/database";
 import type { Review } from "@/types/database";
 import type { LiveEvent } from "@/types/database";
@@ -40,11 +51,106 @@ const PLACEHOLDER_IMG =
 const EMPTY_SECTION_CLASS =
   "min-h-[72px] flex items-center rounded-lg border border-dashed border-surface-border bg-surface-card/20 px-4 py-4 text-gray-500 text-sm";
 
+const CAROUSEL_PAGE_SIZE = 5;
+
+function CarouselNav({
+  currentPage,
+  totalPages,
+  onPrev,
+  onNext,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-end gap-2 mt-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className="h-8 w-8 shrink-0"
+        onClick={onPrev}
+        disabled={currentPage <= 0}
+        aria-label="前へ"
+      >
+        ‹
+      </Button>
+      <span className="text-xs text-gray-500 tabular-nums">
+        {currentPage + 1} / {totalPages}
+      </span>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className="h-8 w-8 shrink-0"
+        onClick={onNext}
+        disabled={currentPage >= totalPages - 1}
+        aria-label="次へ"
+      >
+        ›
+      </Button>
+    </div>
+  );
+}
+
 function getFirstReviewImageUrl(r: Review): string | null {
   if (!r.review_images?.length) return null;
   const first = [...r.review_images].sort((a, b) => a.sort_order - b.sort_order)[0];
   const url = getFirebaseStorageUrl(first.storage_path);
   return url || null;
+}
+
+function MypageFollowListItem({
+  item,
+  onUnfollow,
+  onFollow,
+  showUnfollowButton,
+}: {
+  item: FollowListItem;
+  onUnfollow?: () => void;
+  /** フォロワー一覧でフォローボタンを押してフォローしたときに呼ばれ、フォロー中カウントを+1する */
+  onFollow?: () => void;
+  showUnfollowButton?: boolean;
+}) {
+  const profileHref = item.user_id ? `/users/${encodeURIComponent(item.user_id)}` : null;
+  const displayLabel = item.display_name || item.user_id || "ユーザー";
+  const handleFollowChange = (isFollowing: boolean) => {
+    if (!isFollowing && showUnfollowButton) onUnfollow?.();
+    if (isFollowing) onFollow?.();
+  };
+  return (
+    <li className="flex items-center gap-3 rounded-lg border border-surface-border bg-surface-card/50 px-3 py-2">
+      {item.avatar_url ? (
+        <div className="relative w-10 h-10 shrink-0 rounded-full overflow-hidden bg-surface-card">
+          <Image src={item.avatar_url} alt="" fill className="object-cover" sizes="40px" unoptimized />
+        </div>
+      ) : (
+        <div className="w-10 h-10 shrink-0 rounded-full bg-surface-card border border-surface-border flex items-center justify-center text-electric-blue font-bold text-sm">
+          {displayLabel.charAt(0).toUpperCase() || "?"}
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        {profileHref ? (
+          <Link href={profileHref} className="font-medium text-white hover:text-electric-blue truncate block">
+            {displayLabel}
+          </Link>
+        ) : (
+          <span className="font-medium text-white truncate block">{displayLabel}</span>
+        )}
+        {item.user_id && (
+          <p className="text-xs text-gray-500 truncate">@{item.user_id}</p>
+        )}
+      </div>
+      <FollowButton
+        targetProfileUid={item.uid}
+        onFollowChange={handleFollowChange}
+        className="shrink-0"
+      />
+    </li>
+  );
 }
 
 export default function MypagePage() {
@@ -56,8 +162,30 @@ export default function MypagePage() {
   const [likedReviews, setLikedReviews] = useState<Review[]>([]);
   const [totalLikes, setTotalLikes] = useState(0);
   const [liveEvents, setLiveEvents] = useState<LiveEvent[]>([]);
+  const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showProfilePreview, setShowProfilePreview] = useState(false);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followListModal, setFollowListModal] = useState<"following" | "followers" | null>(null);
+  const [followingList, setFollowingList] = useState<FollowListItem[]>([]);
+  const [followersList, setFollowersList] = useState<FollowListItem[]>([]);
+  const [followListLoading, setFollowListLoading] = useState(false);
+  const [timelinePage, setTimelinePage] = useState(0);
+  const [likedPage, setLikedPage] = useState(0);
+  const [myReviewsPage, setMyReviewsPage] = useState(0);
+  const [calendarPage, setCalendarPage] = useState(0);
+
+  const sortedCalendarEvents = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const upcoming = liveEvents
+      .filter((e) => (e.event_date || "") >= today)
+      .sort((a, b) => (a.event_date || "").localeCompare(b.event_date || ""));
+    const past = liveEvents
+      .filter((e) => (e.event_date || "") < today)
+      .sort((a, b) => (b.event_date || "").localeCompare(a.event_date || ""));
+    return [...upcoming, ...past];
+  }, [liveEvents]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -69,44 +197,46 @@ export default function MypagePage() {
       setLoading(false);
       return;
     }
-    (async () => {
-      const uid = user.uid;
-      const [profileSnap, reviewsSnap, likesSnap, eventsSnap] = await Promise.all([
-        getDoc(doc(db, "profiles", uid)),
-        getDocs(
-          query(collection(db, "reviews"), where("author_id", "==", uid))
-        ),
-        getDocs(
-          query(collection(db, "review_likes"), where("user_id", "==", uid))
-        ),
-        getDocs(
-          query(collection(db, "live_events"), where("user_id", "==", uid))
-        ),
-      ]);
 
-      const profileData = profileSnap.data();
-      if (profileData) {
-        setProfile({
-          id: uid,
-          display_name: profileData.display_name ?? null,
-          avatar_url: profileData.avatar_url ?? null,
-          user_id: profileData.user_id ?? null,
-          phone: profileData.phone ?? null,
-          bio: profileData.bio ?? null,
-          main_instrument: profileData.main_instrument ?? null,
-          owned_gear: profileData.owned_gear ?? null,
-          owned_gear_images: (profileData.owned_gear_images as string[] | null) ?? null,
-          band_name: profileData.band_name ?? null,
-          band_url: profileData.band_url ?? null,
-          sns_twitter: profileData.sns_twitter ?? null,
-          sns_instagram: profileData.sns_instagram ?? null,
-          sns_youtube: profileData.sns_youtube ?? null,
-          sns_twitch: profileData.sns_twitch ?? null,
-          contact_email: profileData.contact_email ?? null,
-          created_at: profileData.created_at ?? "",
-          updated_at: profileData.updated_at ?? "",
-        } as Profile);
-      }
+    const uid = user.uid;
+
+    (async () => {
+      try {
+        const token = await user.getIdToken(true);
+
+        const [profileRes, followCountsRes, reviewsSnap, likesSnap, eventsSnap] = await Promise.all([
+          fetch("/api/me/profile", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch("/api/me/follow-counts", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          getDocs(
+            query(collection(db, "reviews"), where("author_id", "==", uid))
+          ),
+          getDocs(
+            query(collection(db, "review_likes"), where("user_id", "==", uid))
+          ),
+          getDocs(
+            query(collection(db, "live_events"), where("user_id", "==", uid))
+          ),
+        ]);
+
+        if (profileRes.ok) {
+          const { profile: profileData } = (await profileRes.json()) as {
+            profile: Profile | null;
+          };
+          if (profileData) setProfile(profileData);
+        }
+
+        if (followCountsRes.ok) {
+          const countsData = (await followCountsRes.json()) as {
+            followingCount: number;
+            followersCount: number;
+          };
+          setFollowingCount(countsData.followingCount ?? 0);
+          setFollowersCount(countsData.followersCount ?? 0);
+        }
 
       const reviews: Review[] = reviewsSnap.docs
         .map((d) => {
@@ -193,7 +323,19 @@ export default function MypagePage() {
         })
         .sort((a, b) => (a.event_date || "").localeCompare(b.event_date || ""));
       setLiveEvents(events);
-      setLoading(false);
+
+        let timeline: TimelineItem[] = [];
+        try {
+          timeline = await fetchFollowingTimelineClient(uid, 50);
+        } catch {
+          // タイムライン取得失敗時は空で表示（権限・インデックス等）
+        }
+        setTimelineItems(timeline);
+      } catch (err) {
+        console.error("[mypage] fetch error", err);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [user, authLoading, db, router]);
 
@@ -293,14 +435,205 @@ export default function MypagePage() {
                     userId={userId}
                     open={showProfilePreview}
                     onClose={() => setShowProfilePreview(false)}
+                    followersCount={followersCount}
+                    followingCount={followingCount}
                   />
                 </>
               )}
               <Button variant="secondary" size="sm" asChild>
                 <Link href="/reviews/compare">比較リストを見る</Link>
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  setFollowListModal("following");
+                  setFollowListLoading(true);
+                  try {
+                    const list = user ? await fetchFollowingListClient(user.uid) : [];
+                    setFollowingList(list);
+                  } finally {
+                    setFollowListLoading(false);
+                  }
+                }}
+              >
+                フォロー中 <span className="font-semibold text-electric-blue ml-0.5">{followingCount}</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  setFollowListModal("followers");
+                  setFollowListLoading(true);
+                  try {
+                    const list = user ? await fetchFollowersListClient(user.uid) : [];
+                    setFollowersList(list);
+                  } finally {
+                    setFollowListLoading(false);
+                  }
+                }}
+              >
+                フォロワー <span className="font-semibold text-electric-blue ml-0.5">{followersCount}</span>
+              </Button>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* フォロー中・フォロワー一覧モーダル */}
+      {followListModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={followListModal === "following" ? "フォロー中一覧" : "フォロワー一覧"}
+          onClick={(e) => e.target === e.currentTarget && setFollowListModal(null)}
+        >
+          <Card className="w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-electric-blue">
+                {followListModal === "following" ? "フォロー中" : "フォロワー"}
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setFollowListModal(null)}
+                className="shrink-0"
+              >
+                閉じる
+              </Button>
+            </CardHeader>
+            <CardContent className="flex-1 min-h-0 overflow-y-auto">
+              {followListLoading ? (
+                <p className="text-gray-500 text-sm py-4">読み込み中...</p>
+              ) : followListModal === "following" ? (
+                followingList.length === 0 ? (
+                  <p className="text-gray-500 text-sm py-4">フォローしているユーザーはいません。</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {followingList.map((item) => (
+                      <MypageFollowListItem
+                        key={item.uid}
+                        item={item}
+                        onUnfollow={() => {
+                          setFollowingList((prev) => prev.filter((x) => x.uid !== item.uid));
+                          setFollowingCount((c) => Math.max(0, c - 1));
+                          setTimelineItems((prev) => prev.filter((t) => (t.type === "review" ? t.author_id : t.user_id) !== item.uid));
+                        }}
+                        showUnfollowButton
+                      />
+                    ))}
+                  </ul>
+                )
+              ) : followListModal === "followers" && followersList.length === 0 ? (
+                <p className="text-gray-500 text-sm py-4">フォロワーはいません。</p>
+              ) : followListModal === "followers" ? (
+                <ul className="space-y-2">
+                  {followersList.map((item) => (
+                    <MypageFollowListItem
+                      key={item.uid}
+                      item={item}
+                      onFollow={() => setFollowingCount((c) => c + 1)}
+                    />
+                  ))}
+                </ul>
+              ) : null}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* フォロー中タイムライン（5件表示・‹ ›で送り） */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-electric-blue">フォロー中</CardTitle>
+          <CardDescription>
+            フォローしているユーザーの最新レビュー・ブログ・ライブ日程を時系列で表示
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {timelineItems.length === 0 ? (
+            <div className={EMPTY_SECTION_CLASS}>
+              <p className="text-gray-500 text-sm">
+                まだフォローしているユーザーがいないか、アクティビティがありません。プロフィールページからユーザーをフォローしてみましょう。
+              </p>
+            </div>
+          ) : (
+            <>
+              <ul className="space-y-3">
+                {timelineItems
+                  .slice(timelinePage * CAROUSEL_PAGE_SIZE, timelinePage * CAROUSEL_PAGE_SIZE + CAROUSEL_PAGE_SIZE)
+                  .map((item) => {
+                if (item.type === "review") {
+                  const imageUrl = getTimelineReviewImageUrl(item);
+                  const showStars = !isContentOnlyCategorySlug(item.category_id) && item.rating > 0;
+                  const authorLabel = item.profile_display_name
+                    ? item.profile_user_id
+                      ? `${item.profile_display_name} @${item.profile_user_id}`
+                      : item.profile_display_name
+                    : "ユーザー";
+                  return (
+                    <li key={`review-${item.id}`}>
+                      <Link
+                        href={`/reviews/${item.id}`}
+                        className="flex gap-3 rounded-lg border border-surface-border bg-surface-card/50 overflow-hidden hover:border-cyan-500/50 transition-colors"
+                      >
+                        <div className="relative w-24 shrink-0 aspect-[400/260] bg-surface-card">
+                          {imageUrl ? (
+                            <Image src={imageUrl} alt="" fill className="object-cover" sizes="96px" unoptimized />
+                          ) : (
+                            <Image src={PLACEHOLDER_IMG} alt="" fill className="object-cover" sizes="96px" unoptimized />
+                          )}
+                        </div>
+                        <div className="min-w-0 py-3 pr-3 flex-1">
+                          <p className="font-medium text-white line-clamp-1">{item.title}</p>
+                          <p className="text-sm text-gray-400">{item.gear_name}</p>
+                          <p className="text-xs text-gray-500 mt-1">{authorLabel}</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {showStars && <StarRating rating={item.rating} />}
+                            <span className="text-xs text-gray-500">
+                              {item.category_name_ja ?? ""}
+                              {" · "}
+                              {item.created_at ? new Date(item.created_at).toLocaleDateString("ja-JP") : ""}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    </li>
+                  );
+                }
+                const authorLabel = item.profile_display_name
+                  ? item.profile_user_id
+                    ? `${item.profile_display_name} @${item.profile_user_id}`
+                    : item.profile_display_name
+                  : "ユーザー";
+                return (
+                  <li key={`event-${item.id}`}>
+                    <div className="rounded-lg border border-surface-border bg-surface-card/50 px-3 py-3">
+                      <p className="text-xs text-cyan-400/90 font-medium">ライブ予定</p>
+                      <p className="font-medium text-white mt-0.5">{item.title}</p>
+                      <p className="text-sm text-gray-400">
+                        {item.event_date ? new Date(item.event_date).toLocaleDateString("ja-JP") : ""}
+                        {item.venue && ` · ${item.venue}`}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{authorLabel}</p>
+                    </div>
+                  </li>
+                );
+              })}
+              </ul>
+              <CarouselNav
+                currentPage={timelinePage}
+                totalPages={Math.max(1, Math.ceil(timelineItems.length / CAROUSEL_PAGE_SIZE))}
+                onPrev={() => setTimelinePage((p) => Math.max(0, p - 1))}
+                onNext={() =>
+                  setTimelinePage((p) =>
+                    Math.min(Math.ceil(timelineItems.length / CAROUSEL_PAGE_SIZE) - 1, p + 1)
+                  )
+                }
+              />
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -360,7 +693,7 @@ export default function MypagePage() {
         </CardContent>
       </Card>
 
-      {/* お気に入りにした記事 */}
+      {/* お気に入りにした記事（5件表示・‹ ›で送り） */}
       <Card>
         <CardHeader>
           <CardTitle className="text-electric-blue">お気に入りにした記事</CardTitle>
@@ -372,8 +705,11 @@ export default function MypagePage() {
               <p className="text-gray-500 text-sm">まだいいねした記事がありません。</p>
             </div>
           ) : (
-            <ul className="space-y-3">
-              {likedReviews.map((r) => {
+            <>
+              <ul className="space-y-3">
+                {likedReviews
+                  .slice(likedPage * CAROUSEL_PAGE_SIZE, likedPage * CAROUSEL_PAGE_SIZE + CAROUSEL_PAGE_SIZE)
+                  .map((r) => {
                 const imageUrl = getFirstReviewImageUrl(r);
                 const showStars = !isContentOnlyCategorySlug(r.category_id) && r.rating > 0;
                 return (
@@ -407,12 +743,23 @@ export default function MypagePage() {
                   </li>
                 );
               })}
-            </ul>
+              </ul>
+              <CarouselNav
+                currentPage={likedPage}
+                totalPages={Math.max(1, Math.ceil(likedReviews.length / CAROUSEL_PAGE_SIZE))}
+                onPrev={() => setLikedPage((p) => Math.max(0, p - 1))}
+                onNext={() =>
+                  setLikedPage((p) =>
+                    Math.min(Math.ceil(likedReviews.length / CAROUSEL_PAGE_SIZE) - 1, p + 1)
+                  )
+                }
+              />
+            </>
           )}
         </CardContent>
       </Card>
 
-      {/* 過去に投稿した内容 */}
+      {/* 過去に投稿した内容（5件表示・‹ ›で送り） */}
       <Card>
         <CardHeader>
           <CardTitle className="text-electric-blue">過去に投稿した内容</CardTitle>
@@ -424,8 +771,11 @@ export default function MypagePage() {
               <p className="text-gray-500 text-sm">まだ投稿がありません。</p>
             </div>
           ) : (
-            <ul className="space-y-3">
-              {myReviews.map((r) => {
+            <>
+              <ul className="space-y-3">
+                {myReviews
+                  .slice(myReviewsPage * CAROUSEL_PAGE_SIZE, myReviewsPage * CAROUSEL_PAGE_SIZE + CAROUSEL_PAGE_SIZE)
+                  .map((r) => {
                 const imageUrl = getFirstReviewImageUrl(r);
                 const showStars = !isContentOnlyCategorySlug(r.category_id) && r.rating > 0;
                 return (
@@ -459,13 +809,24 @@ export default function MypagePage() {
                   </li>
                 );
               })}
-            </ul>
+              </ul>
+              <CarouselNav
+                currentPage={myReviewsPage}
+                totalPages={Math.max(1, Math.ceil(myReviews.length / CAROUSEL_PAGE_SIZE))}
+                onPrev={() => setMyReviewsPage((p) => Math.max(0, p - 1))}
+                onNext={() =>
+                  setMyReviewsPage((p) =>
+                    Math.min(Math.ceil(myReviews.length / CAROUSEL_PAGE_SIZE) - 1, p + 1)
+                  )
+                }
+              />
+              <div className="mt-4">
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/reviews/new">新規投稿</Link>
+                </Button>
+              </div>
+            </>
           )}
-          <div className="mt-4">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/reviews/new">新規投稿</Link>
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
@@ -480,14 +841,49 @@ export default function MypagePage() {
         </CardContent>
       </Card>
 
-      {/* マイカレンダー（ゼロ件でも枠表示） */}
+      {/* マイカレンダー（直近5件表示・‹ ›で送り。予定なし時はカレンダーのみ表示） */}
       <Card>
         <CardHeader>
           <CardTitle className="text-electric-blue">マイカレンダー</CardTitle>
-          <CardDescription>ライブ予定を追加してカレンダーで管理</CardDescription>
+          <CardDescription>ライブ予定を追加してカレンダーで管理（直近の予定順）</CardDescription>
         </CardHeader>
         <CardContent className="min-h-[120px]">
-          <LiveEventCalendar initialEvents={liveEvents} />
+          {sortedCalendarEvents.length > 0 && (
+            <>
+              <ul className="space-y-2 mb-4">
+                {sortedCalendarEvents
+                  .slice(calendarPage * CAROUSEL_PAGE_SIZE, calendarPage * CAROUSEL_PAGE_SIZE + CAROUSEL_PAGE_SIZE)
+                  .map((ev) => (
+                    <li
+                      key={ev.id}
+                      className="rounded-lg border border-surface-border bg-surface-card/50 px-3 py-2"
+                    >
+                      <p className="font-medium text-white text-sm truncate">{ev.title}</p>
+                      <p className="text-xs text-gray-400">
+                        {ev.event_date ? new Date(ev.event_date).toLocaleDateString("ja-JP") : ""}
+                        {ev.venue && ` · ${ev.venue}`}
+                      </p>
+                    </li>
+                  ))}
+              </ul>
+              <CarouselNav
+                currentPage={calendarPage}
+                totalPages={Math.max(1, Math.ceil(sortedCalendarEvents.length / CAROUSEL_PAGE_SIZE))}
+                onPrev={() => setCalendarPage((p) => Math.max(0, p - 1))}
+                onNext={() =>
+                  setCalendarPage((p) =>
+                    Math.min(Math.ceil(sortedCalendarEvents.length / CAROUSEL_PAGE_SIZE) - 1, p + 1)
+                  )
+                }
+              />
+              <div className="mt-4 pt-4 border-t border-surface-border">
+                <LiveEventCalendar initialEvents={liveEvents} />
+              </div>
+            </>
+          )}
+          {sortedCalendarEvents.length === 0 && (
+            <LiveEventCalendar initialEvents={liveEvents} />
+          )}
         </CardContent>
       </Card>
     </div>

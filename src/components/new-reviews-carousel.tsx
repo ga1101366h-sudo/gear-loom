@@ -24,6 +24,8 @@ export interface NewReviewItem {
   image: string | null;
   category: string;
   author: string;
+  /** 投稿者アバターURL（未設定時はイニシャル表示） */
+  author_avatar: string | null;
 }
 
 function StarRating({ rating }: { rating: number }) {
@@ -75,9 +77,31 @@ function ReviewCard({ item }: { item: NewReviewItem }) {
         <CardContent className="space-y-1 sm:space-y-2 pt-0 px-2 sm:px-6 pb-2 sm:pb-6">
           {item.rating > 0 && <StarRating rating={item.rating} />}
           <p className="text-xs sm:text-sm text-gray-400 line-clamp-2 sm:line-clamp-3">{item.excerpt}</p>
-          {item.author && (
-            <span className="text-[10px] sm:text-xs text-gray-500">{item.author}</span>
-          )}
+          {/* 投稿者アイコン＋名前 */}
+          <div className="flex items-center gap-2 pt-1">
+            {item.author_avatar ? (
+              <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full border border-surface-border bg-surface-card">
+                <Image
+                  src={item.author_avatar}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="24px"
+                  unoptimized
+                />
+              </div>
+            ) : (
+              <div
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-card border border-surface-border text-[10px] font-medium text-gray-500"
+                aria-hidden
+              >
+                {(item.author || "?").charAt(0)}
+              </div>
+            )}
+            <span className="min-w-0 truncate text-[10px] sm:text-xs text-gray-500">
+              {item.author || "ユーザー"}
+            </span>
+          </div>
         </CardContent>
       </Card>
     </Link>

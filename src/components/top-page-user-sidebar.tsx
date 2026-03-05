@@ -1,11 +1,13 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ProfileListItem } from "@/lib/firebase/data";
 import type { LiveEvent } from "@/types/database";
 import { useUserProfile } from "@/hooks/use-user-profile";
+import { FollowListModal } from "@/components/follow-list-modal";
 
 /** ログイン時のみ右サイドバーを表示。表示するのはログイン中ユーザー1人分のプロフィールのみ */
 export function TopPageUserSidebarGate({
@@ -142,6 +144,32 @@ function TopPageUserSidebar({
   profile: ProfileListItem;
   liveEvents: LiveEvent[];
 }) {
+  const { user } = useAuth();
+  const [followingCount, setFollowingCount] = useState(0);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followListModal, setFollowListModal] = useState<"following" | "followers" | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    user.getIdToken().then((token) => {
+      if (!token || cancelled) return;
+      fetch("/api/me/follow-counts", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (cancelled || !data) return;
+          setFollowingCount(data.followingCount ?? 0);
+          setFollowersCount(data.followersCount ?? 0);
+        })
+        .catch(() => {});
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
@@ -205,6 +233,22 @@ function TopPageUserSidebar({
               見る →
             </span>
           </Link>
+          <div className="flex gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setFollowListModal("following")}
+              className="flex-1 min-w-0 rounded-lg border border-surface-border/50 bg-surface-dark/40 px-2 py-1.5 text-center text-xs text-gray-300 hover:border-electric-blue/30 hover:bg-electric-blue/5 transition-all"
+            >
+              フォロー中 <span className="font-semibold text-electric-blue">{followingCount}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFollowListModal("followers")}
+              className="flex-1 min-w-0 rounded-lg border border-surface-border/50 bg-surface-dark/40 px-2 py-1.5 text-center text-xs text-gray-300 hover:border-electric-blue/30 hover:bg-electric-blue/5 transition-all"
+            >
+              フォロワー <span className="font-semibold text-electric-blue">{followersCount}</span>
+            </button>
+          </div>
         </nav>
       </aside>
 
@@ -294,11 +338,36 @@ function TopPageUserSidebar({
               プロフィールを見る →
             </p>
           </Link>
+          <div className="flex gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setFollowListModal("following")}
+              className="flex-1 min-w-0 rounded-lg border border-surface-border/50 bg-surface-dark/40 px-2 py-1.5 text-center text-xs text-gray-300 hover:border-electric-blue/30 hover:bg-electric-blue/5 transition-all"
+            >
+              フォロー中 <span className="font-semibold text-electric-blue">{followingCount}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFollowListModal("followers")}
+              className="flex-1 min-w-0 rounded-lg border border-surface-border/50 bg-surface-dark/40 px-2 py-1.5 text-center text-xs text-gray-300 hover:border-electric-blue/30 hover:bg-electric-blue/5 transition-all"
+            >
+              フォロワー <span className="font-semibold text-electric-blue">{followersCount}</span>
+            </button>
+          </div>
           <p className="px-2 pt-3 mt-2 text-xs text-gray-500 border-t border-surface-border/50">
             クリックでプロフィールページへ
           </p>
         </nav>
       </aside>
+
+      <FollowListModal
+        open={followListModal !== null}
+        onClose={() => setFollowListModal(null)}
+        mode={followListModal ?? "following"}
+        myUid={user?.uid ?? null}
+        onUnfollow={() => setFollowingCount((c) => Math.max(0, c - 1))}
+        onFollow={() => setFollowingCount((c) => c + 1)}
+      />
     </>
   );
 }
