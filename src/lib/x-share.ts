@@ -1,13 +1,20 @@
+import { CONTENT_ONLY_CATEGORY_SLUGS } from "@/data/post-categories";
+
 export function buildReviewShareText(opts: {
   title?: string | null;
   makerName?: string | null;
   gearName?: string | null;
   categoryNameJa?: string | null;
+  categorySlug?: string | null;
 }): string {
   const rawTitle = (opts.title ?? "").trim() || "Gear-Loomレビュー";
   const maker = (opts.makerName ?? "").trim();
   const gear = (opts.gearName ?? "").trim();
   const category = (opts.categoryNameJa ?? "").trim();
+  const categorySlug = (opts.categorySlug ?? "").trim();
+  const isContentOnlyCategory = categorySlug
+    ? (CONTENT_ONLY_CATEGORY_SLUGS as readonly string[]).includes(categorySlug)
+    : false;
 
   const labelParts: string[] = [];
   if (maker) labelParts.push(maker);
@@ -39,15 +46,29 @@ export function buildReviewShareText(opts: {
 
   const MAX_LEN = 120;
   let titleForTweet = rawTitle;
-  let tweet = `${titleForTweet}\n${suffixLine}\n${hashtagBlock}`;
+  let tweet: string;
 
-  if (tweet.length > MAX_LEN) {
-    const reservedBlock = `\n${suffixLine}\n${hashtagBlock}`;
-    const reservedLen = reservedBlock.length;
-    const maxTitleLen = Math.max(10, MAX_LEN - reservedLen - 3);
-    if (titleForTweet.length > maxTitleLen) {
-      titleForTweet = `${titleForTweet.slice(0, maxTitleLen)}...`;
-      tweet = `${titleForTweet}\n${suffixLine}\n${hashtagBlock}`;
+  if (isContentOnlyCategory) {
+    tweet = `${titleForTweet}\n${hashtagBlock}`;
+    if (tweet.length > MAX_LEN) {
+      const reservedBlock = `\n${hashtagBlock}`;
+      const reservedLen = reservedBlock.length;
+      const maxTitleLen = Math.max(10, MAX_LEN - reservedLen - 3);
+      if (titleForTweet.length > maxTitleLen) {
+        titleForTweet = `${titleForTweet.slice(0, maxTitleLen)}...`;
+        tweet = `${titleForTweet}\n${hashtagBlock}`;
+      }
+    }
+  } else {
+    tweet = `${titleForTweet}\n${suffixLine}\n${hashtagBlock}`;
+    if (tweet.length > MAX_LEN) {
+      const reservedBlock = `\n${suffixLine}\n${hashtagBlock}`;
+      const reservedLen = reservedBlock.length;
+      const maxTitleLen = Math.max(10, MAX_LEN - reservedLen - 3);
+      if (titleForTweet.length > maxTitleLen) {
+        titleForTweet = `${titleForTweet.slice(0, maxTitleLen)}...`;
+        tweet = `${titleForTweet}\n${suffixLine}\n${hashtagBlock}`;
+      }
     }
   }
 
