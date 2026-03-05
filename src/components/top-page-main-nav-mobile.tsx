@@ -17,8 +17,9 @@ export function TopPageMainNavMobile() {
 
   useEffect(() => {
     if (!open) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    const handleClickOutside = (e: Event) => {
+      const target = e.target as Node | null;
+      if (ref.current && target && !ref.current.contains(target)) setOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("touchstart", handleClickOutside);
