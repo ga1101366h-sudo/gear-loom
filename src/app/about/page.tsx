@@ -66,7 +66,7 @@ export default async function AboutPage() {
     <div className="min-h-screen">
       {/* 1. Heroセクション：ラッパーで main をはみ出し、上余白も打ち消して画面いっぱいに */}
       <div
-        className="w-screen max-w-none -mt-4 sm:-mt-6"
+        className="w-screen max-w-[100vw] -mt-4 sm:-mt-6 box-border"
         style={{
           marginLeft: "calc(50% - 50vw)",
           marginRight: "calc(50% - 50vw)",

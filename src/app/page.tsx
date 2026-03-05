@@ -176,7 +176,7 @@ export default async function HomePage() {
     <div>
       {/* 上段：全幅ヒーロー（縦横フルスクリーン・シネマティック） */}
       <section
-        className="relative left-1/2 flex h-[calc(100vh-4rem)] min-h-[320px] w-screen max-w-none -translate-x-1/2 flex-col justify-center overflow-hidden"
+        className="relative left-1/2 flex h-[calc(100vh-4rem)] min-h-[320px] w-screen max-w-[100vw] -translate-x-1/2 flex-col justify-center overflow-hidden box-border"
         aria-label="メインキャッチ"
       >
         <HeroSlideshow imageUrls={heroImageUrls} />
