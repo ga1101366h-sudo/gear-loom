@@ -120,7 +120,7 @@ export function NearbySpotsMap() {
           loading="lazy"
           referrerPolicy="no-referrer-when-downgrade"
           title={current.label}
-          className="absolute inset-0 block h-full w-full min-h-[280px]"
+          className="absolute inset-0 block h-full w-full min-h-[280px] filter invert-[100%] hue-rotate-180 brightness-90 contrast-90"
         />
       </div>
     </div>

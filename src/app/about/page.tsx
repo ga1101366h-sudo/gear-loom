@@ -1,6 +1,7 @@
 import { getAboutPageCountsFromFirestore } from "@/lib/firebase/data";
 import { AboutCtaSection } from "@/components/about-cta-section";
 import { AboutStats } from "@/components/about-stats";
+import { PenSquare, BookOpen, CalendarDays, Rss, Search, Users } from "lucide-react";
 
 export const metadata = {
   title: "Gear-Loomとは？",
@@ -13,39 +14,42 @@ const HERO_BG =
 
 const FEATURES = [
   {
-    icon: "📝",
+    icon: <PenSquare className="h-6 w-6 text-cyan-400" aria-hidden />,
     title: "熱量を残す、機材レビュー",
     description:
       "使った機材の感想やセッティングをレビューで残す。AI補正機能で執筆サポートも。レビューを投稿すると同時に、自分のプロフィール（所有機材リスト）へワンタップで追加・記録できる。誰かの「欲しい音」の参考に。",
   },
   {
-    icon: "📖",
+    icon: <BookOpen className="h-6 w-6 text-cyan-400" aria-hidden />,
     title: "自分だけの歴史、カスタム手帳",
-    description: "画像付きで愛機のカスタム履歴やメモを記録。あなた専用のデジタル機材手帳として、いつでも振り返れる。",
+    description:
+      "画像付きで愛機のカスタム履歴やメモを記録。あなた専用のデジタル機材手帳として、いつでも振り返れる。",
   },
   {
-    icon: "📅",
+    icon: <CalendarDays className="h-6 w-6 text-cyan-400" aria-hidden />,
     title: "ライブ日程の告知・管理",
-    description: "バンドマン・イベンター向け。ライブ予定を登録して告知。トップページのカレンダーで仲間やファンに届ける。",
+    description:
+      "バンドマン・イベンター向け。ライブ予定を登録して告知。トップページのカレンダーで仲間やファンに届ける。",
   },
   {
-    icon: "✏️",
+    icon: <Rss className="h-6 w-6 text-cyan-400" aria-hidden />,
     title: "ブログで自由な発信",
-    description: "イベント告知や機材レポート、活動報告をブログ記事で。思いのままに発信し、音楽仲間とつながる。",
+    description:
+      "イベント告知や機材レポート、活動報告をブログ記事で。思いのままに発信し、音楽仲間とつながる。",
   },
   {
-    icon: "🔍",
+    icon: <Search className="h-6 w-6 text-cyan-400" aria-hidden />,
     title: "気になる機材をスムーズに確認",
     description:
       "レビューを読んで気になった1台は、そのままボタン一つでECサイトをチェック。スペックやリアルな市場価格をすぐに確認できます。",
   },
   {
-    icon: "❤️",
+    icon: <Users className="h-6 w-6 text-cyan-400" aria-hidden />,
     title: "音楽仲間との繋がり",
     description:
       "フォロー・フォロワー機能で気になるユーザーとつながり、マイページのタイムラインで最新レビュー・ライブ予定をチェック。いいね・比較リストやプロフィールで保有機材・所属バンドを共有し、ユーザー同士のつながりを強化できます。",
   },
-] as const;
+];
 
 export default async function AboutPage() {
   const counts = await getAboutPageCountsFromFirestore();
@@ -70,7 +74,10 @@ export default async function AboutPage() {
             style={{ backgroundImage: `url(${HERO_BG})` }}
             aria-hidden
           />
-          <div className="absolute inset-0 -z-10 bg-black/50" aria-hidden />
+          <div
+            className="absolute inset-0 -z-10 bg-gradient-to-b from-black/70 via-black/55 to-[var(--surface-dark,#020617)]"
+            aria-hidden
+          />
           <div className="relative mx-auto w-full max-w-4xl text-center">
           <h1 className="font-display text-4xl font-bold leading-[1.15] tracking-tight text-white drop-shadow-lg sm:text-5xl md:text-6xl lg:text-7xl">
             あなたの愛機が、
@@ -128,10 +135,10 @@ export default async function AboutPage() {
                 key={f.title}
                 className="rounded-2xl border border-surface-border/80 bg-gray-900/80 p-6 shadow-lg shadow-cyan-500/5 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(34,211,238,0.08)]"
               >
-                <span className="text-3xl" aria-hidden>
+                <div className="flex items-center justify-center h-10 w-10 rounded-full bg-cyan-500/10 text-cyan-400">
                   {f.icon}
-                </span>
-                <h3 className="mt-3 font-display text-lg font-semibold text-white">
+                </div>
+                <h3 className="mt-4 font-display text-lg font-semibold text-white">
                   {f.title}
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-gray-400">
