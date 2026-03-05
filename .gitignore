@@ -34,3 +34,4 @@ yarn-error.log*
 # IDE (optional)
 .vscode/
 .idea/
+gear-loom-firebase-adminsdk-*.json

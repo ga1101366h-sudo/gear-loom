@@ -18,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { AdminLiveEventItem } from "@/app/api/admin/live-events/route";
 import type { AdminAnnouncementItem } from "@/app/api/admin/announcements/route";
 
@@ -66,6 +67,40 @@ export default function AdminPage() {
   const [editAnnouncementUrl, setEditAnnouncementUrl] = useState("");
   const [editAnnouncementImportant, setEditAnnouncementImportant] = useState(false);
   const [savingAnnouncementId, setSavingAnnouncementId] = useState<string | null>(null);
+  const [userSearch, setUserSearch] = useState("");
+  const [userPage, setUserPage] = useState(0);
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [reviewPage, setReviewPage] = useState(0);
+
+  const PAGE_SIZE = 10;
+
+  const filteredUsers = users.filter((u) => {
+    const q = userSearch.trim().toLowerCase();
+    if (!q) return true;
+    const name = (u.display_name ?? "").toLowerCase();
+    const uid = (u.user_id ?? "").toLowerCase();
+    const id = (u.id ?? "").toLowerCase();
+    return name.includes(q) || uid.includes(q) || id.includes(q);
+  });
+  const totalUserPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const paginatedUsers = filteredUsers.slice(userPage * PAGE_SIZE, userPage * PAGE_SIZE + PAGE_SIZE);
+
+  const filteredReviews = reviews.filter((r) => {
+    const q = reviewSearch.trim().toLowerCase();
+    if (!q) return true;
+    const title = (r.title ?? "").toLowerCase();
+    return title.includes(q);
+  });
+  const totalReviewPages = Math.max(1, Math.ceil(filteredReviews.length / PAGE_SIZE));
+  const paginatedReviews = filteredReviews.slice(reviewPage * PAGE_SIZE, reviewPage * PAGE_SIZE + PAGE_SIZE);
+
+  useEffect(() => {
+    setUserPage(0);
+  }, [userSearch]);
+
+  useEffect(() => {
+    setReviewPage(0);
+  }, [reviewSearch]);
 
   useEffect(() => {
     if (!user?.uid || !db) return;
@@ -489,54 +524,90 @@ export default function AdminPage() {
         <CardHeader>
           <CardTitle className="text-electric-blue">登録ユーザー一覧</CardTitle>
           <CardDescription>
-            ユーザーを削除すると、Firebase Auth のアカウントとプロフィールが削除されます。自分自身は削除できません。
+            ユーザーを削除すると、Firebase Auth のアカウントとプロフィールが削除されます。自分自身は削除できません。登録が新しい順・10件ずつ表示。
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <Input
+            type="search"
+            placeholder="表示名・ユーザーIDで検索..."
+            value={userSearch}
+            onChange={(e) => setUserSearch(e.target.value)}
+            className="max-w-xs bg-surface-dark border-surface-border"
+          />
           {loadingUsers ? (
             <p className="text-gray-500 text-sm">読み込み中...</p>
           ) : users.length === 0 ? (
             <p className="text-gray-500 text-sm">ユーザーがいません。</p>
+          ) : filteredUsers.length === 0 ? (
+            <p className="text-gray-500 text-sm">検索に一致するユーザーがいません。</p>
           ) : (
-            <ul className="space-y-2 text-sm">
-              {users.map((u) => (
-                <li
-                  key={u.id}
-                  className="flex items-center justify-between gap-4 py-2 border-b border-surface-border last:border-0"
-                >
-                  {u.user_id != null ? (
-                    <Link
-                      href={`/users/${encodeURIComponent(u.user_id)}`}
-                      className="text-gray-300 hover:text-electric-blue truncate flex-1 min-w-0"
-                    >
-                      {u.display_name ?? "(未設定)"}
-                      <span className="text-gray-500 ml-1">@{u.user_id}</span>
-                    </Link>
-                  ) : (
-                    <span className="text-gray-300 truncate flex-1 min-w-0">
-                      {u.display_name ?? "(未設定)"}
-                      <span className="text-gray-500 ml-1">（ID未設定）</span>
-                    </span>
-                  )}
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-gray-500 text-xs">{u.id.slice(0, 8)}…</span>
-                    {u.id !== user.uid ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-red-400 border-red-400/50 hover:bg-red-400/10"
-                        disabled={deletingUserId === u.id}
-                        onClick={() => handleDeleteUser(u.id)}
+            <>
+              <ul className="space-y-2 text-sm">
+                {paginatedUsers.map((u) => (
+                  <li
+                    key={u.id}
+                    className="flex items-center justify-between gap-4 py-2 border-b border-surface-border last:border-0"
+                  >
+                    {u.user_id != null ? (
+                      <Link
+                        href={`/users/${encodeURIComponent(u.user_id)}`}
+                        className="text-gray-300 hover:text-electric-blue truncate flex-1 min-w-0"
                       >
-                        {deletingUserId === u.id ? "削除中..." : "削除"}
-                      </Button>
+                        {u.display_name ?? "(未設定)"}
+                        <span className="text-gray-500 ml-1">@{u.user_id}</span>
+                      </Link>
                     ) : (
-                      <span className="text-gray-500 text-xs">（自分）</span>
+                      <span className="text-gray-300 truncate flex-1 min-w-0">
+                        {u.display_name ?? "(未設定)"}
+                        <span className="text-gray-500 ml-1">（ID未設定）</span>
+                      </span>
                     )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-gray-500 text-xs">{u.id.slice(0, 8)}…</span>
+                      {u.id !== user.uid ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-400 border-red-400/50 hover:bg-red-400/10"
+                          disabled={deletingUserId === u.id}
+                          onClick={() => handleDeleteUser(u.id)}
+                        >
+                          {deletingUserId === u.id ? "削除中..." : "削除"}
+                        </Button>
+                      ) : (
+                        <span className="text-gray-500 text-xs">（自分）</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {totalUserPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={userPage === 0}
+                    onClick={() => setUserPage((p) => Math.max(0, p - 1))}
+                    aria-label="前のページ"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm text-gray-400">
+                    {userPage + 1} / {totalUserPages}（{filteredUsers.length}件）
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={userPage >= totalUserPages - 1}
+                    onClick={() => setUserPage((p) => Math.min(totalUserPages - 1, p + 1))}
+                    aria-label="次のページ"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -591,45 +662,81 @@ export default function AdminPage() {
         <CardHeader>
           <CardTitle className="text-electric-blue">記事一覧（レビュー）</CardTitle>
           <CardDescription>
-            管理者は投稿者でなくても記事を削除できます。
+            管理者は投稿者でなくても記事を削除できます。投稿が新しい順・10件ずつ表示。
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <Input
+            type="search"
+            placeholder="タイトルで検索..."
+            value={reviewSearch}
+            onChange={(e) => setReviewSearch(e.target.value)}
+            className="max-w-xs bg-surface-dark border-surface-border"
+          />
           {loadingReviews ? (
             <p className="text-gray-500 text-sm">読み込み中...</p>
           ) : reviews.length === 0 ? (
             <p className="text-gray-500 text-sm">記事がありません。</p>
+          ) : filteredReviews.length === 0 ? (
+            <p className="text-gray-500 text-sm">検索に一致する記事がありません。</p>
           ) : (
-            <ul className="space-y-2 text-sm">
-              {reviews.map((r) => (
-                <li
-                  key={r.id}
-                  className="flex items-center justify-between gap-4 py-2 border-b border-surface-border last:border-0"
-                >
-                  <Link
-                    href={`/reviews/${r.id}`}
-                    className="text-gray-300 hover:text-electric-blue truncate flex-1 min-w-0"
+            <>
+              <ul className="space-y-2 text-sm">
+                {paginatedReviews.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex items-center justify-between gap-4 py-2 border-b border-surface-border last:border-0"
                   >
-                    {r.title || "(無題)"}
-                  </Link>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-gray-500 text-xs">{r.created_at?.slice(0, 10)}</span>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/reviews/${r.id}/edit`}>編集</Link>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-red-400 border-red-400/50 hover:bg-red-400/10"
-                      disabled={deletingReviewId === r.id}
-                      onClick={() => handleDeleteReview(r.id)}
+                    <Link
+                      href={`/reviews/${r.id}`}
+                      className="text-gray-300 hover:text-electric-blue truncate flex-1 min-w-0"
                     >
-                      {deletingReviewId === r.id ? "削除中..." : "削除"}
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                      {r.title || "(無題)"}
+                    </Link>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-gray-500 text-xs">{r.created_at?.slice(0, 10)}</span>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/reviews/${r.id}/edit`}>編集</Link>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-400 border-red-400/50 hover:bg-red-400/10"
+                        disabled={deletingReviewId === r.id}
+                        onClick={() => handleDeleteReview(r.id)}
+                      >
+                        {deletingReviewId === r.id ? "削除中..." : "削除"}
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {totalReviewPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={reviewPage === 0}
+                    onClick={() => setReviewPage((p) => Math.max(0, p - 1))}
+                    aria-label="前のページ"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm text-gray-400">
+                    {reviewPage + 1} / {totalReviewPages}（{filteredReviews.length}件）
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={reviewPage >= totalReviewPages - 1}
+                    onClick={() => setReviewPage((p) => Math.min(totalReviewPages - 1, p + 1))}
+                    aria-label="次のページ"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
