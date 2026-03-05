@@ -219,7 +219,7 @@ export default async function HomePage() {
                   </span>
                 </Link>
               </Button>
-              <p className="text-[11px] text-gray-400 md:text-xs">
+              <p className="text-[11px] text-gray-400 md:text-xs text-center">
                 会員登録は無料。あとから編集・非公開にもできます。
               </p>
             </div>
