@@ -217,7 +217,14 @@ export default async function ReviewDetailPage({
           {!isContentOnlyCategory && (
             <div className="flex flex-col gap-0.5 text-gray-300">
               {makerName && (
-                <p className="text-sm text-gray-400">{makerName}</p>
+                <p className="text-sm">
+                  <Link
+                    href={`/search?manufacturer=${encodeURIComponent(makerName)}`}
+                    className="text-gray-400 hover:text-electric-blue hover:underline"
+                  >
+                    {makerName}
+                  </Link>
+                </p>
               )}
               {review.gear_name && (
                 <p className="text-lg">{review.gear_name}</p>
@@ -324,7 +331,17 @@ export default async function ReviewDetailPage({
         </CardContent>
       </Card>
 
-      <ECSearchLinks gearName={review.gear_name} makerName={makerName} />
+      <div className="max-w-3xl mx-auto text-xs text-gray-400 mt-2">
+        <p>
+          💡 同じ機材でも使い方は人それぞれ。あなたのセッティングやプレイスタイルでの感想も、ぜひレビューに残してみてください。
+        </p>
+      </div>
+
+      <ECSearchLinks
+        gearName={review.gear_name}
+        makerName={makerName}
+        reviewTitle={review.title}
+      />
     </div>
   );
 }
