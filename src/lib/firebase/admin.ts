@@ -59,6 +59,25 @@ export async function deleteReviewImagesFromStorage(reviewId: string): Promise<v
   await deleteStoragePrefix(`review-images/${reviewId}/`);
 }
 
+/** 指定レビューに紐づく Firestore の関連データ（いいね・役に立った・比較リスト）を削除する */
+export async function deleteReviewRelatedFirestore(
+  db: admin.firestore.Firestore,
+  reviewId: string
+): Promise<void> {
+  if (!reviewId) return;
+  const collections = ["review_likes", "review_helpfuls", "review_compares"] as const;
+  for (const coll of collections) {
+    try {
+      const snap = await db.collection(coll).where("review_id", "==", reviewId).get();
+      const batch = db.batch();
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      if (!snap.empty) await batch.commit();
+    } catch (err) {
+      console.warn(`[deleteReviewRelatedFirestore] ${coll}`, err);
+    }
+  }
+}
+
 /** ユーザー削除時に、そのユーザーに紐づく Storage（アバター・所持機材・ノート画像）を削除する */
 export async function deleteUserStorageFiles(uid: string): Promise<void> {
   if (!uid) return;

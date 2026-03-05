@@ -9,6 +9,7 @@ export const POST_CATEGORY_GROUPS: PostCategoryGroup[] = [
     groupSlug: "guitar-bass",
     items: [
       { slug: "eleki-guitar", name_ja: "エレキギター本体" },
+      { slug: "guitar-effector", name_ja: "ギターエフェクター" },
       { slug: "aco-classic-guitar", name_ja: "アコースティック・クラシックギター" },
       { slug: "bass-body", name_ja: "ベース本体" },
       { slug: "bass-effector", name_ja: "ベースエフェクター" },

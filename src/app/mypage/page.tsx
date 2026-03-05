@@ -422,14 +422,19 @@ export default function MypagePage() {
             {profile?.bio && (
               <p className="text-gray-300 text-sm whitespace-pre-wrap line-clamp-3">{profile.bio}</p>
             )}
-            <div className="flex flex-wrap gap-2 mt-2">
-              <Button variant="outline" size="sm" asChild>
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <Button variant="outline" size="sm" className="w-full min-h-10" asChild>
                 <Link href="/profile">プロフィールを編集</Link>
               </Button>
-              {userId && (
+              {userId ? (
                 <>
-                  <Button variant="outline" size="sm" onClick={() => setShowProfilePreview(true)}>
-                    他の人からはこう見えますよ
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full min-h-10"
+                    onClick={() => setShowProfilePreview(true)}
+                  >
+                    公開プレビュー
                   </Button>
                   <ProfilePreviewOverlay
                     userId={userId}
@@ -439,13 +444,16 @@ export default function MypagePage() {
                     followingCount={followingCount}
                   />
                 </>
+              ) : (
+                <div className="min-h-10" aria-hidden />
               )}
-              <Button variant="secondary" size="sm" asChild>
-                <Link href="/reviews/compare">比較リストを見る</Link>
+              <Button variant="secondary" size="sm" className="w-full min-h-10 col-span-2 bg-gray-800 border border-gray-600 hover:bg-gray-700 hover:border-gray-500" asChild>
+                <Link href="/reviews/compare">比較リスト</Link>
               </Button>
               <Button
                 variant="outline"
                 size="sm"
+                className="w-full min-h-10"
                 onClick={async () => {
                   setFollowListModal("following");
                   setFollowListLoading(true);
@@ -462,6 +470,7 @@ export default function MypagePage() {
               <Button
                 variant="outline"
                 size="sm"
+                className="w-full min-h-10"
                 onClick={async () => {
                   setFollowListModal("followers");
                   setFollowListLoading(true);

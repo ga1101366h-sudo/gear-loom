@@ -16,8 +16,8 @@ import {
   TopPageCategoryNav,
   TopPageCategoryNavMobile,
 } from "@/components/top-page-category-nav";
-import { TopPageMainNavMobile } from "@/components/top-page-main-nav-mobile";
 import { TopPageUserSidebarGate } from "@/components/top-page-user-sidebar";
+import { TopPageFollowingReviews } from "@/components/top-page-following-reviews";
 import { NearbySpotsMap } from "@/components/nearby-spots-map";
 import { HeroSlideshow } from "@/components/hero-slideshow";
 import { HeroSearchInput } from "@/components/hero-search-input";
@@ -153,24 +153,11 @@ export default async function HomePage() {
   const eventBlogItems: NewReviewItem[] =
     eventBlogReviews.map(toNewReviewItem);
 
-  // ヒーロースライドショー用：新着・人気レビューの画像URLを抽出（追加フェッチなし）
-  const heroImageUrls = (() => {
-    const fromNew = newReviewItems
-      .map((i) => i.image)
-      .filter((url): url is string => !!url);
-    const fromPopular = popularReviewItems
-      .map((i) => i.image)
-      .filter((url): url is string => !!url);
-    const seen = new Set<string>();
-    const combined: string[] = [];
-    for (const url of [...fromNew, ...fromPopular]) {
-      if (!seen.has(url)) {
-        seen.add(url);
-        combined.push(url);
-      }
-    }
-    return combined.slice(0, 12);
-  })();
+  // ヒーロースライドショー用：新着記事の画像を順に5件まで表示
+  const heroImageUrls = newReviewItems
+    .map((i) => i.image)
+    .filter((url): url is string => !!url)
+    .slice(0, 5);
 
   return (
     <div>
@@ -260,9 +247,6 @@ export default async function HomePage() {
           {/* スマホ：カテゴリ横スクロール */}
           <TopPageCategoryNavMobile />
 
-          {/* スマホのみ：レビュー・比較リスト・カスタム手帳…のメインナビ */}
-          <TopPageMainNavMobile />
-
           {/* 新着レビュー */}
           <section className="min-w-0 overflow-hidden">
             <h2 className="mb-2 font-display text-xl font-semibold tracking-tight text-white md:text-2xl">
@@ -273,6 +257,9 @@ export default async function HomePage() {
             </p>
             <NewReviewsCarousel items={newReviewItems} />
           </section>
+
+          {/* フォロー中のユーザの記事（ログイン時のみ表示） */}
+          <TopPageFollowingReviews />
 
           {/* 人気機材 */}
           <section className="min-w-0 overflow-hidden">

@@ -59,6 +59,13 @@ export default function AdminPage() {
   const [newAnnouncementImportant, setNewAnnouncementImportant] = useState(false);
   const [addingAnnouncement, setAddingAnnouncement] = useState(false);
   const [deletingAnnouncementId, setDeletingAnnouncementId] = useState<string | null>(null);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<AdminAnnouncementItem | null>(null);
+  const [editAnnouncementDate, setEditAnnouncementDate] = useState("");
+  const [editAnnouncementTitle, setEditAnnouncementTitle] = useState("");
+  const [editAnnouncementBody, setEditAnnouncementBody] = useState("");
+  const [editAnnouncementUrl, setEditAnnouncementUrl] = useState("");
+  const [editAnnouncementImportant, setEditAnnouncementImportant] = useState(false);
+  const [savingAnnouncementId, setSavingAnnouncementId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.uid || !db) return;
@@ -402,6 +409,62 @@ export default function AdminPage() {
     }
   }
 
+  function openEditAnnouncement(a: AdminAnnouncementItem) {
+    setEditingAnnouncement(a);
+    setEditAnnouncementDate(a.date);
+    setEditAnnouncementTitle(a.title);
+    setEditAnnouncementBody(a.body ?? "");
+    setEditAnnouncementUrl(a.url ?? "");
+    setEditAnnouncementImportant(a.is_important ?? false);
+  }
+
+  async function handleSaveAnnouncement(e: React.FormEvent) {
+    e.preventDefault();
+    if (!auth?.currentUser || !editingAnnouncement) return;
+    setSavingAnnouncementId(editingAnnouncement.id);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch(`/api/admin/announcements/${encodeURIComponent(editingAnnouncement.id)}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          date: editAnnouncementDate.trim(),
+          title: editAnnouncementTitle.trim(),
+          body: editAnnouncementBody.trim(),
+          url: editAnnouncementUrl.trim() || null,
+          is_important: editAnnouncementImportant,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setAnnouncements((prev) =>
+          prev.map((a) =>
+            a.id === editingAnnouncement.id
+              ? {
+                  ...a,
+                  date: editAnnouncementDate.trim(),
+                  title: editAnnouncementTitle.trim(),
+                  body: editAnnouncementBody.trim(),
+                  url: editAnnouncementUrl.trim() || null,
+                  is_important: editAnnouncementImportant,
+                }
+              : a
+          )
+        );
+        setEditingAnnouncement(null);
+      } else {
+        alert(json.error ?? "更新に失敗しました。");
+      }
+    } catch {
+      alert("更新に失敗しました。");
+    } finally {
+      setSavingAnnouncementId(null);
+    }
+  }
+
   if (authLoading || (user && profileUserId === null)) {
     return (
       <div className="max-w-4xl mx-auto py-12 text-center text-gray-400">
@@ -732,21 +795,102 @@ export default function AdminPage() {
                       <span className="mt-0.5 text-gray-500 text-xs truncate block">{a.url}</span>
                     )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-red-400 border-red-400/50 hover:bg-red-400/10 shrink-0"
-                    disabled={deletingAnnouncementId === a.id}
-                    onClick={() => handleDeleteAnnouncement(a.id)}
-                  >
-                    {deletingAnnouncementId === a.id ? "削除中..." : "削除"}
-                  </Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-electric-blue border-electric-blue/50 hover:bg-electric-blue/10"
+                      disabled={savingAnnouncementId === a.id}
+                      onClick={() => openEditAnnouncement(a)}
+                    >
+                      編集
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-400 border-red-400/50 hover:bg-red-400/10"
+                      disabled={deletingAnnouncementId === a.id}
+                      onClick={() => handleDeleteAnnouncement(a.id)}
+                    >
+                      {deletingAnnouncementId === a.id ? "削除中..." : "削除"}
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </CardContent>
       </Card>
+
+      <Dialog.Root open={!!editingAnnouncement} onOpenChange={(open) => !open && setEditingAnnouncement(null)}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-surface-border bg-surface-card p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <Dialog.Title className="text-lg font-semibold text-white mb-4">
+              お知らせを編集
+            </Dialog.Title>
+            <form onSubmit={handleSaveAnnouncement} className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="admin-ann-date">日付</Label>
+                <Input
+                  id="admin-ann-date"
+                  value={editAnnouncementDate}
+                  onChange={(e) => setEditAnnouncementDate(e.target.value)}
+                  placeholder="例: 2025-01-15"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-ann-title">タイトル</Label>
+                <Input
+                  id="admin-ann-title"
+                  value={editAnnouncementTitle}
+                  onChange={(e) => setEditAnnouncementTitle(e.target.value)}
+                  placeholder="例：《重要》〇〇のお知らせ"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-ann-body">本文</Label>
+                <textarea
+                  id="admin-ann-body"
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={editAnnouncementBody}
+                  onChange={(e) => setEditAnnouncementBody(e.target.value)}
+                  placeholder="お知らせの本文"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-ann-url">URL（任意）</Label>
+                <Input
+                  id="admin-ann-url"
+                  value={editAnnouncementUrl}
+                  onChange={(e) => setEditAnnouncementUrl(e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="admin-ann-important"
+                  checked={editAnnouncementImportant}
+                  onChange={(e) => setEditAnnouncementImportant(e.target.checked)}
+                  className="rounded border-gray-600"
+                />
+                <Label htmlFor="admin-ann-important" className="cursor-pointer">重要マーク</Label>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" disabled={!!savingAnnouncementId}>
+                  {savingAnnouncementId ? "保存中..." : "保存"}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setEditingAnnouncement(null)}>
+                  キャンセル
+                </Button>
+              </div>
+            </form>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <Dialog.Root open={!!editingEvent} onOpenChange={(open) => !open && closeEditEvent()}>
         <Dialog.Portal>
