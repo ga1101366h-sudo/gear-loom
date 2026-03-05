@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Image from "next/image";
+import { PenLine } from "lucide-react";
 import {
   getReviewByIdFromFirestore,
   getReviewLikeCountFromFirestore,
@@ -187,6 +188,16 @@ export default async function ReviewDetailPage({
           }))
       : [];
 
+  const prefillCategory = categorySlug || review.category_id;
+  const newReviewParams = new URLSearchParams();
+  if (prefillCategory) newReviewParams.set("category", prefillCategory);
+  if (makerName) newReviewParams.set("manufacturer", makerName);
+  if (review.gear_name) newReviewParams.set("gear_name", review.gear_name);
+  const newReviewHref =
+    `/reviews/new` + (newReviewParams.toString() ? `?${newReviewParams.toString()}` : "");
+  const showGearReviewCta =
+    !isContentOnlyCategory && !!review.gear_name && review.gear_name.trim().length > 0;
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-4">
@@ -219,10 +230,13 @@ export default async function ReviewDetailPage({
               {makerName && (
                 <p className="text-sm">
                   <Link
-                    href={`/search?manufacturer=${encodeURIComponent(makerName)}`}
-                    className="text-gray-400 hover:text-electric-blue hover:underline"
+                    href={`/reviews?q=${encodeURIComponent(makerName)}`}
+                    className="inline-flex items-center gap-1 text-electric-blue hover:text-cyan-300 hover:underline"
                   >
-                    {makerName}
+                    <span>{makerName}</span>
+                    <span className="text-[10px]" aria-hidden>
+                      🔎
+                    </span>
                   </Link>
                 </p>
               )}
@@ -331,11 +345,30 @@ export default async function ReviewDetailPage({
         </CardContent>
       </Card>
 
-      <div className="max-w-3xl mx-auto text-xs text-gray-400 mt-2">
-        <p>
-          💡 同じ機材でも使い方は人それぞれ。あなたのセッティングやプレイスタイルでの感想も、ぜひレビューに残してみてください。
-        </p>
-      </div>
+      {showGearReviewCta && (
+        <Card className="my-6 rounded-2xl border border-surface-border/70 bg-slate-900/70 shadow-lg shadow-black/40">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="space-y-1">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-white sm:text-base">
+                <span aria-hidden>💡</span>
+                <span>あなたの愛機についても教えてください</span>
+              </h3>
+              <p className="text-xs text-gray-400 sm:text-sm">
+                同じ機材でも使い方は人それぞれ。あなたのセッティングやプレイスタイルでの感想も、ぜひレビューに残してみてください。
+              </p>
+            </div>
+            <Button
+              asChild
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-400/80 bg-transparent px-6 py-2.5 text-xs font-medium text-cyan-300 shadow-none hover:bg-cyan-500/10 hover:text-cyan-200 transition-colors sm:w-auto sm:text-sm"
+            >
+              <Link href={newReviewHref}>
+                <PenLine className="h-4 w-4" aria-hidden="true" />
+                <span>この機材のレビュー記事を書く</span>
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <ECSearchLinks
         gearName={review.gear_name}
