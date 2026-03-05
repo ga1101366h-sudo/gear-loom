@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,8 +33,8 @@ import {
 import { SiteAnnouncements } from "@/components/site-announcements";
 import type { Review, LiveEvent } from "@/types/database";
 
-/** トップページは常に最新のレビュー・人気機材を表示するため、キャッシュせず毎回サーバーで描画する */
-export const dynamic = "force-dynamic";
+/** トップページ：60秒間はキャッシュして Firestore リード数を削減（ISR） */
+export const revalidate = 60;
 
 const EXCLUDED_FROM_MAIN_SECTIONS = ["event", "blog"];
 
@@ -128,6 +129,14 @@ function toNewReviewItem(r: Review): NewReviewItem {
   };
 }
 
+const getCachedRecentReviews = React.cache(getRecentReviews);
+const getCachedPopularReviews = React.cache(getPopularReviews);
+const getCachedEventAndBlogReviews = React.cache(getEventAndBlogReviews);
+const getCachedLiveEvents = React.cache(getLiveEvents);
+const getCachedExternalNews = React.cache(getExternalNewsForTopPage);
+const getCachedProfilesList = React.cache(() => getProfilesListForTopPage(20));
+const getCachedSiteAnnouncements = React.cache(() => getSiteAnnouncementsFromFirestore(10));
+
 export default async function HomePage() {
   const [
     recentReviews,
@@ -138,13 +147,13 @@ export default async function HomePage() {
     profilesList,
     siteAnnouncements,
   ] = await Promise.all([
-    getRecentReviews(),
-    getPopularReviews(),
-    getEventAndBlogReviews(),
-    getLiveEvents(),
-    getExternalNewsForTopPage(),
-    getProfilesListForTopPage(20),
-    getSiteAnnouncementsFromFirestore(10),
+    getCachedRecentReviews(),
+    getCachedPopularReviews(),
+    getCachedEventAndBlogReviews(),
+    getCachedLiveEvents(),
+    getCachedExternalNews(),
+    getCachedProfilesList(),
+    getCachedSiteAnnouncements(),
   ]);
 
   const newReviewItems: NewReviewItem[] = recentReviews.map(toNewReviewItem);

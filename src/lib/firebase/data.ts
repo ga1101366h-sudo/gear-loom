@@ -150,12 +150,22 @@ export async function getReviewsFromFirestore(
       if (limit) q = q.limit(limit) as ReturnType<typeof q.limit>;
       snap = await q.get();
     }
-    const authorIds = snap.docs.map((d) => (d.data().author_id as string) ?? "").filter(Boolean);
-    const profileMap = await getProfilesByAuthorIds(db, authorIds);
+    const authorIdsNeedingProfile = [...new Set(
+      snap.docs
+        .map((d) => {
+          const data = d.data();
+          const authorId = (data.author_id as string) ?? "";
+          const hasDenormalized =
+            data.author_user_id != null || data.author_display_name != null;
+          return hasDenormalized ? "" : authorId;
+        })
+        .filter((id) => id?.trim())
+    )];
+    const profileMap = await getProfilesByAuthorIds(db, authorIdsNeedingProfile);
 
     const reviews: Review[] = snap.docs.map((d) => {
       const data = d.data();
-      const authorId = data.author_id ?? "";
+      const authorId = (data.author_id as string) ?? "";
       const fromDoc =
         data.author_user_id != null || data.author_display_name != null
           ? {
@@ -424,12 +434,22 @@ export async function getPopularReviewsFromFirestore(limit = 20): Promise<Review
       const rid = d.data().review_id;
       if (rid) likeCountByReviewId[rid] = (likeCountByReviewId[rid] ?? 0) + 1;
     });
-    const authorIds = reviewsSnap.docs.map((d) => (d.data().author_id as string) ?? "").filter(Boolean);
-    const profileMap = await getProfilesByAuthorIds(db, authorIds);
+    const authorIdsNeedingProfile = [...new Set(
+      reviewsSnap.docs
+        .map((d) => {
+          const data = d.data();
+          const authorId = (data.author_id as string) ?? "";
+          const hasDenormalized =
+            data.author_user_id != null || data.author_display_name != null;
+          return hasDenormalized ? "" : authorId;
+        })
+        .filter((id) => id?.trim())
+    )];
+    const profileMap = await getProfilesByAuthorIds(db, authorIdsNeedingProfile);
 
     const reviews: ReviewWithLikes[] = reviewsSnap.docs.map((d) => {
       const data = d.data();
-      const authorId = data.author_id ?? "";
+      const authorId = (data.author_id as string) ?? "";
       const fromDoc =
         data.author_user_id != null || data.author_display_name != null
           ? {

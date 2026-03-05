@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import useSWR from "swr";
+import { collection, query, where, getDocs, documentId } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFirebaseFirestore } from "@/lib/firebase/client";
 import { getFirebaseStorageUrl } from "@/lib/utils";
@@ -163,7 +164,6 @@ export default function MypagePage() {
   const [totalLikes, setTotalLikes] = useState(0);
   const [liveEvents, setLiveEvents] = useState<LiveEvent[]>([]);
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showProfilePreview, setShowProfilePreview] = useState(false);
   const [followingCount, setFollowingCount] = useState(0);
   const [followersCount, setFollowersCount] = useState(0);
@@ -187,56 +187,42 @@ export default function MypagePage() {
     return [...upcoming, ...past];
   }, [liveEvents]);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.push("/login?next=/mypage");
-      return;
-    }
-    if (!db) {
-      setLoading(false);
-      return;
-    }
+  type MypageData = {
+    profile: Profile | null;
+    followingCount: number;
+    followersCount: number;
+    myReviews: Review[];
+    totalLikes: number;
+    likedReviews: Review[];
+    liveEvents: LiveEvent[];
+    timelineItems: TimelineItem[];
+  };
 
-    const uid = user.uid;
+  const { data: mypageData, isLoading: swrLoading } = useSWR<MypageData>(
+    user && db ? ["mypage", user.uid] : null,
+    async (): Promise<MypageData> => {
+      const uid = user!.uid;
+      const token = await user!.getIdToken(true);
+      const [profileRes, followCountsRes, reviewsSnap, likesSnap, eventsSnap] = await Promise.all([
+        fetch("/api/me/profile", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("/api/me/follow-counts", { headers: { Authorization: `Bearer ${token}` } }),
+        getDocs(query(collection(db!, "reviews"), where("author_id", "==", uid))),
+        getDocs(query(collection(db!, "review_likes"), where("user_id", "==", uid))),
+        getDocs(query(collection(db!, "live_events"), where("user_id", "==", uid))),
+      ]);
 
-    (async () => {
-      try {
-        const token = await user.getIdToken(true);
-
-        const [profileRes, followCountsRes, reviewsSnap, likesSnap, eventsSnap] = await Promise.all([
-          fetch("/api/me/profile", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("/api/me/follow-counts", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          getDocs(
-            query(collection(db, "reviews"), where("author_id", "==", uid))
-          ),
-          getDocs(
-            query(collection(db, "review_likes"), where("user_id", "==", uid))
-          ),
-          getDocs(
-            query(collection(db, "live_events"), where("user_id", "==", uid))
-          ),
-        ]);
-
-        if (profileRes.ok) {
-          const { profile: profileData } = (await profileRes.json()) as {
-            profile: Profile | null;
-          };
-          if (profileData) setProfile(profileData);
-        }
-
-        if (followCountsRes.ok) {
-          const countsData = (await followCountsRes.json()) as {
-            followingCount: number;
-            followersCount: number;
-          };
-          setFollowingCount(countsData.followingCount ?? 0);
-          setFollowersCount(countsData.followersCount ?? 0);
-        }
+      let profile: Profile | null = null;
+      if (profileRes.ok) {
+        const json = (await profileRes.json()) as { profile: Profile | null };
+        profile = json.profile ?? null;
+      }
+      let followingCount = 0;
+      let followersCount = 0;
+      if (followCountsRes.ok) {
+        const countsData = (await followCountsRes.json()) as { followingCount?: number; followersCount?: number };
+        followingCount = countsData.followingCount ?? 0;
+        followersCount = countsData.followersCount ?? 0;
+      }
 
       const reviews: Review[] = reviewsSnap.docs
         .map((d) => {
@@ -261,27 +247,26 @@ export default function MypagePage() {
           } as Review;
         })
         .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
-      setMyReviews(reviews);
 
+      let totalLikes = 0;
       const myReviewIdArray = reviewsSnap.docs.map((d) => d.id);
-      let likes = 0;
       for (let i = 0; i < myReviewIdArray.length; i += 10) {
         const chunk = myReviewIdArray.slice(i, i + 10);
-        const snap = await getDocs(
-          query(collection(db, "review_likes"), where("review_id", "in", chunk))
-        );
-        likes += snap.size;
+        const snap = await getDocs(query(collection(db!, "review_likes"), where("review_id", "in", chunk)));
+        totalLikes += snap.size;
       }
-      setTotalLikes(likes);
 
-      const likedReviewIds = likesSnap.docs.map((d) => d.data().review_id).filter(Boolean);
+      const likedReviewIds = likesSnap.docs.map((d) => d.data().review_id as string).filter(Boolean).slice(0, 50);
       const likedList: Review[] = [];
-      const reviewPromises = likedReviewIds.slice(0, 50).map((reviewId) =>
-        getDoc(doc(db, "reviews", reviewId)).then((snap) => {
-          if (!snap.exists()) return null;
-          const data = snap.data()!;
-          return {
-            id: snap.id,
+      for (let i = 0; i < likedReviewIds.length; i += 10) {
+        const chunk = likedReviewIds.slice(i, i + 10);
+        const revSnap = await getDocs(
+          query(collection(db!, "reviews"), where(documentId(), "in", chunk))
+        );
+        revSnap.docs.forEach((d) => {
+          const data = d.data();
+          likedList.push({
+            id: d.id,
             author_id: data.author_id ?? "",
             category_id: data.category_id ?? "",
             maker_id: data.maker_id ?? null,
@@ -297,12 +282,9 @@ export default function MypagePage() {
               ? { id: "", slug: (data.category_slug as string) ?? "", name_ja: data.category_name_ja, name_en: null, sort_order: 0, created_at: "" }
               : undefined,
             review_images: (data.review_images as { storage_path: string; sort_order: number }[] | undefined) ?? [],
-          } as Review;
-        })
-      );
-      const results = await Promise.all(reviewPromises);
-      likedList.push(...results.filter((r): r is Review => r != null));
-      setLikedReviews(likedList);
+          } as Review);
+        });
+      }
 
       const events: LiveEvent[] = eventsSnap.docs
         .map((d) => {
@@ -322,22 +304,44 @@ export default function MypagePage() {
           } as LiveEvent;
         })
         .sort((a, b) => (a.event_date || "").localeCompare(b.event_date || ""));
-      setLiveEvents(events);
-
-        let timeline: TimelineItem[] = [];
-        try {
-          timeline = await fetchFollowingTimelineClient(uid, 50);
-        } catch {
-          // タイムライン取得失敗時は空で表示（権限・インデックス等）
-        }
-        setTimelineItems(timeline);
-      } catch (err) {
-        console.error("[mypage] fetch error", err);
-      } finally {
-        setLoading(false);
+      let timeline: TimelineItem[] = [];
+      try {
+        timeline = await fetchFollowingTimelineClient(uid, 50);
+      } catch {
+        // タイムライン取得失敗時は空
       }
-    })();
-  }, [user, authLoading, db, router]);
+      return {
+        profile,
+        followingCount,
+        followersCount,
+        myReviews: reviews,
+        totalLikes,
+        likedReviews: likedList,
+        liveEvents: events,
+        timelineItems: timeline,
+      };
+    },
+    { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 60_000 }
+  );
+
+  useEffect(() => {
+    if (!user) router.push("/login?next=/mypage");
+  }, [user, router]);
+
+  useEffect(() => {
+    if (mypageData) {
+      setProfile(mypageData.profile);
+      setFollowingCount(mypageData.followingCount);
+      setFollowersCount(mypageData.followersCount);
+      setMyReviews(mypageData.myReviews);
+      setTotalLikes(mypageData.totalLikes);
+      setLikedReviews(mypageData.likedReviews);
+      setLiveEvents(mypageData.liveEvents);
+      setTimelineItems(mypageData.timelineItems);
+    }
+  }, [mypageData]);
+
+  const loading = authLoading || (user && db && swrLoading && !mypageData);
 
   if (authLoading || loading) {
     return (
