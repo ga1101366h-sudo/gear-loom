@@ -22,8 +22,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { CategoryDropdown } from "@/components/category-dropdown";
-import { getGroupSlugByCategorySlug, isContentOnlyCategorySlug } from "@/data/post-categories";
+import {
+  getGroupSlugByCategorySlug,
+  isContentOnlyCategorySlug,
+  POST_CATEGORIES_FLAT,
+} from "@/data/post-categories";
 import { getPendingGear, clearPendingGear } from "@/lib/pending-gear";
+import { useSearchParams } from "next/navigation";
 
 const REVIEW_TITLE_MAX = 100;
 const REVIEW_BODY_MAX = 10000;
@@ -79,6 +84,8 @@ export default function NewReviewPage() {
     { id: "streaming", label: "配信" },
   ];
 
+  const searchParams = useSearchParams();
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -112,6 +119,27 @@ export default function NewReviewPage() {
       setLoading(false);
     })();
   }, [user, authLoading, db]);
+
+  useEffect(() => {
+    if (!searchParams) return;
+    const categoryFromUrl = searchParams.get("category") ?? "";
+    const manufacturerFromUrl = searchParams.get("manufacturer") ?? "";
+    const gearNameFromUrl = searchParams.get("gear_name") ?? "";
+
+    if (categoryFromUrl) {
+      setCategorySlug((prev) => prev || categoryFromUrl);
+      if (!categoryNameJa) {
+        const found = POST_CATEGORIES_FLAT.find((c) => c.slug === categoryFromUrl);
+        if (found) setCategoryNameJa(found.name_ja);
+      }
+    }
+    if (manufacturerFromUrl) {
+      setMakerName((prev) => prev || manufacturerFromUrl);
+    }
+    if (gearNameFromUrl) {
+      setGearName((prev) => prev || gearNameFromUrl);
+    }
+  }, [searchParams, categoryNameJa]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
