@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useSWRConfig } from "swr";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,6 +30,7 @@ function ProfilePageContent() {
   const searchParams = useSearchParams();
   const nextUrl = searchParams.get("next") ?? "/profile";
   const { user, loading: authLoading } = useAuth();
+  const { mutate: globalMutate } = useSWRConfig();
   const db = getFirebaseFirestore();
   const storage = getFirebaseStorage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,6 +60,27 @@ function ProfilePageContent() {
   const [ownedGearMakerInput, setOwnedGearMakerInput] = useState("");
   const [ownedGearNameInput, setOwnedGearNameInput] = useState("");
   const [showProfilePreview, setShowProfilePreview] = useState(false);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [followersCount, setFollowersCount] = useState(0);
+
+  useEffect(() => {
+    if (!showProfilePreview || !user) return;
+    (async () => {
+      try {
+        const token = await user.getIdToken();
+        if (!token) return;
+        const res = await fetch("/api/me/follow-counts", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { followingCount?: number; followersCount?: number };
+        if (typeof data.followingCount === "number") setFollowingCount(data.followingCount);
+        if (typeof data.followersCount === "number") setFollowersCount(data.followersCount);
+      } catch {
+        // ignore
+      }
+    })();
+  }, [showProfilePreview, user]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -331,6 +354,7 @@ function ProfilePageContent() {
         updated_at: new Date().toISOString(),
       });
       setMessage({ type: "success", text: "プロフィールを更新しました。" });
+      globalMutate(["profiles", user.uid]);
     } catch (err: unknown) {
       setMessage({
         type: "error",
@@ -678,6 +702,8 @@ function ProfilePageContent() {
                     userId={profile.user_id}
                     open={showProfilePreview}
                     onClose={() => setShowProfilePreview(false)}
+                    followersCount={followersCount}
+                    followingCount={followingCount}
                   />
                 </>
               )}

@@ -40,7 +40,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja" className="dark">
+    <html lang="ja" className="dark" suppressHydrationWarning>
       <head>
         <script
           async
@@ -50,6 +50,7 @@ export default function RootLayout({
       </head>
       <body
         className={`${syne.variable} ${notoSansJP.variable} font-sans antialiased min-h-screen`}
+        suppressHydrationWarning
       >
         <Script
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4447190031977944"

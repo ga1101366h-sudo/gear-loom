@@ -1,11 +1,10 @@
 "use client";
 
 import useSWR from "swr";
-import { doc, getDoc } from "firebase/firestore";
-import { getFirebaseFirestore } from "@/lib/firebase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 type UserProfile = {
+  id?: string;
   display_name?: string | null;
   user_id?: string | null;
   avatar_url?: string | null;
@@ -13,20 +12,28 @@ type UserProfile = {
   [key: string]: unknown;
 } | null;
 
-async function fetchUserProfile(uid: string): Promise<UserProfile> {
-  const db = getFirebaseFirestore();
-  if (!db) return null;
-  const snap = await getDoc(doc(db, "profiles", uid));
-  return (snap.exists() ? (snap.data() as UserProfile) : null) ?? null;
+async function fetchUserProfileFromApi(
+  uid: string,
+  getIdToken: () => Promise<string | undefined>
+): Promise<UserProfile> {
+  const token = await getIdToken();
+  if (!token) return null;
+  const res = await fetch("/api/me/profile", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  const { profile } = (await res.json()) as { profile: UserProfile | null };
+  return profile ?? null;
 }
 
 export function useUserProfile() {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
+  const getIdToken = () => user?.getIdToken() ?? Promise.resolve(undefined);
 
   const { data, error, mutate } = useSWR(
     uid ? ["profiles", uid] : null,
-    ([, id]) => fetchUserProfile(id),
+    ([, id]) => fetchUserProfileFromApi(id, getIdToken),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -37,7 +44,7 @@ export function useUserProfile() {
   const isLoading = !!uid && data === undefined && !error;
 
   return {
-    profile: data,
+    profile: data ?? null,
     loading: isLoading,
     error,
     refresh: () => mutate(),

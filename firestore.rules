@@ -2,9 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // プロフィール（自分のドキュメントのみ）
+    // プロフィール（認証済みなら誰でも読取可＝マイページ・他ユーザー表示用。書込は本人のみ）
     match /profiles/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
     // レビュー（誰でも読める、認証ユーザーが作成・更新・削除）
@@ -33,10 +34,21 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
-    // ライブ予定（本人のドキュメントのみ）
+    // ライブ予定（作成・更新・削除は本人のみ。読取は誰でも可＝フォロー中タイムライン用）
     match /live_events/{id} {
-      allow read, write: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow read: if true;
       allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.user_id == request.auth.uid;
+    }
+
+    // フォロー関係（認証ユーザーが自分を follower として作成・上書き。解除は自分のドキュメントのみ削除可）
+    match /follows/{docId} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+        && request.resource.data.follower_id == request.auth.uid
+        && request.resource.data.following_id != request.auth.uid;
+      allow delete: if request.auth != null
+        && (resource == null || resource.data.follower_id == request.auth.uid);
     }
 
     // スペックタグ（レビュー投稿・編集フォームで参照、誰でも読める）

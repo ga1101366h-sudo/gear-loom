@@ -19,6 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { AdminLiveEventItem } from "@/app/api/admin/live-events/route";
+import type { AdminAnnouncementItem } from "@/app/api/admin/announcements/route";
 
 type AdminUserItem = { id: string; display_name: string | null; user_id: string | null; created_at: string };
 type IncompleteUserItem = { uid: string; email: string | null; display_name: string | null };
@@ -49,6 +50,15 @@ export default function AdminPage() {
   const [editVenueUrl, setEditVenueUrl] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [savingEventId, setSavingEventId] = useState<string | null>(null);
+  const [announcements, setAnnouncements] = useState<AdminAnnouncementItem[]>([]);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
+  const [newAnnouncementDate, setNewAnnouncementDate] = useState("");
+  const [newAnnouncementTitle, setNewAnnouncementTitle] = useState("");
+  const [newAnnouncementBody, setNewAnnouncementBody] = useState("");
+  const [newAnnouncementUrl, setNewAnnouncementUrl] = useState("");
+  const [newAnnouncementImportant, setNewAnnouncementImportant] = useState(false);
+  const [addingAnnouncement, setAddingAnnouncement] = useState(false);
+  const [deletingAnnouncementId, setDeletingAnnouncementId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.uid || !db) return;
@@ -143,12 +153,31 @@ export default function AdminPage() {
     }
   }
 
+  async function fetchAnnouncements() {
+    if (!auth?.currentUser) return;
+    setLoadingAnnouncements(true);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch("/api/admin/announcements", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(json.announcements)) setAnnouncements(json.announcements);
+      else setAnnouncements([]);
+    } catch {
+      setAnnouncements([]);
+    } finally {
+      setLoadingAnnouncements(false);
+    }
+  }
+
   useEffect(() => {
     if (!isAdmin || !user) return;
     fetchUsers();
     fetchIncompleteUsers();
     fetchReviews();
     fetchLiveEvents();
+    fetchAnnouncements();
   }, [isAdmin, user?.uid]);
 
   async function handleDeleteUser(uid: string) {
@@ -306,6 +335,70 @@ export default function AdminPage() {
       alert("削除に失敗しました。");
     } finally {
       setDeletingEventId(null);
+    }
+  }
+
+  async function handleAddAnnouncement(e: React.FormEvent) {
+    e.preventDefault();
+    if (!auth?.currentUser || !newAnnouncementDate.trim() || !newAnnouncementTitle.trim()) return;
+    setAddingAnnouncement(true);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch("/api/admin/announcements", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          date: newAnnouncementDate.trim(),
+          title: newAnnouncementTitle.trim(),
+          body: newAnnouncementBody.trim(),
+          url: newAnnouncementUrl.trim() || null,
+          is_important: newAnnouncementImportant,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.id) {
+        setAnnouncements((prev) => [
+          { id: json.id, date: json.date, title: json.title, body: json.body ?? "", url: json.url, is_important: json.is_important, created_at: json.created_at ?? "" },
+          ...prev,
+        ]);
+        setNewAnnouncementDate("");
+        setNewAnnouncementTitle("");
+        setNewAnnouncementBody("");
+        setNewAnnouncementUrl("");
+        setNewAnnouncementImportant(false);
+      } else {
+        alert(json.error ?? "登録に失敗しました。");
+      }
+    } catch {
+      alert("登録に失敗しました。");
+    } finally {
+      setAddingAnnouncement(false);
+    }
+  }
+
+  async function handleDeleteAnnouncement(id: string) {
+    if (!auth?.currentUser) return;
+    if (!confirm("このお知らせを削除しますか？")) return;
+    setDeletingAnnouncementId(id);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch(`/api/admin/announcements/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+      } else {
+        alert(json.error ?? "削除に失敗しました。");
+      }
+    } catch {
+      alert("削除に失敗しました。");
+    } finally {
+      setDeletingAnnouncementId(null);
     }
   }
 
@@ -538,6 +631,116 @@ export default function AdminPage() {
                       {deletingEventId === ev.id ? "削除中..." : "削除"}
                     </Button>
                   </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-electric-blue">Gear-Loomからのおしらせ</CardTitle>
+          <CardDescription>
+            トップページ右サイドバーに表示される「Gear-Loomからのおしらせ」を記事形式で管理します。タイトル・本文は必須です。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <form onSubmit={handleAddAnnouncement} className="flex flex-col gap-3 rounded-lg border border-surface-border/80 p-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="ann-date">日付</Label>
+                <Input
+                  id="ann-date"
+                  type="date"
+                  value={newAnnouncementDate}
+                  onChange={(e) => setNewAnnouncementDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex items-end gap-2">
+                <label className="flex items-center gap-2 text-sm text-gray-400">
+                  <input
+                    type="checkbox"
+                    checked={newAnnouncementImportant}
+                    onChange={(e) => setNewAnnouncementImportant(e.target.checked)}
+                    className="rounded border-surface-border"
+                  />
+                  重要タグを付ける
+                </label>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ann-title">タイトル</Label>
+              <Input
+                id="ann-title"
+                value={newAnnouncementTitle}
+                onChange={(e) => setNewAnnouncementTitle(e.target.value)}
+                placeholder="例：《重要》〇〇のお知らせ"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ann-body">本文</Label>
+              <textarea
+                id="ann-body"
+                value={newAnnouncementBody}
+                onChange={(e) => setNewAnnouncementBody(e.target.value)}
+                placeholder="お知らせの本文を入力してください。"
+                required
+                rows={4}
+                className="flex w-full rounded-lg border border-surface-border bg-surface-dark px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ann-url">リンクURL（任意）</Label>
+              <Input
+                id="ann-url"
+                type="url"
+                value={newAnnouncementUrl}
+                onChange={(e) => setNewAnnouncementUrl(e.target.value)}
+                placeholder="https://..."
+              />
+            </div>
+            <Button type="submit" size="sm" disabled={addingAnnouncement}>
+              {addingAnnouncement ? "登録中..." : "お知らせを追加"}
+            </Button>
+          </form>
+          {loadingAnnouncements ? (
+            <p className="text-gray-500 text-sm">読み込み中...</p>
+          ) : announcements.length === 0 ? (
+            <p className="text-gray-500 text-sm">お知らせがありません。上記フォームから追加できます。</p>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {announcements.map((a) => (
+                <li
+                  key={a.id}
+                  className="flex items-center justify-between gap-4 py-2 border-b border-surface-border last:border-0"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="text-gray-500">{a.date}</span>
+                    {a.is_important && (
+                      <span className="ml-1.5 inline-block rounded bg-red-600/90 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                        重要
+                      </span>
+                    )}{" "}
+                    <span className="text-gray-300 font-medium">{a.title}</span>
+                    {a.body && (
+                      <p className="mt-0.5 text-gray-500 text-xs line-clamp-2">{a.body}</p>
+                    )}
+                    {a.url && (
+                      <span className="mt-0.5 text-gray-500 text-xs truncate block">{a.url}</span>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-400 border-red-400/50 hover:bg-red-400/10 shrink-0"
+                    disabled={deletingAnnouncementId === a.id}
+                    onClick={() => handleDeleteAnnouncement(a.id)}
+                  >
+                    {deletingAnnouncementId === a.id ? "削除中..." : "削除"}
+                  </Button>
                 </li>
               ))}
             </ul>

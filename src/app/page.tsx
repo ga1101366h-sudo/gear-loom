@@ -20,11 +20,16 @@ import { TopPageMainNavMobile } from "@/components/top-page-main-nav-mobile";
 import { TopPageUserSidebarGate } from "@/components/top-page-user-sidebar";
 import { NearbySpotsMap } from "@/components/nearby-spots-map";
 import { HeroSlideshow } from "@/components/hero-slideshow";
+import { HeroSearchInput } from "@/components/hero-search-input";
 import {
   getExternalNewsForTopPage,
   type ExternalNewsItem,
 } from "@/lib/news";
-import { getProfilesListForTopPage } from "@/lib/firebase/data";
+import {
+  getProfilesListForTopPage,
+  getSiteAnnouncementsFromFirestore,
+} from "@/lib/firebase/data";
+import { SiteAnnouncements } from "@/components/site-announcements";
 import type { Review, LiveEvent } from "@/types/database";
 
 /** トップページは常に最新のレビュー・人気機材を表示するため、キャッシュせず毎回サーバーで描画する */
@@ -105,6 +110,11 @@ function toNewReviewItem(r: Review): NewReviewItem {
     const url = getFirebaseStorageUrl(first.storage_path);
     if (url) image = url;
   }
+  const profile = r.profiles;
+  const authorName =
+    profile?.display_name?.trim() ||
+    (profile?.user_id?.trim() ? `@${profile.user_id.trim()}` : "ユーザー");
+  const authorAvatar = profile?.avatar_url?.trim() || null;
   return {
     id: r.id,
     title: r.title,
@@ -113,7 +123,8 @@ function toNewReviewItem(r: Review): NewReviewItem {
     excerpt: "レビューを読む →",
     image,
     category: categoryName,
-    author: "",
+    author: authorName,
+    author_avatar: authorAvatar || null,
   };
 }
 
@@ -125,6 +136,7 @@ export default async function HomePage() {
     liveEvents,
     externalNews,
     profilesList,
+    siteAnnouncements,
   ] = await Promise.all([
     getRecentReviews(),
     getPopularReviews(),
@@ -132,6 +144,7 @@ export default async function HomePage() {
     getLiveEvents(),
     getExternalNewsForTopPage(),
     getProfilesListForTopPage(20),
+    getSiteAnnouncementsFromFirestore(10),
   ]);
 
   const newReviewItems: NewReviewItem[] = recentReviews.map(toNewReviewItem);
@@ -186,9 +199,12 @@ export default async function HomePage() {
             </h1>
             <p className="text-[0.9rem] font-medium leading-relaxed text-gray-200 drop-shadow-md sm:text-sm md:text-base">
               こだわりのセッティングを共有して、みんなの音作りを応援しよう。機材の歴史を
-              <span className="font-semibold text-electric-blue">
-                「カスタム手帳」
-              </span>
+              <Link
+                href="/notebook"
+                className="font-semibold text-electric-blue underline decoration-electric-blue/60 underline-offset-2 transition-colors hover:text-cyan-300 hover:decoration-cyan-300/80"
+              >
+                カスタム手帳
+              </Link>
               に刻み、あなただけのデジタル機材庫を完成させませんか？
             </p>
             <div className="mt-2 flex flex-col items-center gap-3 sm:gap-4">
@@ -211,29 +227,9 @@ export default async function HomePage() {
               </p>
             </div>
 
-            {/* 検索窓（ヒーロー上にオーバーレイ） */}
+            {/* 検索窓（プレースホルダーはタイピング風に切り替え） */}
             <div className="mt-6 w-full max-w-2xl sm:mt-8">
-              <form
-                action="/reviews"
-                method="get"
-                className="flex flex-col gap-2 sm:flex-row sm:items-center"
-                role="search"
-              >
-                <input
-                  type="search"
-                  name="q"
-                  placeholder="レビューを検索（タイトル・機材名）"
-                  aria-label="レビューを検索"
-                  className="flex-1 min-w-0 rounded-xl border border-white/20 bg-black/40 px-4 py-2.5 text-sm text-white placeholder:text-gray-400 focus:border-electric-blue/50 focus:outline-none focus:ring-2 focus:ring-electric-blue/25 backdrop-blur-sm md:text-base md:py-2.5 md:px-4"
-                />
-                <Button
-                  type="submit"
-                  variant="default"
-                  className="shrink-0 min-h-[40px] rounded-xl px-4 md:min-h-[42px] md:px-5"
-                >
-                  検索
-                </Button>
-              </form>
+              <HeroSearchInput />
             </div>
           </div>
         </div>
@@ -259,8 +255,8 @@ export default async function HomePage() {
           <TopPageCategoryNav />
         </aside>
 
-        {/* メインコンテンツ */}
-        <div className="order-1 flex-1 min-w-0 space-y-6 md:space-y-8 lg:order-2 lg:space-y-10">
+        {/* メインコンテンツ（スマホでは order-2 でマイプロフィールの下に表示） */}
+        <div className="order-2 flex-1 min-w-0 space-y-6 md:space-y-8 lg:order-2 lg:space-y-10">
           {/* スマホ：カテゴリ横スクロール */}
           <TopPageCategoryNavMobile />
 
@@ -372,12 +368,20 @@ export default async function HomePage() {
           </section>
         </div>
 
-        {/* 右サイドバー（マイプロフィール） */}
-        <div className="order-3 w-full shrink-0 pt-4 lg:order-3 lg:w-auto lg:pt-2">
+        {/* 右サイドバー（スマホでは order-1 で新着レビューの上に表示・PCでは右側） */}
+        <div className="order-1 flex w-full shrink-0 flex-col gap-4 pt-4 lg:order-3 lg:w-[280px] lg:pt-2">
           <TopPageUserSidebarGate
             users={profilesList}
             liveEvents={liveEvents}
           />
+          <div className="hidden lg:block">
+            <SiteAnnouncements announcements={siteAnnouncements} />
+          </div>
+        </div>
+
+        {/* スマホのみ：おしらせは従来通り下部に表示 */}
+        <div className="order-3 w-full lg:hidden">
+          <SiteAnnouncements announcements={siteAnnouncements} />
         </div>
       </div>
     </div>

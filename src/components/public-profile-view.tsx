@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ReviewImagesGallery } from "@/components/review-images-gallery";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { LiveEventCalendar } from "@/components/live-event-calendar";
+import { ProfileFollowSection } from "@/components/profile-follow-section";
 import type { Profile } from "@/types/database";
 import type { LiveEvent } from "@/types/database";
 import type { Review } from "@/types/database";
@@ -27,18 +28,37 @@ function buildUrl(raw: string | null, type: "x" | "instagram" | "youtube" | "twi
   }
 }
 
+export type ReviewWithLikeCount = Review & { likeCount?: number };
+
 type Props = {
   profile: Profile;
   events: LiveEvent[];
-  reviews: Review[];
+  reviews: ReviewWithLikeCount[];
+  followersCount?: number;
+  followingCount?: number;
+  /** 親から渡すリアルタイム表示用（embedプレビューでpostMessage更新時） */
+  overrideFollowersCount?: number;
+  overrideFollowingCount?: number;
+  /** true のときリンクは同じ見た目でテキストのみ表示（オーバーレイ用） */
+  disableLinks?: boolean;
 };
 
-export function PublicProfileView({ profile, events, reviews }: Props) {
+export function PublicProfileView({
+  profile,
+  events,
+  reviews,
+  followersCount = 0,
+  followingCount = 0,
+  overrideFollowersCount,
+  overrideFollowingCount,
+  disableLinks = false,
+}: Props) {
   const xUrl = buildUrl(profile.sns_twitter, "x");
   const instagramUrl = buildUrl(profile.sns_instagram, "instagram");
   const youtubeUrl = buildUrl(profile.sns_youtube, "youtube");
   const twitchUrl = buildUrl(profile.sns_twitch, "twitch");
   const displayName = profile.display_name || profile.user_id || "ユーザー";
+  const totalReviewLikes = reviews.reduce((sum, r) => sum + ((r as ReviewWithLikeCount).likeCount ?? 0), 0);
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 py-8">
@@ -75,7 +95,7 @@ export function PublicProfileView({ profile, events, reviews }: Props) {
             {profile.band_name && (
               <p className="text-sm text-gray-400">
                 所属バンド:{" "}
-                {profile.band_url ? (
+                {profile.band_url && !disableLinks ? (
                   <a
                     href={profile.band_url}
                     target="_blank"
@@ -85,10 +105,19 @@ export function PublicProfileView({ profile, events, reviews }: Props) {
                     {profile.band_name}
                   </a>
                 ) : (
-                  profile.band_name
+                  <span className={profile.band_url && disableLinks ? "text-electric-blue" : undefined}>
+                    {profile.band_name}
+                  </span>
                 )}
               </p>
             )}
+            <ProfileFollowSection
+              profileUid={profile.id}
+              initialFollowersCount={followersCount}
+              initialFollowingCount={followingCount}
+              overrideFollowersCount={overrideFollowersCount}
+              overrideFollowingCount={overrideFollowingCount}
+            />
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -129,19 +158,27 @@ export function PublicProfileView({ profile, events, reviews }: Props) {
           {profile.contact_email && (
             <section>
               <CardDescription className="text-gray-300 mb-1">連絡先メールアドレス</CardDescription>
-              <a
-                href={`mailto:${profile.contact_email}`}
-                className="text-sm text-electric-blue hover:underline break-all"
-              >
-                {profile.contact_email}
-              </a>
+              {disableLinks ? (
+                <span className="text-sm text-electric-blue break-all">{profile.contact_email}</span>
+              ) : (
+                <a
+                  href={`mailto:${profile.contact_email}`}
+                  className="text-sm text-electric-blue hover:underline break-all"
+                >
+                  {profile.contact_email}
+                </a>
+              )}
             </section>
           )}
           {(xUrl || instagramUrl || youtubeUrl || twitchUrl) && (
             <section className="space-y-2">
               <CardDescription className="text-gray-300">リンク</CardDescription>
               <div className="flex flex-wrap gap-2">
-                {xUrl && (
+                {xUrl && (disableLinks ? (
+                  <span className="rounded-full border border-surface-border px-3 py-1 text-xs text-gray-200">
+                    X
+                  </span>
+                ) : (
                   <a
                     href={xUrl}
                     target="_blank"
@@ -150,8 +187,12 @@ export function PublicProfileView({ profile, events, reviews }: Props) {
                   >
                     X
                   </a>
-                )}
-                {instagramUrl && (
+                ))}
+                {instagramUrl && (disableLinks ? (
+                  <span className="rounded-full border border-surface-border px-3 py-1 text-xs text-gray-200">
+                    Instagram
+                  </span>
+                ) : (
                   <a
                     href={instagramUrl}
                     target="_blank"
@@ -160,8 +201,12 @@ export function PublicProfileView({ profile, events, reviews }: Props) {
                   >
                     Instagram
                   </a>
-                )}
-                {youtubeUrl && (
+                ))}
+                {youtubeUrl && (disableLinks ? (
+                  <span className="rounded-full border border-surface-border px-3 py-1 text-xs text-gray-200">
+                    YouTube
+                  </span>
+                ) : (
                   <a
                     href={youtubeUrl}
                     target="_blank"
@@ -170,8 +215,12 @@ export function PublicProfileView({ profile, events, reviews }: Props) {
                   >
                     YouTube
                   </a>
-                )}
-                {twitchUrl && (
+                ))}
+                {twitchUrl && (disableLinks ? (
+                  <span className="rounded-full border border-surface-border px-3 py-1 text-xs text-gray-200">
+                    Twitch
+                  </span>
+                ) : (
                   <a
                     href={twitchUrl}
                     target="_blank"
@@ -180,10 +229,21 @@ export function PublicProfileView({ profile, events, reviews }: Props) {
                   >
                     Twitch
                   </a>
-                )}
+                ))}
               </div>
             </section>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-t border-b border-electric-blue/30">
+        <CardContent className="pt-6 pb-6">
+          <h3 className="text-base font-semibold text-electric-blue mb-1">レビューにもらったイイね</h3>
+          <p className="text-sm text-gray-400 mb-2">このアカウントの投稿へのいいね合計</p>
+          <p className="text-2xl font-bold text-white">
+            {totalReviewLikes}
+            <span className="text-lg font-normal text-gray-400 ml-1">件</span>
+          </p>
         </CardContent>
       </Card>
 
@@ -197,13 +257,10 @@ export function PublicProfileView({ profile, events, reviews }: Props) {
             <p className="text-sm text-gray-400">まだ投稿がありません。</p>
           ) : (
             <ul className="space-y-2">
-              {reviews.map((r) => (
-                <li key={r.id}>
-                  <Link
-                    href={`/reviews/${r.id}`}
-                    className="block rounded-lg border border-surface-border bg-surface-card/40 px-3 py-2 text-sm text-gray-200 hover:border-electric-blue/50 hover:text-electric-blue transition-colors"
-                  >
-                    <span className="font-medium">{r.title}</span>
+              {reviews.map((r) => {
+                const content = (
+                  <>
+                    <span className="block font-medium line-clamp-2">{r.title}</span>
                     {r.gear_name && (
                       <span className="ml-2 text-gray-400"> — {r.gear_name}</span>
                     )}
@@ -212,9 +269,30 @@ export function PublicProfileView({ profile, events, reviews }: Props) {
                         ? new Date(r.created_at).toLocaleDateString("ja-JP")
                         : ""}
                     </span>
-                  </Link>
-                </li>
-              ))}
+                    {typeof (r as ReviewWithLikeCount).likeCount === "number" && (
+                      <span className="ml-2 text-xs text-gray-400" aria-label="いいね数">
+                        ❤ {(r as ReviewWithLikeCount).likeCount}
+                      </span>
+                    )}
+                  </>
+                );
+                return (
+                  <li key={r.id}>
+                    {disableLinks ? (
+                      <div className="block rounded-lg border border-surface-border bg-surface-card/40 px-3 py-2 text-sm text-gray-200">
+                        {content}
+                      </div>
+                    ) : (
+                      <Link
+                        href={`/reviews/${r.id}`}
+                        className="block rounded-lg border border-surface-border bg-surface-card/40 px-3 py-2 text-sm text-gray-200 hover:border-electric-blue/50 hover:text-electric-blue transition-colors"
+                      >
+                        {content}
+                      </Link>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>
@@ -229,7 +307,7 @@ export function PublicProfileView({ profile, events, reviews }: Props) {
           {events.length === 0 ? (
             <p className="text-sm text-gray-400">ライブの予定はありません。</p>
           ) : (
-            <LiveEventCalendar initialEvents={events} />
+            <LiveEventCalendar initialEvents={events} readOnly disableLinks={disableLinks} />
           )}
         </CardContent>
       </Card>

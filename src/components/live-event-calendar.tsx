@@ -9,7 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { LiveEvent } from "@/types/database";
 
-export function LiveEventCalendar({ initialEvents }: { initialEvents: LiveEvent[] }) {
+type LiveEventCalendarProps = {
+  initialEvents: LiveEvent[];
+  /** true のときは「予定を追加」・編集・削除を非表示（他人のプロフィール／プレビュー用） */
+  readOnly?: boolean;
+  /** true のときは会場情報等のリンクをテキスト表示のみにする（オーバーレイ用） */
+  disableLinks?: boolean;
+};
+
+export function LiveEventCalendar({ initialEvents, readOnly = false, disableLinks = false }: LiveEventCalendarProps) {
   const { user } = useAuth();
   const db = getFirebaseFirestore();
   const [events, setEvents] = useState<LiveEvent[]>(initialEvents);
@@ -117,16 +125,18 @@ export function LiveEventCalendar({ initialEvents }: { initialEvents: LiveEvent[
 
   return (
     <div className="space-y-4">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => (formOpen ? closeForm() : setFormOpen(true))}
-      >
-        {formOpen ? "キャンセル" : "予定を追加"}
-      </Button>
+      {!readOnly && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => (formOpen ? closeForm() : setFormOpen(true))}
+        >
+          {formOpen ? "キャンセル" : "予定を追加"}
+        </Button>
+      )}
 
-      {formOpen && (
+      {!readOnly && formOpen && (
         <form onSubmit={handleSubmit} className="space-y-3 p-4 rounded-lg border border-surface-border bg-surface-card/50">
           <div className="space-y-2">
             <Label htmlFor="ev-title">タイトル（必須）</Label>
@@ -206,41 +216,47 @@ export function LiveEventCalendar({ initialEvents }: { initialEvents: LiveEvent[
                       {ev.venue && ` · ${ev.venue}`}
                     </p>
                     {ev.venue_url && (
-                      <a
-                        href={ev.venue_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-electric-blue hover:underline"
-                      >
-                        会場情報
-                      </a>
+                      disableLinks ? (
+                        <span className="text-sm text-electric-blue">会場情報</span>
+                      ) : (
+                        <a
+                          href={ev.venue_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-electric-blue hover:underline"
+                        >
+                          会場情報
+                        </a>
+                      )
                     )}
                     {ev.description && (
                       <p className="text-sm text-gray-500 mt-1">{ev.description}</p>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-gray-400 hover:text-electric-blue"
-                      onClick={() => openFormForEdit(ev)}
-                      disabled={loading}
-                    >
-                      編集
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-400 hover:text-red-300"
-                      onClick={() => handleDelete(ev.id)}
-                      disabled={loading}
-                    >
-                      削除
-                    </Button>
-                  </div>
+                  {!readOnly && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-gray-400 hover:text-electric-blue"
+                        onClick={() => openFormForEdit(ev)}
+                        disabled={loading}
+                      >
+                        編集
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-400 hover:text-red-300"
+                        onClick={() => handleDelete(ev.id)}
+                        disabled={loading}
+                      >
+                        削除
+                      </Button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -262,45 +278,53 @@ export function LiveEventCalendar({ initialEvents }: { initialEvents: LiveEvent[
                       {ev.venue && ` · ${ev.venue}`}
                     </p>
                     {ev.venue_url && (
-                      <a
-                        href={ev.venue_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-electric-blue hover:underline"
-                      >
-                        会場情報
-                      </a>
+                      disableLinks ? (
+                        <span className="text-sm text-electric-blue">会場情報</span>
+                      ) : (
+                        <a
+                          href={ev.venue_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-electric-blue hover:underline"
+                        >
+                          会場情報
+                        </a>
+                      )
                     )}
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-gray-500 hover:text-electric-blue"
-                      onClick={() => openFormForEdit(ev)}
-                      disabled={loading}
-                    >
-                      編集
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-gray-500 hover:text-red-400"
-                      onClick={() => handleDelete(ev.id)}
-                      disabled={loading}
-                    >
-                      削除
-                    </Button>
-                  </div>
+                  {!readOnly && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-gray-500 hover:text-electric-blue"
+                        onClick={() => openFormForEdit(ev)}
+                        disabled={loading}
+                      >
+                        編集
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-gray-500 hover:text-red-400"
+                        onClick={() => handleDelete(ev.id)}
+                        disabled={loading}
+                      >
+                        削除
+                      </Button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
           </div>
         )}
         {events.length === 0 && !formOpen && (
-          <p className="text-gray-500 text-sm">ライブ予定がありません。「予定を追加」から登録できます。</p>
+          <p className="text-gray-500 text-sm">
+            {readOnly ? "ライブの予定はありません。" : "ライブ予定がありません。「予定を追加」から登録できます。"}
+          </p>
         )}
       </div>
     </div>

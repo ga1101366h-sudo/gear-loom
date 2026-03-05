@@ -1,16 +1,47 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
+
+const MESSAGE_TYPE = "GEARLOOM_UPDATE_FOLLOW_COUNTS";
 
 type Props = {
   userId: string;
   open: boolean;
   onClose: () => void;
+  /** リアルタイムでプレビューに反映するフォロワー数（マイページ等から渡す） */
+  followersCount?: number;
+  /** リアルタイムでプレビューに反映するフォロー中数（マイページ等から渡す） */
+  followingCount?: number;
 };
 
-export function ProfilePreviewOverlay({ userId, open, onClose }: Props) {
+function sendFollowCountsToFrame(
+  iframeRef: React.RefObject<HTMLIFrameElement | null>,
+  followersCount: number | undefined,
+  followingCount: number | undefined
+) {
+  const win = iframeRef.current?.contentWindow;
+  if (!win) return;
+  win.postMessage(
+    {
+      type: MESSAGE_TYPE,
+      followersCount: typeof followersCount === "number" ? followersCount : undefined,
+      followingCount: typeof followingCount === "number" ? followingCount : undefined,
+    },
+    "*"
+  );
+}
+
+export function ProfilePreviewOverlay({
+  userId,
+  open,
+  onClose,
+  followersCount,
+  followingCount,
+}: Props) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
   useEffect(() => {
     if (!open) return;
     const handleEscape = (e: KeyboardEvent) => {
@@ -23,6 +54,20 @@ export function ProfilePreviewOverlay({ userId, open, onClose }: Props) {
       document.body.style.overflow = "";
     };
   }, [open, onClose]);
+
+  const sendCounts = useCallback(() => {
+    if (followersCount === undefined && followingCount === undefined) return;
+    sendFollowCountsToFrame(iframeRef, followersCount, followingCount);
+  }, [followersCount, followingCount]);
+
+  useEffect(() => {
+    if (!open) return;
+    sendCounts();
+  }, [open, followersCount, followingCount, sendCounts]);
+
+  const handleIframeLoad = useCallback(() => {
+    sendFollowCountsToFrame(iframeRef, followersCount, followingCount);
+  }, [followersCount, followingCount]);
 
   if (!open || typeof document === "undefined") return null;
 
@@ -48,9 +93,11 @@ export function ProfilePreviewOverlay({ userId, open, onClose }: Props) {
         </div>
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <iframe
+            ref={iframeRef}
             src={profileUrl}
             title="公開プロフィールのプレビュー"
             className="w-full flex-1 min-h-0 border-0 rounded-b-xl"
+            onLoad={handleIframeLoad}
           />
         </div>
       </div>
