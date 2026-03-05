@@ -16,6 +16,7 @@ import { ReviewLikeButton } from "@/components/review-like-button";
 import { ReviewImagesGallery } from "@/components/review-images-gallery";
 import { ReviewOwnerActions } from "@/components/review-owner-actions";
 import { ShareToXButton } from "@/components/share-to-x-button";
+import { buildReviewShareText } from "@/lib/x-share";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -235,7 +236,15 @@ export default async function ReviewDetailPage({
             <ReviewHelpfulButton reviewId={review.id} initialCount={helpfulCount} className="w-full sm:w-auto justify-center sm:justify-start" />
             <ReviewCompareButton reviewId={review.id} className="w-full sm:w-auto justify-center sm:justify-start" />
             <Button variant="outline" size="sm" asChild className="w-full sm:w-auto justify-center sm:justify-start">
-              <ShareToXButton path={`/reviews/${review.id}`} text={review.title} />
+              <ShareToXButton
+                path={`/reviews/${review.id}`}
+                text={buildReviewShareText({
+                  title: review.title,
+                  makerName,
+                  gearName: review.gear_name,
+                  categoryNameJa: categoryName,
+                })}
+              />
             </Button>
           </div>
           {/* 投稿者・日付 */}
