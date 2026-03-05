@@ -5,7 +5,7 @@ import { PenSquare, BookOpen, CalendarDays, Rss, Search, Users } from "lucide-re
 import type { Metadata } from "next";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.gear-loom.com";
-const DEFAULT_OG_IMAGE = `${SITE_URL}/images/mock/mock-1.png`;
+const DEFAULT_OG_IMAGE = `${SITE_URL}/images/mock/ogp-final.png`;
 
 export const metadata: Metadata = {
   title: "Gear-Loomとは？",
