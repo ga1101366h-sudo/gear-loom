@@ -50,29 +50,29 @@ function ReviewCard({ item }: { item: NewReviewItem }) {
     categoryNameJa: item.category,
   });
   return (
-    <div className="relative shrink-0 w-[160px] sm:w-[220px] md:w-[280px] group snap-start">
-      <Link href={`/reviews/${item.id}`} className="block">
-        <Card className="card-hover h-full overflow-hidden">
-          <div className="relative aspect-[400/260] w-full bg-surface-card overflow-hidden">
-          {item.image ? (
-            <Image
-              src={item.image}
-              alt=""
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 640px) 160px, (max-width: 768px) 220px, 280px"
-            />
-          ) : (
-            <Image
-              src={PLACEHOLDER_IMG}
-              alt=""
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 160px, (max-width: 768px) 220px, 280px"
-              unoptimized
-            />
-          )}
-        </div>
+    <div className="relative shrink-0 w-[160px] sm:w-[220px] md:w-[280px] group snap-start flex">
+      <Link href={`/reviews/${item.id}`} className="block flex-1">
+        <Card className="card-hover h-full flex flex-col overflow-hidden">
+          <div className="relative w-full shrink-0 overflow-hidden bg-surface-card h-[120px] sm:h-[150px] md:h-[160px]">
+            {item.image ? (
+              <Image
+                src={item.image}
+                alt=""
+                fill
+                className="object-cover object-center w-full h-full transition-transform duration-500 group-hover:scale-105"
+                sizes="(max-width: 640px) 160px, (max-width: 768px) 220px, 280px"
+              />
+            ) : (
+              <Image
+                src={PLACEHOLDER_IMG}
+                alt=""
+                fill
+                className="object-cover object-center w-full h-full"
+                sizes="(max-width: 640px) 160px, (max-width: 768px) 220px, 280px"
+                unoptimized
+              />
+            )}
+          </div>
         <CardHeader className="pb-1 pt-2 sm:pb-2 px-2 sm:px-6">
           <CardTitle className="text-sm sm:text-base line-clamp-2 leading-tight">{item.title}</CardTitle>
           <CardDescription className="flex items-center gap-1 sm:gap-2 flex-wrap text-xs sm:text-sm">
@@ -80,11 +80,15 @@ function ReviewCard({ item }: { item: NewReviewItem }) {
             <span className="text-electric-blue shrink-0">{item.category}</span>
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-1 sm:space-y-2 pt-0 px-2 sm:px-6 pb-2 sm:pb-6">
-          {item.rating > 0 && <StarRating rating={item.rating} />}
-          <p className="text-xs sm:text-sm text-gray-400 line-clamp-2 sm:line-clamp-3">{item.excerpt}</p>
+        <CardContent className="flex flex-col pt-0 px-2 sm:px-6 pb-2 sm:pb-6">
+          <div className="space-y-1 sm:space-y-2 flex-1">
+            {item.rating > 0 && <StarRating rating={item.rating} />}
+            <p className="text-xs sm:text-sm text-gray-400 line-clamp-2 sm:line-clamp-3">
+              {item.excerpt}
+            </p>
+          </div>
           {/* 投稿者アイコン＋名前 */}
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-center gap-2 pt-2">
             {item.author_avatar ? (
               <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full border border-surface-border bg-surface-card">
                 <Image
@@ -200,7 +204,7 @@ export function NewReviewsCarousel({ items }: { items: NewReviewItem[] }) {
         ref={scrollRef}
         role="region"
         aria-label="レビュー一覧"
-        className="flex overflow-x-auto overflow-y-hidden scrollbar-hide scroll-smooth min-w-0 w-full pl-3 sm:pl-4 pr-3 sm:pr-4 snap-x snap-mandatory"
+        className="flex items-stretch overflow-x-auto overflow-y-hidden scrollbar-hide scroll-smooth min-w-0 w-full pl-3 sm:pl-4 pr-3 sm:pr-4 snap-x snap-mandatory"
         style={{ WebkitOverflowScrolling: "touch" }}
         onMouseEnter={pauseAutoScroll}
         onTouchStart={pauseAutoScroll}
