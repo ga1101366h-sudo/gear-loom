@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useState } from "react";
+import { useRef, useCallback, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -13,8 +13,6 @@ import {
 import { ShareToXButton } from "@/components/share-to-x-button";
 import { Button } from "@/components/ui/button";
 import { buildReviewShareText } from "@/lib/x-share";
-
-const ARROW_SCROLL_PX = 280;
 
 export interface NewReviewItem {
   id: string;
@@ -52,7 +50,7 @@ function ReviewCard({ item }: { item: NewReviewItem }) {
     categoryNameJa: item.category,
   });
   return (
-    <div className="relative shrink-0 w-[160px] sm:w-[220px] md:w-[280px] group">
+    <div className="relative shrink-0 w-[160px] sm:w-[220px] md:w-[280px] group snap-start">
       <Link href={`/reviews/${item.id}`} className="block">
         <Card className="card-hover h-full overflow-hidden">
           <div className="relative aspect-[400/260] w-full bg-surface-card overflow-hidden">
@@ -131,135 +129,85 @@ function ReviewCard({ item }: { item: NewReviewItem }) {
 
 export function NewReviewsCarousel({ items }: { items: NewReviewItem[] }) {
   const enableAutoScroll = items.length >= 3;
-  const displayItems = enableAutoScroll ? [...items, ...items] : items;
+  const displayItems = items;
   const scrollRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
-  /** 矢印クリックで自動スライドを止める（CSS animation-play-state: paused） */
-  const [autoScrollStopped, setAutoScrollStopped] = useState(false);
-  const dragRef = useRef({
-    pending: false,
-    active: false,
-    startX: 0,
-    startScrollLeft: 0,
-  });
-  const DRAG_THRESHOLD_PX = 5;
+  const [autoScrollPaused, setAutoScrollPaused] = useState(false);
 
-  const scrollBy = useCallback((direction: "left" | "right") => {
-    const amount = direction === "left" ? -ARROW_SCROLL_PX : ARROW_SCROLL_PX;
-    if (enableAutoScroll) {
-      setAutoScrollStopped(true);
-      requestAnimationFrame(() => {
-        const scrollEl = scrollRef.current;
-        const trackEl = trackRef.current;
-        if (!scrollEl) return;
-        if (trackEl) {
-          const style = getComputedStyle(trackEl);
-          const m = new DOMMatrix(style.transform);
-          const tx = m.m41;
-          scrollEl.scrollLeft = Math.max(0, -tx);
-          trackEl.style.transform = "none";
-        }
-        const half = scrollEl.scrollWidth / 2;
-        let next = scrollEl.scrollLeft + amount;
-        if (next < 0) next = Math.max(0, half + next);
-        else if (next >= half) next = next % half;
-        scrollEl.scrollTo({ left: next, behavior: "smooth" });
-      });
-      return;
-    }
-    const el = scrollRef.current;
-    if (!el) return;
-    const maxScroll = el.scrollWidth - el.clientWidth;
-    const next = Math.max(0, Math.min(maxScroll, el.scrollLeft + amount));
-    el.scrollTo({ left: next, behavior: "smooth" });
-  }, [enableAutoScroll]);
-
-  const onMouseDown = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!enableAutoScroll || !scrollRef.current) return;
-      dragRef.current = {
-        pending: true,
-        active: false,
-        startX: e.clientX,
-        startScrollLeft: scrollRef.current.scrollLeft,
-      };
-    },
-    [enableAutoScroll]
-  );
-
-  const onMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!scrollRef.current) return;
-      const d = dragRef.current;
-      if (!d.pending) return;
-      const dx = d.startX - e.clientX;
-      if (!d.active && Math.abs(dx) >= DRAG_THRESHOLD_PX) d.active = true;
-      if (d.active) scrollRef.current.scrollLeft = d.startScrollLeft + dx;
+  const scrollByOneCard = useCallback(
+    (direction: "left" | "right", { pause }: { pause: boolean }) => {
+      const container = scrollRef.current;
+      if (!container) return;
+      if (pause) setAutoScrollPaused(true);
+      const firstItem = container.firstElementChild as HTMLElement | null;
+      const itemWidth = firstItem?.getBoundingClientRect().width ?? 260;
+      const style = window.getComputedStyle(container);
+      const gap =
+        parseFloat(style.columnGap || style.gap || "0") ||
+        parseFloat(style.marginRight || "0");
+      const delta = (itemWidth + gap) * (direction === "left" ? -1 : 1);
+      container.scrollBy({ left: delta, behavior: "smooth" });
     },
     []
   );
 
-  const onMouseUpOrLeave = useCallback(() => {
-    dragRef.current.pending = false;
-    dragRef.current.active = false;
-  }, []);
+  const scrollBy = useCallback(
+    (direction: "left" | "right") => {
+      scrollByOneCard(direction, { pause: true });
+    },
+    [scrollByOneCard]
+  );
 
-  if (enableAutoScroll) {
-    return (
-      <div className="carousel-auto-slide relative w-full min-w-0 overflow-hidden">
-        <button
-          type="button"
-          onClick={() => scrollBy("left")}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-surface-card/90 border border-surface-border text-white shadow-lg flex items-center justify-center hover:bg-surface-card hover:border-electric-blue/50 hover:text-electric-blue transition-colors focus:outline-none focus:ring-2 focus:ring-electric-blue"
-          aria-label="左へスクロール"
-        >
-          <span className="text-xl sm:text-2xl font-bold leading-none" aria-hidden>‹</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => scrollBy("right")}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-surface-card/90 border border-surface-border text-white shadow-lg flex items-center justify-center hover:bg-surface-card hover:border-electric-blue/50 hover:text-electric-blue transition-colors focus:outline-none focus:ring-2 focus:ring-electric-blue"
-          aria-label="右へスクロール"
-        >
-          <span className="text-xl sm:text-2xl font-bold leading-none" aria-hidden>›</span>
-        </button>
-        <div
-          ref={scrollRef}
-          className="w-full min-w-0 overflow-x-auto overflow-y-hidden scrollbar-hide"
-          style={{ touchAction: "pan-x", WebkitOverflowScrolling: "touch" }}
-        >
-          <div
-            ref={trackRef}
-            className={`flex gap-3 sm:gap-6 carousel-track-animate ${autoScrollStopped ? "carousel-track-paused" : ""}`}
-            style={{ width: "max-content", ...(autoScrollStopped ? { transform: "none" } : {}) }}
-          >
-            {displayItems.map((item, index) => (
-              <ReviewCard key={`${item.id}-${index}`} item={item} />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!enableAutoScroll || autoScrollPaused) return;
+    const intervalMs = 4000;
+    const id = window.setInterval(() => {
+      scrollByOneCard("right", { pause: false });
+    }, intervalMs);
+    return () => window.clearInterval(id);
+  }, [enableAutoScroll, autoScrollPaused, scrollByOneCard]);
+
+  const pauseAutoScroll = () => {
+    if (enableAutoScroll) setAutoScrollPaused(true);
+  };
 
   return (
     <div className="relative w-full min-w-0 overflow-hidden">
+      {enableAutoScroll && (
+        <>
+          <button
+            type="button"
+            onClick={() => scrollBy("left")}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-surface-card/90 border border-surface-border text-white shadow-lg flex items-center justify-center hover:bg-surface-card hover:border-electric-blue/50 hover:text-electric-blue transition-colors focus:outline-none focus:ring-2 focus:ring-electric-blue"
+            aria-label="左へスクロール"
+          >
+            <span className="text-xl sm:text-2xl font-bold leading-none" aria-hidden>
+              ‹
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollBy("right")}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-surface-card/90 border border-surface-border text-white shadow-lg flex items-center justify-center hover:bg-surface-card hover:border-electric-blue/50 hover:text-electric-blue transition-colors focus:outline-none focus:ring-2 focus:ring-electric-blue"
+            aria-label="右へスクロール"
+          >
+            <span className="text-xl sm:text-2xl font-bold leading-none" aria-hidden>
+              ›
+            </span>
+          </button>
+        </>
+      )}
       <div
         ref={scrollRef}
         role="region"
         aria-label="レビュー一覧"
-        className="overflow-x-auto overflow-y-hidden scrollbar-hide min-w-0 w-full"
-        style={{ touchAction: "pan-x", WebkitOverflowScrolling: "touch" }}
-        onMouseDown={onMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseUp={onMouseUpOrLeave}
-        onMouseLeave={onMouseUpOrLeave}
+        className="flex overflow-x-auto overflow-y-hidden scrollbar-hide scroll-smooth min-w-0 w-full pl-3 sm:pl-4 pr-3 sm:pr-4 snap-x snap-mandatory"
+        style={{ WebkitOverflowScrolling: "touch" }}
+        onMouseEnter={pauseAutoScroll}
+        onTouchStart={pauseAutoScroll}
       >
-        <div className="flex gap-3 sm:gap-6" style={{ width: "max-content" }}>
-          {displayItems.map((item) => (
-            <ReviewCard key={item.id} item={item} />
-          ))}
-        </div>
+        {displayItems.map((item) => (
+          <ReviewCard key={item.id} item={item} />
+        ))}
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { getAboutPageCountsFromFirestore } from "@/lib/firebase/data";
 import { AboutCtaSection } from "@/components/about-cta-section";
+import { AboutStats } from "@/components/about-stats";
 
 export const metadata = {
   title: "Gear-Loomとは？",
@@ -44,19 +45,6 @@ const FEATURES = [
     description:
       "フォロー・フォロワー機能で気になるユーザーとつながり、マイページのタイムラインで最新レビュー・ライブ予定をチェック。いいね・比較リストやプロフィールで保有機材・所属バンドを共有し、ユーザー同士のつながりを強化できます。",
   },
-] as const;
-
-function formatCount(n: number): string {
-  if (n >= 1000) return `${Math.floor(n / 1000)}K+`;
-  if (n > 0) return `${n}+`;
-  return "0";
-}
-
-const NUMBER_ITEMS = [
-  { key: "reviews" as const, unit: "件", label: "投稿されたレビュー" },
-  { key: "profiles" as const, unit: "人", label: "登録ユーザー" },
-  { key: "notebookEntries" as const, unit: "件", label: "カスタム手帳の記録" },
-  { key: "liveEvents" as const, unit: "件", label: "登録されたライブ日程" },
 ] as const;
 
 export default async function AboutPage() {
@@ -118,26 +106,7 @@ export default async function AboutPage() {
           <h2 className="mb-12 text-center font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">
             みんなの「愛機」が、ここに集まる
           </h2>
-          <div className="grid gap-6 sm:grid-cols-2">
-            {NUMBER_ITEMS.map((item) => {
-              const value = counts[item.key];
-              const display = value != null ? formatCount(value) : "—";
-              return (
-                <div
-                  key={item.label}
-                  className="rounded-2xl border border-surface-border/80 bg-black/50 p-8 text-center shadow-lg backdrop-blur-sm"
-                >
-                  <p className="font-display text-5xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 via-cyan-500 to-cyan-700 sm:text-6xl md:text-7xl">
-                    {display}
-                    <span className="text-2xl sm:text-3xl md:text-4xl">{item.unit}</span>
-                  </p>
-                  <p className="mt-2 text-sm font-medium text-gray-300 sm:text-base">
-                    {item.label}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+          <AboutStats initialCounts={counts} />
         </div>
       </section>
 
