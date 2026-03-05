@@ -49,6 +49,7 @@ export async function GET(request: Request) {
         id: r.id,
         title: r.title,
         gear_name: r.gear_name,
+        maker_name: r.maker_name ?? null,
         rating: r.rating,
         excerpt: "レビューを読む →",
         image,

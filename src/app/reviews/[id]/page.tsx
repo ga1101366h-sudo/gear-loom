@@ -70,9 +70,21 @@ export async function generateMetadata({
     (review.gear_name ? `${review.gear_name}のレビュー` : "楽器・機材のレビュー");
   const origin = getSiteOrigin();
   const url = `${origin}/reviews/${id}`;
-  const ogImageUrl = `${origin}/reviews/${id}/opengraph-image`;
+  const detail = review as ReviewDetail;
+  const reviewImages = detail.review_images ?? [];
+  let ogImageUrl: string;
+  if (reviewImages.length > 0) {
+    const first = reviewImages
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order)[0];
+    ogImageUrl = getFirebaseStorageUrl(first.storage_path);
+  } else {
+    ogImageUrl = `${origin}/images/mock/mock-1.png`;
+  }
   const imageAlt = review.title || review.gear_name || "Gear-Loom レビュー";
-  const ogImages = [{ url: ogImageUrl, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: imageAlt }];
+  const ogImages = [
+    { url: ogImageUrl, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: imageAlt },
+  ];
 
   return {
     title,
