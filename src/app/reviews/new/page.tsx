@@ -28,7 +28,6 @@ import {
   POST_CATEGORIES_FLAT,
 } from "@/data/post-categories";
 import { getPendingGear, clearPendingGear } from "@/lib/pending-gear";
-import { useSearchParams } from "next/navigation";
 
 const REVIEW_TITLE_MAX = 100;
 const REVIEW_BODY_MAX = 10000;
@@ -84,7 +83,36 @@ export default function NewReviewPage() {
     { id: "streaming", label: "配信" },
   ];
 
-  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const categoryFromUrl = params.get("category") ?? "";
+    const manufacturerFromUrl = params.get("manufacturer") ?? "";
+    const gearNameFromUrl = params.get("gear_name") ?? "";
+
+    if (categoryFromUrl) {
+      setCategorySlug((prev) => prev || categoryFromUrl);
+      if (!categoryNameJa) {
+        const found = POST_CATEGORIES_FLAT.find((c) => c.slug === categoryFromUrl);
+        if (found) setCategoryNameJa(found.name_ja);
+      }
+    }
+    if (manufacturerFromUrl) {
+      setMakerName((prev) => prev || manufacturerFromUrl);
+    }
+    if (gearNameFromUrl) {
+      setGearName((prev) => prev || gearNameFromUrl);
+    }
+
+    if (params.get("from") !== "rakuten") return;
+    const pending = getPendingGear();
+    if (pending) {
+      setPendingGearFromApi(pending);
+      setGearName(pending.name);
+      if (pending.categorySlug) setCategorySlug(pending.categorySlug);
+      if (pending.categoryNameJa) setCategoryNameJa(pending.categoryNameJa);
+    }
+  }, [categoryNameJa]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -119,40 +147,6 @@ export default function NewReviewPage() {
       setLoading(false);
     })();
   }, [user, authLoading, db]);
-
-  useEffect(() => {
-    if (!searchParams) return;
-    const categoryFromUrl = searchParams.get("category") ?? "";
-    const manufacturerFromUrl = searchParams.get("manufacturer") ?? "";
-    const gearNameFromUrl = searchParams.get("gear_name") ?? "";
-
-    if (categoryFromUrl) {
-      setCategorySlug((prev) => prev || categoryFromUrl);
-      if (!categoryNameJa) {
-        const found = POST_CATEGORIES_FLAT.find((c) => c.slug === categoryFromUrl);
-        if (found) setCategoryNameJa(found.name_ja);
-      }
-    }
-    if (manufacturerFromUrl) {
-      setMakerName((prev) => prev || manufacturerFromUrl);
-    }
-    if (gearNameFromUrl) {
-      setGearName((prev) => prev || gearNameFromUrl);
-    }
-  }, [searchParams, categoryNameJa]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("from") !== "rakuten") return;
-    const pending = getPendingGear();
-    if (pending) {
-      setPendingGearFromApi(pending);
-      setGearName(pending.name);
-      if (pending.categorySlug) setCategorySlug(pending.categorySlug);
-      if (pending.categoryNameJa) setCategoryNameJa(pending.categoryNameJa);
-    }
-  }, []);
 
   const groupSlug = categorySlug ? getGroupSlugByCategorySlug(categorySlug) : "";
   const isContentOnlyCategory = categorySlug ? isContentOnlyCategorySlug(categorySlug) : false;
