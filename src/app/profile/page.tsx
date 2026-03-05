@@ -177,6 +177,15 @@ function ProfilePageContent() {
       setAvatarUrl(url);
       setProfile((prev) => (prev ? { ...prev, avatar_url: url } : null));
       setMessage({ type: "success", text: "アイコンを更新しました。" });
+      try {
+        const token = await user.getIdToken();
+        await fetch("/api/me/sync-review-author-fields", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        // 過去レビューのアイコン同期は失敗してもアイコン更新は成功扱い
+      }
     } catch (err: unknown) {
       setMessage({
         type: "error",
@@ -355,6 +364,15 @@ function ProfilePageContent() {
       });
       setMessage({ type: "success", text: "プロフィールを更新しました。" });
       globalMutate(["profiles", user.uid]);
+      try {
+        const token = await user.getIdToken();
+        await fetch("/api/me/sync-review-author-fields", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        // 過去レビューの表示名・アイコン同期は失敗してもプロフィール更新は成功扱い
+      }
     } catch (err: unknown) {
       setMessage({
         type: "error",
