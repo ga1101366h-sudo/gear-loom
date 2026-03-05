@@ -2,11 +2,30 @@ import { getAboutPageCountsFromFirestore } from "@/lib/firebase/data";
 import { AboutCtaSection } from "@/components/about-cta-section";
 import { AboutStats } from "@/components/about-stats";
 import { PenSquare, BookOpen, CalendarDays, Rss, Search, Users } from "lucide-react";
+import type { Metadata } from "next";
 
-export const metadata = {
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.gear-loom.com";
+const DEFAULT_OG_IMAGE = `${SITE_URL}/images/mock/mock-1.png`;
+
+export const metadata: Metadata = {
   title: "Gear-Loomとは？",
   description:
     "機材への愛とこだわりを記録し、共有するプラットフォーム。あなたの愛機が、誰かの音作りを変える。",
+  openGraph: {
+    title: "Gear-Loomとは？",
+    description:
+      "機材への愛とこだわりを記録し、共有するプラットフォーム。あなたの愛機が、誰かの音作りを変える。",
+    url: `${SITE_URL}/about`,
+    siteName: "Gear-Loom",
+    images: [{ url: DEFAULT_OG_IMAGE }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Gear-Loomとは？",
+    description:
+      "機材への愛とこだわりを記録し、共有するプラットフォーム。あなたの愛機が、誰かの音作りを変える。",
+    images: [DEFAULT_OG_IMAGE],
+  },
 };
 
 const HERO_BG =

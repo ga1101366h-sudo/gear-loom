@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,6 +36,30 @@ import type { Review, LiveEvent } from "@/types/database";
 
 /** トップページ：60秒間はキャッシュして Firestore リード数を削減（ISR） */
 export const revalidate = 60;
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.gear-loom.com";
+const DEFAULT_OG_IMAGE = `${SITE_URL}/images/mock/mock-1.png`;
+
+export const metadata: Metadata = {
+  title: "Gear-Loom | あなたの愛機を語ろう",
+  description:
+    "機材への愛とこだわりをレビューやカスタム手帳に記録し、音楽仲間と共有できるプラットフォーム。",
+  openGraph: {
+    title: "Gear-Loom | あなたの愛機を語ろう",
+    description:
+      "機材への愛とこだわりをレビューやカスタム手帳に記録し、音楽仲間と共有できるプラットフォーム。",
+    url: SITE_URL,
+    siteName: "Gear-Loom",
+    images: [{ url: DEFAULT_OG_IMAGE }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Gear-Loom | あなたの愛機を語ろう",
+    description:
+      "機材への愛とこだわりをレビューやカスタム手帳に記録し、音楽仲間と共有できるプラットフォーム。",
+    images: [DEFAULT_OG_IMAGE],
+  },
+};
 
 const EXCLUDED_FROM_MAIN_SECTIONS = ["event", "blog"];
 
