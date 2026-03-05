@@ -207,16 +207,11 @@ export default async function HomePage() {
             <div className="mt-2 flex flex-col items-center gap-3 sm:gap-4">
               <Button
                 asChild
-                className="group relative overflow-hidden rounded-full px-7 py-3.5 text-sm font-semibold text-black shadow-[0_0_35px_rgba(56,189,248,0.7)] transition-transform duration-200 hover:scale-[1.03] sm:px-8 md:px-9 md:text-base"
+                className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/80 bg-transparent px-7 py-3.5 text-sm font-medium text-cyan-300 shadow-none hover:bg-cyan-500/10 hover:text-cyan-200 transition-colors sm:px-8 md:px-9 md:text-base"
               >
                 <Link href="/reviews/new">
-                  <span className="absolute inset-0 -z-10 bg-gradient-to-r from-cyan-400 via-sky-400 to-emerald-300" />
-                  <span className="relative flex items-center gap-2">
-                    レビューを投稿する
-                    <span className="text-xs opacity-80 transition-transform group-hover:translate-x-0.5">
-                      →
-                    </span>
-                  </span>
+                  <span>レビューを投稿する</span>
+                  <span className="text-xs opacity-80">→</span>
                 </Link>
               </Button>
               <p className="text-[11px] text-gray-400 md:text-xs text-center">
@@ -415,7 +410,7 @@ function NewsColumn({
                   href={n.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block leading-relaxed text-gray-200 underline decoration-electric-blue/60 underline-offset-2 transition-colors hover:text-electric-blue line-clamp-3"
+                  className="block rounded-md px-2 py-2 leading-relaxed text-gray-200 underline decoration-electric-blue/60 underline-offset-2 transition-colors hover:text-electric-blue hover:bg-white/[0.02] line-clamp-3"
                 >
                   {n.title}
                 </a>
@@ -456,7 +451,7 @@ function NewsLinkCard({
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="block text-sm leading-relaxed text-gray-200 underline decoration-electric-blue/60 underline-offset-2 transition-colors hover:text-electric-blue"
+            className="block rounded-md px-2 py-2 text-sm leading-relaxed text-gray-200 underline decoration-electric-blue/60 underline-offset-2 transition-colors hover:text-electric-blue hover:bg-white/[0.02]"
           >
             {label}
           </a>
