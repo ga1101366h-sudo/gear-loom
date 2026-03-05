@@ -21,6 +21,7 @@ import {
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { AdminLiveEventItem } from "@/app/api/admin/live-events/route";
 import type { AdminAnnouncementItem } from "@/app/api/admin/announcements/route";
+import type { AdminNotebookEntryItem } from "@/app/api/admin/notebook-entries/route";
 
 type AdminUserItem = { id: string; display_name: string | null; user_id: string | null; created_at: string };
 type IncompleteUserItem = { uid: string; email: string | null; display_name: string | null };
@@ -71,6 +72,10 @@ export default function AdminPage() {
   const [userPage, setUserPage] = useState(0);
   const [reviewSearch, setReviewSearch] = useState("");
   const [reviewPage, setReviewPage] = useState(0);
+  const [notebookEntries, setNotebookEntries] = useState<AdminNotebookEntryItem[]>([]);
+  const [loadingNotebookEntries, setLoadingNotebookEntries] = useState(false);
+  const [deletingNotebookEntryId, setDeletingNotebookEntryId] = useState<string | null>(null);
+  const [notebookPage, setNotebookPage] = useState(0);
 
   const PAGE_SIZE = 10;
 
@@ -93,6 +98,12 @@ export default function AdminPage() {
   });
   const totalReviewPages = Math.max(1, Math.ceil(filteredReviews.length / PAGE_SIZE));
   const paginatedReviews = filteredReviews.slice(reviewPage * PAGE_SIZE, reviewPage * PAGE_SIZE + PAGE_SIZE);
+
+  const totalNotebookPages = Math.max(1, Math.ceil(notebookEntries.length / PAGE_SIZE));
+  const paginatedNotebookEntries = notebookEntries.slice(
+    notebookPage * PAGE_SIZE,
+    notebookPage * PAGE_SIZE + PAGE_SIZE
+  );
 
   useEffect(() => {
     setUserPage(0);
@@ -213,11 +224,30 @@ export default function AdminPage() {
     }
   }
 
+  async function fetchNotebookEntries() {
+    if (!auth?.currentUser) return;
+    setLoadingNotebookEntries(true);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch("/api/admin/notebook-entries", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(json.entries)) setNotebookEntries(json.entries);
+      else setNotebookEntries([]);
+    } catch {
+      setNotebookEntries([]);
+    } finally {
+      setLoadingNotebookEntries(false);
+    }
+  }
+
   useEffect(() => {
     if (!isAdmin || !user) return;
     fetchUsers();
     fetchIncompleteUsers();
     fetchReviews();
+    fetchNotebookEntries();
     fetchLiveEvents();
     fetchAnnouncements();
   }, [isAdmin, user?.uid]);
@@ -291,6 +321,29 @@ export default function AdminPage() {
       alert("削除に失敗しました。");
     } finally {
       setDeletingReviewId(null);
+    }
+  }
+
+  async function handleDeleteNotebookEntry(entryId: string) {
+    if (!auth?.currentUser) return;
+    if (!confirm("このカスタム手帳を削除しますか？Firebase からも削除されます。")) return;
+    setDeletingNotebookEntryId(entryId);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch(`/api/admin/notebook-entries/${encodeURIComponent(entryId)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setNotebookEntries((prev) => prev.filter((e) => e.id !== entryId));
+      } else {
+        alert(json.error ?? "削除に失敗しました。");
+      }
+    } catch {
+      alert("削除に失敗しました。");
+    } finally {
+      setDeletingNotebookEntryId(null);
     }
   }
 
@@ -730,6 +783,78 @@ export default function AdminPage() {
                     size="sm"
                     disabled={reviewPage >= totalReviewPages - 1}
                     onClick={() => setReviewPage((p) => Math.min(totalReviewPages - 1, p + 1))}
+                    aria-label="次のページ"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-electric-blue">カスタム手帳一覧</CardTitle>
+          <CardDescription>
+            他ユーザーのカスタム手帳も削除できます。削除時は Firestore と Storage の画像からも削除されます。10件ずつ表示。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loadingNotebookEntries ? (
+            <p className="text-gray-500 text-sm">読み込み中...</p>
+          ) : notebookEntries.length === 0 ? (
+            <p className="text-gray-500 text-sm">カスタム手帳がありません。</p>
+          ) : (
+            <>
+              <ul className="space-y-2 text-sm">
+                {paginatedNotebookEntries.map((e) => (
+                  <li
+                    key={e.id}
+                    className="flex items-center justify-between gap-4 py-2 border-b border-surface-border last:border-0"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <span className="text-gray-300 font-medium">{e.title || "(無題)"}</span>
+                      <span className="text-gray-500 ml-2">{e.gear_name}</span>
+                      <span className="text-gray-500 text-xs block mt-0.5">
+                        {e.profile_display_name ?? e.profile_user_id ?? e.user_id?.slice(0, 8)}
+                        {e.profile_user_id && ` @${e.profile_user_id}`}
+                        {" · "}
+                        {e.created_at?.slice(0, 10)}
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-400 border-red-400/50 hover:bg-red-400/10 shrink-0"
+                      disabled={deletingNotebookEntryId === e.id}
+                      onClick={() => handleDeleteNotebookEntry(e.id)}
+                    >
+                      {deletingNotebookEntryId === e.id ? "削除中..." : "削除"}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+              {totalNotebookPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={notebookPage === 0}
+                    onClick={() => setNotebookPage((p) => Math.max(0, p - 1))}
+                    aria-label="前のページ"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm text-gray-400">
+                    {notebookPage + 1} / {totalNotebookPages}（{notebookEntries.length}件）
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={notebookPage >= totalNotebookPages - 1}
+                    onClick={() => setNotebookPage((p) => Math.min(totalNotebookPages - 1, p + 1))}
                     aria-label="次のページ"
                   >
                     <ChevronRight className="h-4 w-4" />

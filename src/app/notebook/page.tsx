@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import useSWR from "swr";
 import {
   collection,
   query,
@@ -56,49 +57,47 @@ export default function NotebookPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!db) {
-      setLoading(false);
-      return;
-    }
-    (async () => {
-      try {
-        if (user) {
-          const [entriesSnap, profileSnap] = await Promise.all([
-            getDocs(
-              query(collection(db, "gear_notebook_entries"), where("user_id", "==", user.uid)),
-            ),
-            getDoc(doc(db, "profiles", user.uid)),
-          ]);
-          const list: GearNotebookEntry[] = entriesSnap.docs.map((d) => {
-            const data = d.data();
-            return {
-              id: d.id,
-              user_id: data.user_id ?? "",
-              gear_name: data.gear_name ?? "",
-              maker_name: (data.maker_name as string | null) ?? null,
-              title: data.title ?? "",
-              description: (data.description as string | null) ?? null,
-              image_url: (data.image_url as string | null) ?? null,
-              created_at: data.created_at ?? "",
-              updated_at: data.updated_at ?? "",
-            };
-          }).sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
-          setEntries(list);
+  type NotebookData = { entries: GearNotebookEntry[]; ownedGearLines: string[] };
+  const { data: notebookData, isLoading: swrLoading, mutate: mutateNotebook } = useSWR<NotebookData>(
+    user && db ? ["notebook", user.uid] : null,
+    async (): Promise<NotebookData> => {
+      const [entriesSnap, profileSnap] = await Promise.all([
+        getDocs(
+          query(collection(db!, "gear_notebook_entries"), where("user_id", "==", user!.uid)),
+        ),
+        getDoc(doc(db!, "profiles", user!.uid)),
+      ]);
+      const list: GearNotebookEntry[] = entriesSnap.docs
+        .map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            user_id: data.user_id ?? "",
+            gear_name: data.gear_name ?? "",
+            maker_name: (data.maker_name as string | null) ?? null,
+            title: data.title ?? "",
+            description: (data.description as string | null) ?? null,
+            image_url: (data.image_url as string | null) ?? null,
+            created_at: data.created_at ?? "",
+            updated_at: data.updated_at ?? "",
+          };
+        })
+        .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+      const profileData = profileSnap.data();
+      const ownedGear = (profileData?.owned_gear as string | null) ?? null;
+      return { entries: list, ownedGearLines: parseOwnedGearLines(ownedGear) };
+    },
+    { revalidateOnFocus: false, dedupingInterval: 30_000 }
+  );
 
-          const profileData = profileSnap.data();
-          const ownedGear = (profileData?.owned_gear as string | null) ?? null;
-          setOwnedGearLines(parseOwnedGearLines(ownedGear));
-        }
-      } catch (e) {
-        console.error(e);
-        setError("カスタム手帳の読み込みに失敗しました。");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [authLoading, user, db]);
+  useEffect(() => {
+    if (notebookData) {
+      setEntries(notebookData.entries);
+      setOwnedGearLines(notebookData.ownedGearLines);
+    }
+  }, [notebookData]);
+
+  const loading = authLoading || (user && db && swrLoading && !notebookData);
 
   const entriesByGear = useMemo(() => {
     const map = new Map<string, GearNotebookEntry[]>();
@@ -182,6 +181,7 @@ export default function NotebookPage() {
               : e
           )
         );
+        mutateNotebook();
         resetForm();
       } else {
         const docRef = await addDoc(collection(db, "gear_notebook_entries"), {
@@ -240,6 +240,7 @@ export default function NotebookPage() {
           };
           setEntries((prev) => [entry, ...prev]);
         }
+        mutateNotebook();
         resetForm();
       }
     } catch (err: unknown) {
@@ -268,6 +269,7 @@ export default function NotebookPage() {
       }
       await deleteDoc(doc(db, "gear_notebook_entries", entryId));
       setEntries((prev) => prev.filter((e) => e.id !== entryId));
+      mutateNotebook();
     } catch (err) {
       console.error(err);
       setError("削除に失敗しました。");

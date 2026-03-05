@@ -78,6 +78,12 @@ export async function deleteReviewRelatedFirestore(
   }
 }
 
+/** 指定カスタム手帳エントリに紐づく Storage 画像（notebook-images/{uid}/{entryId}/）を削除する */
+export async function deleteNotebookEntryImagesFromStorage(uid: string, entryId: string): Promise<void> {
+  if (!uid || !entryId) return;
+  await deleteStoragePrefix(`notebook-images/${uid}/${entryId}/`);
+}
+
 /** ユーザー削除時に、そのユーザーに紐づく Storage（アバター・所持機材・ノート画像）を削除する */
 export async function deleteUserStorageFiles(uid: string): Promise<void> {
   if (!uid) return;
