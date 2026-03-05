@@ -648,9 +648,9 @@ export async function getAboutPageCountsFromFirestore(): Promise<AboutPageCounts
   const fallback: AboutPageCounts = { reviews: 0, profiles: 0, notebookEntries: 0, liveEvents: 0 };
   if (!db) return fallback;
 
-  async function getCount(collectionName: string): Promise<number> {
+  async function getCount(database: NonNullable<ReturnType<typeof getAdminFirestore>>, collectionName: string): Promise<number> {
     try {
-      const colRef = db.collection(collectionName);
+      const colRef = database.collection(collectionName);
       const countSnap = await (colRef as import("@google-cloud/firestore").Query).count().get();
       return countSnap.data().count ?? 0;
     } catch {
@@ -660,10 +660,10 @@ export async function getAboutPageCountsFromFirestore(): Promise<AboutPageCounts
 
   try {
     const [reviews, profiles, notebookEntries, liveEvents] = await Promise.all([
-      getCount("reviews"),
-      getCount("profiles"),
-      getCount("gear_notebook_entries"),
-      getCount("live_events"),
+      getCount(db, "reviews"),
+      getCount(db, "profiles"),
+      getCount(db, "gear_notebook_entries"),
+      getCount(db, "live_events"),
     ]);
     return { reviews, profiles, notebookEntries, liveEvents };
   } catch {
