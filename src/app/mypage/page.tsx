@@ -9,7 +9,8 @@ import { collection, query, where, getDocs, documentId } from "firebase/firestor
 import { useAuth } from "@/contexts/AuthContext";
 import { getFirebaseFirestore } from "@/lib/firebase/client";
 import { getFirebaseStorageUrl } from "@/lib/utils";
-import { isContentOnlyCategorySlug } from "@/data/post-categories";
+import { isContentOnlyCategorySlug, getCategoryIconNameByDisplayLabel, getCategoryPathDisplay } from "@/data/post-categories";
+import { getCategoryGroupIcon } from "@/lib/category-group-icons";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Settings2 } from "lucide-react";
 import { LiveEventCalendar } from "@/components/live-event-calendar";
 import { ProfilePreviewOverlay } from "@/components/profile-preview-overlay";
 import {
@@ -652,41 +654,63 @@ export default function MypagePage() {
 
       {/* ボード・所有機材（閲覧専用） */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-electric-blue">ボード・所有機材</CardTitle>
-          <CardDescription>
-            現在使っているボード構成や所有機材です。編集は
-            <Link href="/profile" className="text-electric-blue hover:underline mx-1">
-              プロフィール編集
-            </Link>
-            で行えます。
-          </CardDescription>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <CardTitle className="text-electric-blue">ボード・所有機材</CardTitle>
+            <CardDescription>
+              現在使っているボード構成や所有機材です。
+            </CardDescription>
+          </div>
+          <Link
+            href="/mypage/board/edit"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-transparent border border-cyan-500 text-cyan-500 hover:bg-cyan-500/10 transition-colors rounded-md text-sm font-medium shrink-0 w-fit"
+          >
+            <Settings2 className="w-4 h-4 shrink-0" aria-hidden />
+            エフェクターボードを編集
+          </Link>
         </CardHeader>
         <CardContent>
           {profile?.owned_gear || (profile?.owned_gear_images && profile.owned_gear_images.length > 0) ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {profile?.owned_gear && (
-                <ul className="space-y-1 text-sm text-gray-200">
+                <div className="grid gap-3 sm:grid-cols-2">
                   {profile.owned_gear
                     .split(/\r?\n/)
                     .map((line) => line.trim())
                     .filter(Boolean)
-                    .map((line, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <span className="mt-[3px] text-electric-blue shrink-0">•</span>
-                        <span className="whitespace-pre-wrap">{line}</span>
-                      </li>
-                    ))}
-                </ul>
+                    .map((line, idx) => {
+                      const match = line.match(/^\[([^\]]+)\]\s*(.*)$/);
+                      const category = match ? match[1] : null;
+                      const name = match ? match[2].trim() : line;
+                      const iconName = category ? getCategoryIconNameByDisplayLabel(category) : null;
+                      const CategoryIcon = iconName ? getCategoryGroupIcon(iconName) : null;
+                      return (
+                        <div
+                          key={idx}
+                          className="bg-white/[0.03] border border-white/10 rounded-xl p-4 flex flex-col items-start gap-1.5"
+                        >
+                          {category && (
+                            <span className="flex items-center gap-1.5 text-xs shrink-0">
+                              <span className="flex h-6 w-6 items-center justify-center rounded bg-white/5 border border-white/10 text-gray-400">
+                                {CategoryIcon ? <CategoryIcon className="h-3.5 w-3.5" aria-hidden /> : null}
+                              </span>
+                              <span className="px-2 py-0.5 bg-white/10 rounded-full text-gray-200">{category}</span>
+                            </span>
+                          )}
+                          <span className="text-gray-200 whitespace-pre-wrap min-w-0 leading-tight text-sm md:text-base">{name}</span>
+                        </div>
+                      );
+                    })}
+                </div>
               )}
               {profile?.owned_gear_images && profile.owned_gear_images.length > 0 && (
-                <div className={`flex flex-wrap gap-2 ${profile?.owned_gear ? "mt-3" : ""}`}>
+                <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 ${profile?.owned_gear ? "mt-4" : ""}`}>
                   {profile.owned_gear_images.map((url) => (
                     <div
                       key={url}
-                      className="relative w-24 h-24 rounded-md overflow-hidden border border-surface-border"
+                      className="relative aspect-square rounded-xl overflow-hidden border border-white/10 bg-white/[0.03]"
                     >
-                      <Image src={url} alt="" fill className="object-cover" sizes="96px" unoptimized />
+                      <Image src={url} alt="" fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" unoptimized />
                     </div>
                   ))}
                 </div>
@@ -744,9 +768,11 @@ export default function MypagePage() {
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           {showStars && <StarRating rating={r.rating} />}
                           <span className="text-xs text-gray-500">
-                            {r.categories && "name_ja" in r.categories
-                              ? (r.categories as { name_ja: string }).name_ja
-                              : ""}
+                            {(r.categories && "slug" in r.categories
+                              ? getCategoryPathDisplay((r.categories as { slug: string }).slug)
+                              : r.category_id
+                                ? getCategoryPathDisplay(r.category_id)
+                                : "")}
                             {" · "}
                             {new Date(r.created_at).toLocaleDateString("ja-JP")}
                           </span>
@@ -810,9 +836,11 @@ export default function MypagePage() {
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           {showStars && <StarRating rating={r.rating} />}
                           <span className="text-xs text-gray-500">
-                            {r.categories && "name_ja" in r.categories
-                              ? (r.categories as { name_ja: string }).name_ja
-                              : ""}
+                            {(r.categories && "slug" in r.categories
+                              ? getCategoryPathDisplay((r.categories as { slug: string }).slug)
+                              : r.category_id
+                                ? getCategoryPathDisplay(r.category_id)
+                                : "")}
                             {" · "}
                             {new Date(r.created_at).toLocaleDateString("ja-JP")}
                           </span>

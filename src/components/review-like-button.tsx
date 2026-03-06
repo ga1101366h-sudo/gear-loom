@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc } from "firebase/firestore";
+import { Heart } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFirebaseFirestore } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/button";
@@ -80,12 +81,13 @@ export function ReviewLikeButton({
       size="sm"
       onClick={handleToggle}
       disabled={loading}
-      className={`gap-1.5 ${className ?? ""}`}
+      className={`gap-2 bg-transparent text-xs font-medium ${className ?? ""}`}
     >
-      <span className={liked ? "text-electric-blue" : "text-gray-400"}>
-        {liked ? "♥" : "♡"}
-      </span>
-      <span>{count}</span>
+      <Heart
+        className={`h-4 w-4 shrink-0 ${liked ? "fill-electric-blue text-electric-blue" : "text-gray-400"}`}
+        aria-hidden
+      />
+      <span className="tabular-nums">{count}</span>
       <span className="sr-only">{liked ? "いいねを解除" : "いいねする"}</span>
     </Button>
   );

@@ -1,5 +1,7 @@
 # Firebase セットアップ（Gear-Loom）
 
+ルールの反映・管理者の追加・Storage など**日頃の操作手順**は [FIREBASE_OPERATIONS.md](./FIREBASE_OPERATIONS.md) を参照してください。
+
 ## 1. Firebase プロジェクト作成
 
 1. [Firebase Console](https://console.firebase.google.com/) でプロジェクトを作成
@@ -37,6 +39,7 @@ FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE K
 
 - **profiles**: ドキュメント ID = Firebase Auth UID。`display_name`, `user_id`, `avatar_url`, `bio` など
 - **reviews**: レビュー。`author_id`, `category_id`, `title`, `gear_name`, `rating`, `body_md`, `created_at`, `category_name_ja`, `author_display_name`, `author_user_id`, `review_images` など
+- **admins**: 管理者判定用。ドキュメント ID = **Firebase Auth UID**（管理者にしたいユーザーの UID）。このドキュメントが存在する UID のユーザーは、他ユーザーのレビューを編集・削除可能。詳細は [FIREBASE_OPERATIONS.md](./FIREBASE_OPERATIONS.md#2-管理者を他ユーザー記事の編集可能にする設定) を参照
 - **categories**: カテゴリ。`slug`, `name_ja`, `name_en`, `sort_order`, `group_slug`
 - **spec_tags**: スペックタグ。`slug`, `name_ja`
 - **makers**: メーカー。`name`, `group_slug`

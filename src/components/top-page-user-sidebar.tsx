@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Guitar } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ProfileListItem } from "@/lib/firebase/data";
 import type { LiveEvent } from "@/types/database";
@@ -224,8 +225,9 @@ function TopPageUserSidebar({
               </p>
               <p className="text-xs text-gray-500 truncate">@{profile.user_id}</p>
               {profile.main_instrument && (
-                <p className="text-xs text-electric-blue/90 truncate">
-                  🎸 {truncate(profile.main_instrument, 16)}
+                <p className="flex items-center gap-1.5 text-xs text-electric-blue/90 truncate">
+                  <Guitar className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
+                  {truncate(profile.main_instrument, 16)}
                 </p>
               )}
             </div>
@@ -292,8 +294,9 @@ function TopPageUserSidebar({
                 </p>
                 <p className="text-xs text-gray-500 truncate">@{profile.user_id}</p>
                 {profile.main_instrument && (
-                  <p className="text-xs text-electric-blue/90 mt-0.5 truncate">
-                    🎸 {truncate(profile.main_instrument, 18)}
+                  <p className="flex items-center gap-1.5 text-xs text-electric-blue/90 mt-0.5 truncate">
+                    <Guitar className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
+                    {truncate(profile.main_instrument, 18)}
                   </p>
                 )}
                 {profile.band_name && (

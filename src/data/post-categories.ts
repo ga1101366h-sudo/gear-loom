@@ -1,103 +1,162 @@
-/** 投稿画面用カテゴリ一覧（グループ＋項目）。slug は Firestore の category_slug と一致させる */
-export type PostCategoryItem = { slug: string; name_ja: string };
-export type PostCategoryGroup = { groupLabel: string; groupSlug: string; items: PostCategoryItem[] };
+/**
+ * 投稿・レビュー用カテゴリ定義
+ * Digimart 準拠の3階層カテゴリを扱うためのラッパー
+ */
 
-/** groupSlug はメーカー取得用（makers.group_slug） */
-export const POST_CATEGORY_GROUPS: PostCategoryGroup[] = [
-  {
-    groupLabel: "🎸 ギター・ベース系",
-    groupSlug: "guitar-bass",
-    items: [
-      { slug: "eleki-guitar", name_ja: "エレキギター本体" },
-      { slug: "guitar-effector", name_ja: "ギターエフェクター" },
-      { slug: "aco-classic-guitar", name_ja: "アコースティック・クラシックギター" },
-      { slug: "bass-body", name_ja: "ベース本体" },
-      { slug: "bass-effector", name_ja: "ベースエフェクター" },
-      { slug: "effector-board", name_ja: "エフェクターボード周辺（電源・スイッチャー等）" },
-      { slug: "amp-body", name_ja: "アンプ本体" },
-    ],
-  },
-  {
-    groupLabel: "🥁 打楽器・リズム系",
-    groupSlug: "drums",
-    items: [
-      { slug: "drum-set", name_ja: "ドラムセット本体" },
-      { slug: "snare-cymbal-pedal", name_ja: "スネア・シンバル・ペダル" },
-      { slug: "e-drum", name_ja: "電子ドラム" },
-      { slug: "percussion", name_ja: "パーカッション（カホン・コンガ等）" },
-    ],
-  },
-  {
-    groupLabel: "🎹 鍵盤楽器系",
-    groupSlug: "keyboards-synths",
-    items: [
-      { slug: "synth-keyboard", name_ja: "シンセサイザー・キーボード" },
-      { slug: "piano-e-piano", name_ja: "ピアノ・電子ピアノ" },
-    ],
-  },
-  {
-    groupLabel: "🎺 管楽器・弦楽器系",
-    groupSlug: "other",
-    items: [
-      { slug: "brass", name_ja: "金管楽器（トランペット・トロンボーン等）" },
-      { slug: "woodwind", name_ja: "木管楽器（サックス・フルート等）" },
-      { slug: "strings", name_ja: "擦弦楽器（バイオリン・チェロ等）" },
-    ],
-  },
-  {
-    groupLabel: "🎙️ PA・レコーディング・DTM系",
-    groupSlug: "other",
-    items: [
-      { slug: "mic", name_ja: "マイク・マイク周辺機器" },
-      { slug: "audio-interface", name_ja: "オーディオインターフェース" },
-      { slug: "monitor-headphone", name_ja: "モニタースピーカー・ヘッドホン" },
-      { slug: "dtm-soft", name_ja: "DTMソフト（DAW・プラグイン）" },
-      { slug: "mixer-pa", name_ja: "ミキサー・PA機材" },
-    ],
-  },
-  {
-    groupLabel: "🎧 DJ・配信系",
-    groupSlug: "other",
-    items: [
-      { slug: "dj-controller", name_ja: "DJコントローラー・ターンテーブル" },
-      { slug: "streaming-gear", name_ja: "配信用機材（キャプボ・ミキサー等）" },
-    ],
-  },
-  {
-    groupLabel: "🔌 アクセサリー・その他",
-    groupSlug: "other",
-    items: [
-      { slug: "cable-shield", name_ja: "ケーブル・シールド" },
-      { slug: "string-pick-stick", name_ja: "弦・ピック・スティック" },
-      { slug: "case-stand", name_ja: "ケース・スタンド類" },
-      { slug: "wagakki", name_ja: "和楽器・民族楽器" },
-    ],
-  },
-  {
-    groupLabel: "📋 その他",
-    groupSlug: "other",
-    items: [
-      { slug: "custom", name_ja: "カスタム" },
-      { slug: "blog", name_ja: "ブログ" },
-      { slug: "photo", name_ja: "フォト" },
-      { slug: "event", name_ja: "イベント" },
-    ],
-  },
-];
+import {
+  CATEGORY_LEVEL1,
+  CATEGORY_LEVEL2,
+  CATEGORY_LEVEL3,
+  getAllCategoryOptions,
+  getCategoryDisplayLabel,
+  getCategoryParentName,
+  getCategoryParentIconName,
+  LEGACY_SLUG_TO_NEW,
+  toCategorySlug,
+  parseCategorySlug,
+  type CategoryOption,
+} from "./category-hierarchy";
 
-/** 全カテゴリをフラットに（slug → name_ja, groupSlug） */
-export const POST_CATEGORIES_FLAT: { slug: string; name_ja: string; groupSlug: string }[] =
-  POST_CATEGORY_GROUPS.flatMap((g) =>
-    g.items.map((i) => ({ slug: i.slug, name_ja: i.name_ja, groupSlug: g.groupSlug }))
-  );
+const PATH_SEP = " > ";
 
-export function getGroupSlugByCategorySlug(categorySlug: string): string {
-  return POST_CATEGORIES_FLAT.find((c) => c.slug === categorySlug)?.groupSlug ?? "other";
+/**
+ * レビュー一覧などで表示する「大カテゴリ > 中カテゴリ > 詳細」形式のラベルを返す。
+ * slug が "大__中__小" の3段階の場合はそのまま結合、level2__level3 の場合は階層から解決する。
+ */
+export function getCategoryPathDisplay(slug: string): string {
+  const normalized = normalizeCategorySlug(slug);
+  if (!normalized.trim()) return "";
+  const parts = normalized.split("__").filter(Boolean);
+  if (parts.length >= 3) return parts.join(PATH_SEP);
+  if (parts.length === 2) {
+    const parsed = parseCategorySlug(normalized);
+    if (parsed) {
+      const l2 = CATEGORY_LEVEL2.find((c) => c.id === parsed.parentId);
+      const l3 = CATEGORY_LEVEL3.find((c) => c.id === parsed.childId);
+      if (l2 && l3) {
+        const l1 = CATEGORY_LEVEL1.find((c) => c.id === l2.parentId);
+        return [l1?.name ?? parsed.parentId, l2.name, l3.name].join(PATH_SEP);
+      }
+    }
+  }
+  if (parts.length === 1) return getCategoryLabel(normalized) || parts[0];
+  return getCategoryLabel(normalized) || normalized;
 }
 
-/** 機材名・メーカー・評価が不要な「その他」系コンテンツカテゴリ */
-export const CONTENT_ONLY_CATEGORY_SLUGS = ["custom", "blog", "photo", "event"] as const;
+export type PostCategoryItem = { slug: string; name_ja: string };
+export type PostCategoryGroup = {
+  groupLabel: string;
+  groupSlug: string;
+  groupIcon: string;
+  items: PostCategoryItem[];
+};
+
+/** 
+ * カテゴリ選択肢のグループ化定義
+ * Level 2 (中カテゴリ) をグループヘッダーとし、Level 3 (小カテゴリ) をアイテムとする
+ * 例: [エレキギター] -> ストラト, テレキャス...
+ */
+export const POST_CATEGORY_GROUPS: PostCategoryGroup[] = CATEGORY_LEVEL2.map((l2) => {
+  const l1 = CATEGORY_LEVEL1.find((p) => p.id === l2.parentId);
+  const children = CATEGORY_LEVEL3.filter((c) => c.parentId === l2.id);
+
+  if (children.length === 0) return null;
+
+  return {
+    groupLabel: l2.name,
+    groupSlug: l2.id,
+    groupIcon: l1?.icon ?? "Circle",
+    items: children.map((c) => ({
+      slug: toCategorySlug(l2.id, c.id),
+      name_ja: c.name,
+    })),
+  };
+}).filter((g): g is PostCategoryGroup => g !== null);
+
+/** 全カテゴリをフラットに（slug → name_ja, groupSlug = parentId） */
+export const POST_CATEGORY_FLAT = getAllCategoryOptions().map((o) => ({
+  slug: o.slug,
+  name_ja: getCategoryDisplayLabel(o.slug),
+  groupSlug: o.parentId,
+}));
+
+export function normalizeCategorySlug(slug: string): string {
+  return LEGACY_SLUG_TO_NEW[slug] ?? slug;
+}
+
+/** 
+ * groupSlug（＝親ID/Maker Group ID）を返す
+ * メーカー検索などで使用するため、Level 1 ID（guitar, bass等）を返すように解決する
+ */
+export function getGroupSlugByCategorySlug(categorySlug: string): string {
+  const normalized = normalizeCategorySlug(categorySlug);
+  const parsed = parseCategorySlug(normalized);
+  
+  if (parsed) {
+    // parsed.parentId is Level 2 ID (e.g. electric-guitar)
+    // Find Level 2 definition to get Level 1 ID
+    const l2 = CATEGORY_LEVEL2.find(c => c.id === parsed.parentId);
+    if (l2) return l2.parentId; // Return Level 1 ID (e.g. "guitar")
+    
+    return parsed.parentId; // Fallback to Level 2 ID if not found
+  }
+  
+  // __を含まない場合（Level 1 IDそのものや、Level 3 ID直書きの場合など）
+  // Level 3 IDから逆引きを試みる
+  const l3 = CATEGORY_LEVEL3.find(c => c.id === normalized);
+  if (l3) {
+    const l2 = CATEGORY_LEVEL2.find(c => c.id === l3.parentId);
+    if (l2) return l2.parentId;
+  }
+  
+  // Level 2 ID?
+  const l2 = CATEGORY_LEVEL2.find(c => c.id === normalized);
+  if (l2) return l2.parentId;
+
+  // Level 1 ID?
+  const l1 = CATEGORY_LEVEL1.find(c => c.id === normalized);
+  if (l1) return l1.id;
+
+  return normalized;
+}
+
+export function getCategoryLabel(slug: string): string {
+  return getCategoryDisplayLabel(normalizeCategorySlug(slug));
+}
+
+export function getCategoryParentLabel(slug: string): string {
+  return getCategoryParentName(normalizeCategorySlug(slug));
+}
+
+export function getCategoryIconName(slug: string): string {
+  return getCategoryParentIconName(normalizeCategorySlug(slug));
+}
+
+/**
+ * 表示ラベル（owned_gear の [カテゴリ名] 等）からアイコン名を取得する。
+ * TODO: 新しい3階層データ（MEGA_MENU_CATEGORIES）に対応したアイコン取得ロジックは後日実装。
+ * 一旦マイページのクラッシュを防ぐため、汎用アイコンを返す。
+ */
+export function getCategoryIconNameByDisplayLabel(_displayLabel: string): string {
+  return "Music";
+}
+
+export const CONTENT_ONLY_CATEGORY_SLUGS = [
+  "custom-root__custom",
+  "blog-root__blog",
+  "event-root__event",
+  "other__custom",
+  "other__blog",
+  "other__event",
+  "custom",
+  "blog",
+  "event"
+] as const;
+
+const CONTENT_ONLY_SET = new Set<string>(CONTENT_ONLY_CATEGORY_SLUGS);
 
 export function isContentOnlyCategorySlug(slug: string): boolean {
-  return (CONTENT_ONLY_CATEGORY_SLUGS as readonly string[]).includes(slug);
+  return CONTENT_ONLY_SET.has(slug) || CONTENT_ONLY_SET.has(normalizeCategorySlug(slug));
 }
+
+export type { CategoryOption };

@@ -9,8 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getFirebaseStorageUrl } from "@/lib/utils";
-import { isContentOnlyCategorySlug } from "@/data/post-categories";
-import { POST_CATEGORIES_FLAT } from "@/data/post-categories";
+import { isContentOnlyCategorySlug, POST_CATEGORY_FLAT, normalizeCategorySlug, getCategoryLabel, getCategoryPathDisplay } from "@/data/post-categories";
 import { getRakutenGenreIdForCategory } from "@/data/rakuten-genres";
 import { getReviewsFromFirestore } from "@/lib/firebase/data";
 import { fetchRakutenItemsByGenreId } from "@/lib/rakuten";
@@ -20,8 +19,36 @@ import { CategoryCatalogSection, type CatalogItem } from "./CategoryCatalogSecti
 const PLACEHOLDER_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260' viewBox='0 0 400 260'%3E%3Crect fill='%231a2332' width='400' height='260'/%3E%3Ctext fill='%236b7280' x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='14'%3EGear-Loom%3C/text%3E%3C/svg%3E";
 
+/** URLで渡された slug をデコード（％エンコードされた日本語対策） */
+function decodeSlug(slug: string): string {
+  try {
+    if (slug.includes("%")) return decodeURIComponent(slug);
+  } catch {
+    // 不正なエンコード時はそのまま
+  }
+  return slug;
+}
+
+/** 日本語の「大__中__小」形式なら最後の1つ（詳細名）を返し、それ以外は getCategoryLabel に任せる */
+function getCategoryDisplayNameFromSlug(slug: string): string {
+  const decoded = decodeSlug(slug);
+  const parts = decoded.split("__").filter(Boolean);
+  if (parts.length >= 3) return parts[parts.length - 1];
+  if (parts.length === 2) return parts[1];
+  if (parts.length === 1) return parts[0];
+  return decoded;
+}
+
 function getCategoryNameBySlug(slug: string): string | null {
-  return POST_CATEGORIES_FLAT.find((c) => c.slug === slug)?.name_ja ?? null;
+  const decoded = decodeSlug(slug);
+  if (!decoded.trim()) return null;
+  const normalized = normalizeCategorySlug(decoded);
+  const flat = Array.isArray(POST_CATEGORY_FLAT) ? POST_CATEGORY_FLAT : [];
+  const fromFlat = flat.find((c) => c.slug === normalized)?.name_ja;
+  if (fromFlat) return fromFlat;
+  const fromLabel = getCategoryLabel(decoded);
+  if (fromLabel && fromLabel !== decoded) return fromLabel;
+  return getCategoryDisplayNameFromSlug(decoded);
 }
 
 function getFirstReviewImageUrl(r: Review): string | null {
@@ -47,13 +74,15 @@ type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
-  const name = getCategoryNameBySlug(slug);
+  const decoded = decodeSlug(slug);
+  const name = getCategoryNameBySlug(decoded);
   if (!name) return { title: "カテゴリ" };
   return { title: `${name} | カテゴリ`, description: `${name}のレビュー一覧と機材カタログ` };
 }
 
 export default async function CategoryPage({ params }: Props) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeSlug(rawSlug);
   const categoryName = getCategoryNameBySlug(slug);
   if (!categoryName) notFound();
 
@@ -107,9 +136,7 @@ export default async function CategoryPage({ params }: Props) {
               const catSlug = (r.categories && "slug" in r.categories && (r.categories as { slug: string }).slug)
                 ? (r.categories as { slug: string }).slug
                 : r.category_id;
-              const catName = r.categories && "name_ja" in r.categories
-                ? (r.categories as { name_ja: string }).name_ja
-                : null;
+              const catName = catSlug ? getCategoryPathDisplay(catSlug) : null;
               return (
                 <li key={r.id}>
                   <Card className="h-full overflow-hidden transition-all hover:border-electric-blue/50">

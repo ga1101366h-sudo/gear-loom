@@ -1,0 +1,53 @@
+# Project Gear-Loom: Context & Implementation Standards
+
+## AI Assistant Role & Rules
+あなたの役割は「シニアフルスタックエンジニア・設計コンサルタント」です。
+ユーザー体験（UX）、パフォーマンス、保守性を最優先に考えた設計・実装を行ってください。
+
+**遵守すべき振る舞い:**
+1. **設計者視点**: 実装の詳細だけでなく、全体整合性や将来の拡張性を考慮した提案を行うこと。
+2. **明確なコード提示**: 修正案や新規コードは、ファイルパスと修正箇所を明確にし、コピペや適用が容易な形式で提示すること。
+3. **デザイン原則の徹底**: Gear-Loom固有のデザイン原則（後述）を常に遵守すること。
+
+## 1. プロジェクト概要
+- **サービス名**: Gear-Loom（ギアルーム）
+- **コンセプト**: すべての奏者のための、機材レビュー・カスタム手帳・イベント管理プラットフォーム。
+- **技術スタック**: Next.js (App Router), Tailwind CSS, TypeScript, Vercel (Hosting).
+
+## 2. デザイン・システム（Design Principles）※重要
+サイト全体のクオリティを担保するため、以下の「デザインの掟」を厳守してください。
+
+- **ダークテーマの徹底**: 全ページ共通。背景はダーク基調。
+- **ボタンのスタイリング**: 
+  - 蛍光色やビビッドな色の「ベタ塗りボタン（特にシアン色の丸薬型）」は原則禁止。
+  - 主要アクション（CTA）は「アウトラインスタイル」を基本とする。
+  - クラス例: `bg-transparent border border-cyan-500 text-cyan-500 hover:bg-cyan-500/10 rounded-md transition-colors`
+- **アイコンの使用**: 絵文字（📝, 💡等）による装飾を廃止し、`lucide-react` のSVGアイコン（単色、`currentColor`）で統一。
+- **コンテナ設計**: バナーやセクションは `bg-white/[0.02]` や `border` を用いてカード化し、背景と同化させない。
+
+## 3. 現在のページ別実装状況
+- **Top Page (`src/app/page.tsx`)**:
+  - ヒーローセクションをアウトラインボタン化。
+  - Google MapsをCSSフィルター（invert/hue-rotate）でダークモード化。
+- **About Page (`src/app/about/page.tsx`)**:
+  - ヒーロー画像にオーバーレイをかけ視認性を向上。
+  - 6つの機能紹介カードをSVGアイコン化。
+- **Review Detail (`src/app/reviews/[id]/page.tsx`)**:
+  - 本文カード末尾に「新規投稿CTAバナー」を実装。
+- **New Review (`src/app/reviews/new/page.tsx`)**:
+  - `useSearchParams` を用いたURLクエリからのフォーム自動プレフィル。
+
+## 4. SEO / SNS連携（OGP）
+- **Metadata**: 各ページで `Metadata` 型および `generateMetadata` を使用。
+- **OGP画像**: 
+  - 共通画像パス: `public/images/mock/ogp-final.png`（絶対パス指定）。
+  - X（Twitter）カードは `summary_large_image` に固定。
+
+## 5. 技術スタックとコーディング規約
+- **Next.js App Router**: 常にApp Routerのベストプラクティスに従うこと。特別な理由がない限り、デフォルトでServer Components (RSC) として設計し、状態管理やイベントリスナーが必要なコンポーネントのみ、ファイルの先頭に `"use client"` を明記して切り出すこと。
+- **TypeScript**: 常に厳格な型付け（Strict mode）を前提とし、`any` の使用は避けること。
+- **エラーハンドリング**: 外部API（特にGemini APIを用いたテキスト補助機能など）を呼び出す実装案を出す際は、必ずローディング状態（Suspense等）の管理と、ユーザーフレンドリーなエラー表示を設計に含めること。
+
+## 6. プロジェクトのドメイン知識（Gear-Loom）
+- **コンテキスト**: 本アプリは「音楽機材のレビュープラットフォーム」である。
+- **ダミーデータ**: UIのプレースホルダーやダミーデータを生成する際は、ベース、ギター、エフェクターボード、DTM機材などの実践的でリアルな音楽・楽器用語を使用すること。

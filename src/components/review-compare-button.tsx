@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc } from "firebase/firestore";
+import { GitCompare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFirebaseFirestore } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/button";
@@ -67,14 +68,18 @@ export function ReviewCompareButton({ reviewId, className }: ReviewCompareButton
   return (
     <Button
       type="button"
-      variant={inList ? "outline" : "secondary"}
+      variant="secondary"
       size="sm"
       onClick={handleToggle}
       disabled={loading}
-      className={`gap-1.5 text-xs ${className ?? ""}`}
+      className={`h-10 flex items-center justify-center gap-1.5 rounded-md whitespace-nowrap px-2 text-xs font-medium ${className ?? ""}`}
     >
-      <span className={inList ? "text-electric-blue" : "text-gray-300"}>⇄</span>
-      <span>{inList ? "比較リストに追加済み" : "比較リストに追加"}</span>
+      <GitCompare
+        className={`h-4 w-4 shrink-0 ${inList ? "text-electric-blue" : "text-gray-400"}`}
+        aria-hidden
+      />
+      <span className="sm:hidden">比較リスト</span>
+      <span className="hidden sm:inline">{inList ? "比較リストに追加済み" : "比較リストに追加"}</span>
     </Button>
   );
 }

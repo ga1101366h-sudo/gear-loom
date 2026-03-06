@@ -39,7 +39,7 @@ export function ShareToXButton({
       className={className}
       aria-label="Xでシェア"
     >
-      {children ?? "Xでポスト"}
+      {children ?? <span>Xでポスト</span>}
     </a>
   );
 }

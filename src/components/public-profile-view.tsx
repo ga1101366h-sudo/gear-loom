@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ReviewImagesGallery } from "@/components/review-images-gallery";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { getCategoryIconNameByDisplayLabel } from "@/data/post-categories";
+import { getCategoryGroupIcon } from "@/lib/category-group-icons";
 import { LiveEventCalendar } from "@/components/live-event-calendar";
 import { ProfileFollowSection } from "@/components/profile-follow-section";
 import type { Profile } from "@/types/database";
@@ -129,28 +130,48 @@ export function PublicProfileView({
           )}
           {(profile.owned_gear || (profile.owned_gear_images && profile.owned_gear_images.length > 0)) && (
             <section>
-              <CardDescription className="text-gray-300 mb-1">ボード・所有機材</CardDescription>
+              <CardDescription className="text-gray-300 mb-3">ボード・所有機材</CardDescription>
               {profile.owned_gear && (
-                <ul className="space-y-1 text-sm text-gray-200 mb-2">
+                <div className="grid gap-3 sm:grid-cols-2 mb-4">
                   {profile.owned_gear
                     .split(/\r?\n/)
                     .map((line) => line.trim())
                     .filter(Boolean)
-                    .map((line, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <span className="mt-[3px] text-electric-blue">•</span>
-                        <span className="whitespace-pre-wrap">{line}</span>
-                      </li>
-                    ))}
-                </ul>
+                    .map((line, idx) => {
+                      const match = line.match(/^\[([^\]]+)\]\s*(.*)$/);
+                      const category = match ? match[1] : null;
+                      const name = match ? match[2].trim() : line;
+                      const iconName = category ? getCategoryIconNameByDisplayLabel(category) : null;
+                      const CategoryIcon = iconName ? getCategoryGroupIcon(iconName) : null;
+                      return (
+                        <div
+                          key={idx}
+                          className="bg-white/[0.03] border border-white/10 rounded-xl p-4 flex flex-col items-start gap-1.5"
+                        >
+                          {category && (
+                            <span className="flex items-center gap-1.5 text-xs shrink-0">
+                              <span className="flex h-6 w-6 items-center justify-center rounded bg-white/5 border border-white/10 text-gray-400">
+                                {CategoryIcon ? <CategoryIcon className="h-3.5 w-3.5" aria-hidden /> : null}
+                              </span>
+                              <span className="px-2 py-0.5 bg-white/10 rounded-full text-gray-200">{category}</span>
+                            </span>
+                          )}
+                          <span className="text-gray-200 whitespace-pre-wrap min-w-0 leading-tight text-sm md:text-base">{name}</span>
+                        </div>
+                      );
+                    })}
+                </div>
               )}
               {profile.owned_gear_images && profile.owned_gear_images.length > 0 && (
-                <div className="mt-2">
-                  <ReviewImagesGallery
-                    images={profile.owned_gear_images.map((url) => ({
-                      url,
-                    }))}
-                  />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {profile.owned_gear_images.map((url) => (
+                    <div
+                      key={url}
+                      className="relative aspect-square rounded-xl overflow-hidden border border-white/10 bg-white/[0.03]"
+                    >
+                      <Image src={url} alt="" fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" unoptimized />
+                    </div>
+                  ))}
                 </div>
               )}
             </section>
