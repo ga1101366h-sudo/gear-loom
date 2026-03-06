@@ -33,6 +33,24 @@ function getFirstReviewImageUrl(r: Review): string | null {
   return url || null;
 }
 
+function getReviewExcerpt(r: Review): string {
+  const bodyMd = (r.body_md ?? "").trim();
+  if (bodyMd) {
+    const snippet = bodyMd.replace(/\s+/g, " ").slice(0, 80);
+    return snippet + (bodyMd.length > 80 ? "…" : "");
+  }
+  const bodyHtml = (r.body_html ?? "").trim();
+  if (bodyHtml) {
+    const text = bodyHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (text) {
+      const snippet = text.slice(0, 80);
+      return snippet + (text.length > 80 ? "…" : "");
+    }
+  }
+  if (r.gear_name && r.gear_name.trim()) return r.gear_name.trim();
+  return "";
+}
+
 export function CategoryListSection({
   title,
   reviews,
@@ -52,7 +70,7 @@ export function CategoryListSection({
           </CardContent>
         </Card>
       ) : (
-        <ul className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {reviews.map((r) => {
             const imageUrl = getFirstReviewImageUrl(r);
             const showStars = !isContentOnlyCategorySlug(r.category_id) && r.rating > 0;
@@ -60,18 +78,19 @@ export function CategoryListSection({
               ? (r.categories as { slug: string }).slug
               : r.category_id;
             const categoryName = categorySlug ? getCategoryPathDisplay(categorySlug) : null;
+            const excerpt = getReviewExcerpt(r);
             return (
               <li key={r.id}>
                 <Card className="h-full overflow-hidden transition-all hover:border-electric-blue/50">
                   <Link href={`/reviews/${r.id}`} className="block">
-                    <div className="relative aspect-[2/1] w-full bg-surface-card overflow-hidden">
+                    <div className="relative aspect-[16/9] w-full bg-surface-card overflow-hidden">
                       {imageUrl ? (
                         <Image
                           src={imageUrl}
                           alt=""
                           fill
                           className="object-cover"
-                          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
+                          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
                         />
                       ) : (
                         <Image
@@ -79,26 +98,31 @@ export function CategoryListSection({
                           alt=""
                           fill
                           className="object-cover"
-                          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 20vw"
+                          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
                           unoptimized
                         />
                       )}
                     </div>
-                    <CardHeader className="p-2 pb-0">
-                      <CardTitle className="text-xs line-clamp-1">{r.title}</CardTitle>
-                      <CardDescription className="flex items-center gap-1 flex-wrap text-[11px]">
+                    <CardHeader className="px-3 pt-3 pb-1">
+                      <CardTitle className="text-sm font-bold leading-snug line-clamp-2">{r.title}</CardTitle>
+                      <CardDescription className="flex items-center gap-1 flex-wrap text-xs pt-1">
                         <span>{r.gear_name}</span>
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="px-2 pt-0 pb-1.5 flex items-center">
+                    <CardContent className="px-3 pb-3 pt-1 flex flex-col gap-1.5">
                       {showStars && <StarRating rating={r.rating} />}
+                      {excerpt && (
+                        <p className="text-xs text-gray-400 leading-relaxed line-clamp-3">
+                          {excerpt}
+                        </p>
+                      )}
                     </CardContent>
                   </Link>
                   {categoryName && (
-                    <div className="px-2 pb-1.5 -mt-0.5">
+                    <div className="px-3 pb-3 -mt-1">
                       <Link
                         href={`/reviews?category=${encodeURIComponent(categorySlug)}`}
-                        className="text-[11px] text-electric-blue hover:underline"
+                        className="text-xs text-electric-blue hover:underline"
                       >
                         {categoryName}
                       </Link>

@@ -28,6 +28,10 @@ const PATH_SEP = " > ";
 export function getCategoryPathDisplay(slug: string): string {
   const normalized = normalizeCategorySlug(slug);
   if (!normalized.trim()) return "";
+  // コンテンツ系カテゴリ（イベント・ブログ・カスタム手帳など）は単一ラベルで表示する
+  if (normalized === "event") return "イベント";
+  if (normalized === "blog") return "ブログ";
+  if (normalized === "custom") return "カスタム手帳";
   const parts = normalized.split("__").filter(Boolean);
   if (parts.length >= 3) return parts.join(PATH_SEP);
   if (parts.length === 2) {

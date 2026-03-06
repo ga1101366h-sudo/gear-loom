@@ -160,11 +160,19 @@ export default async function ReviewDetailPage({
   const categorySlug =
     review.categories && "slug" in review.categories
       ? (review.categories as { slug: string }).slug
-      : "";
-  const categoryName = categorySlug
+      : review.category_id ?? "";
+  let categoryName = categorySlug
     ? getCategoryLabel(categorySlug)
     : (review.categories && "name_ja" in review.categories ? (review.categories as { name_ja: string }).name_ja : "");
   const isContentOnlyCategory = categorySlug ? isContentOnlyCategorySlug(categorySlug) : false;
+  // コンテンツ系カテゴリ（ブログ・イベントなど）は日本語ラベルを明示
+  if (categorySlug === "event") {
+    categoryName = "イベント";
+  } else if (categorySlug === "blog") {
+    categoryName = "ブログ";
+  } else if (categorySlug === "custom") {
+    categoryName = "カスタム手帳";
+  }
   const makerName = (review as ReviewDetail).maker_name ?? null;
   const profile = review.profiles as { display_name: string | null; user_id: string | null } | undefined;
   const images = (review as ReviewDetail).review_images ?? [];
@@ -216,13 +224,14 @@ export default async function ReviewDetailPage({
             {categorySlug ? (
               (() => {
                 const parts = categorySlug.split("__").filter(Boolean);
-                if (parts.length === 0) {
+                // スラグ分割で階層が取れない場合 or コンテンツ系カテゴリ（event/blog/custom）は単一ラベルで表示
+                if (parts.length === 0 || isContentOnlyCategory) {
                   return (
                     <Link
                       href={`/reviews?category=${encodeURIComponent(categorySlug)}`}
                       className="text-electric-blue hover:underline"
                     >
-                      {categoryName}
+                      {categoryName || categorySlug}
                     </Link>
                   );
                 }
@@ -286,20 +295,22 @@ export default async function ReviewDetailPage({
               <StarRating rating={review.rating} />
             </div>
           )}
-          {/* アクションボタン：上段2列・下段3列グリッド、高さ・スタイル統一 */}
+          {/* アクションボタン：上段（役に立った＋持ってる）、下段（いいね・比較・X共有） */}
           <div className="flex flex-col gap-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid gap-3 ${!isContentOnlyCategory ? "grid-cols-2" : "grid-cols-1"}`}>
               <ReviewHelpfulButton
                 reviewId={review.id}
                 initialCount={helpfulCount}
                 className="h-10 w-full flex items-center justify-center gap-1.5 rounded-md border border-white/20 bg-white/5 px-2 text-xs font-medium text-gray-200 whitespace-nowrap hover:bg-white/10"
               />
-              <ReviewAddToOwnedGearButton
-                gearName={review.gear_name}
-                categoryNameJa={categoryName}
-                makerName={makerName}
-                className="h-10 w-full"
-              />
+              {!isContentOnlyCategory && (
+                <ReviewAddToOwnedGearButton
+                  gearName={review.gear_name}
+                  categoryNameJa={categoryName}
+                  makerName={makerName}
+                  className="h-10 w-full"
+                />
+              )}
             </div>
             <div className="grid grid-cols-3 gap-2 md:gap-3">
               <ReviewLikeButton
