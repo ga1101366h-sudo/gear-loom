@@ -11,6 +11,7 @@ import { getFirebaseFirestore } from "@/lib/firebase/client";
 import { getFirebaseStorageUrl } from "@/lib/utils";
 import { isContentOnlyCategorySlug, getCategoryIconNameByDisplayLabel, getCategoryPathDisplay } from "@/data/post-categories";
 import { getCategoryGroupIcon } from "@/lib/category-group-icons";
+import { CategoryIcon } from "@/components/category-icon";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -682,8 +683,6 @@ export default function MypagePage() {
                       const match = line.match(/^\[([^\]]+)\]\s*(.*)$/);
                       const category = match ? match[1] : null;
                       const name = match ? match[2].trim() : line;
-                      const iconName = category ? getCategoryIconNameByDisplayLabel(category) : null;
-                      const CategoryIcon = iconName ? getCategoryGroupIcon(iconName) : null;
                       return (
                         <div
                           key={idx}
@@ -692,7 +691,7 @@ export default function MypagePage() {
                           {category && (
                             <span className="flex items-center gap-1.5 text-xs shrink-0">
                               <span className="flex h-6 w-6 items-center justify-center rounded bg-white/5 border border-white/10 text-gray-400">
-                                {CategoryIcon ? <CategoryIcon className="h-3.5 w-3.5" aria-hidden /> : null}
+                                <CategoryIcon name={category} className="h-3.5 w-3.5" />
                               </span>
                               <span className="px-2 py-0.5 bg-white/10 rounded-full text-gray-200">{category}</span>
                             </span>

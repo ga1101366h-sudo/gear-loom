@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getCategoryIconNameByDisplayLabel } from "@/data/post-categories";
 import { getCategoryGroupIcon } from "@/lib/category-group-icons";
+import { CategoryIcon } from "@/components/category-icon";
 import { LiveEventCalendar } from "@/components/live-event-calendar";
 import { ProfileFollowSection } from "@/components/profile-follow-section";
 import type { Profile } from "@/types/database";
@@ -141,8 +142,6 @@ export function PublicProfileView({
                       const match = line.match(/^\[([^\]]+)\]\s*(.*)$/);
                       const category = match ? match[1] : null;
                       const name = match ? match[2].trim() : line;
-                      const iconName = category ? getCategoryIconNameByDisplayLabel(category) : null;
-                      const CategoryIcon = iconName ? getCategoryGroupIcon(iconName) : null;
                       return (
                         <div
                           key={idx}
@@ -151,7 +150,7 @@ export function PublicProfileView({
                           {category && (
                             <span className="flex items-center gap-1.5 text-xs shrink-0">
                               <span className="flex h-6 w-6 items-center justify-center rounded bg-white/5 border border-white/10 text-gray-400">
-                                {CategoryIcon ? <CategoryIcon className="h-3.5 w-3.5" aria-hidden /> : null}
+                                <CategoryIcon name={category} className="h-3.5 w-3.5" />
                               </span>
                               <span className="px-2 py-0.5 bg-white/10 rounded-full text-gray-200">{category}</span>
                             </span>
