@@ -4,6 +4,9 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import {
   DndContext,
   closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
@@ -87,7 +90,7 @@ function OwnedGearSortableItem({
       <div className="flex items-center gap-3 p-3 bg-[#1a1a1a] bg-white/[0.02] border border-white/10 rounded-md">
         <button
           type="button"
-          className="text-gray-500 cursor-grab hover:text-gray-300 transition-colors"
+          className="text-gray-500 cursor-grab hover:text-gray-300 transition-colors touch-none"
           {...listeners}
           {...attributes}
           aria-label="並び替えハンドル"
@@ -152,6 +155,14 @@ function ProfilePageContent() {
   const [showProfilePreview, setShowProfilePreview] = useState(false);
   const [followingCount, setFollowingCount] = useState(0);
   const [followersCount, setFollowersCount] = useState(0);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px動かしたらドラッグ開始（タップ/スクロール誤爆防止）
+      },
+    })
+  );
 
   useEffect(() => {
     if (!showProfilePreview || !user) return;
@@ -785,6 +796,7 @@ function ProfilePageContent() {
                 {ownedGear.trim() && (
                   <DndContext
                     collisionDetection={closestCenter}
+                    sensors={sensors}
                     onDragEnd={handleOwnedGearDragEnd}
                   >
                     <SortableContext
