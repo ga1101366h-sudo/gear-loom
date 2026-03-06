@@ -9,6 +9,8 @@ import { ProfileFollowSection } from "@/components/profile-follow-section";
 import type { Profile } from "@/types/database";
 import type { LiveEvent } from "@/types/database";
 import type { Review } from "@/types/database";
+import type React from "react";
+import { Instagram, Mail, Twitch, Youtube } from "lucide-react";
 
 function buildUrl(raw: string | null, type: "x" | "instagram" | "youtube" | "twitch"): string | null {
   if (!raw) return null;
@@ -31,6 +33,14 @@ function buildUrl(raw: string | null, type: "x" | "instagram" | "youtube" | "twi
 }
 
 export type ReviewWithLikeCount = Review & { likeCount?: number };
+
+function XIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 22.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
 
 type Props = {
   profile: Profile;
@@ -61,6 +71,8 @@ export function PublicProfileView({
   const twitchUrl = buildUrl(profile.sns_twitch, "twitch");
   const displayName = profile.display_name || profile.user_id || "ユーザー";
   const totalReviewLikes = reviews.reduce((sum, r) => sum + ((r as ReviewWithLikeCount).likeCount ?? 0), 0);
+  const hasContactOrSns = Boolean(profile.contact_email || xUrl || instagramUrl || youtubeUrl || twitchUrl);
+  const hasGear = Boolean(profile.owned_gear || (profile.owned_gear_images && profile.owned_gear_images.length > 0));
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 py-8">
@@ -124,14 +136,133 @@ export function PublicProfileView({
         </CardHeader>
         <CardContent className="space-y-6">
           {profile.bio && (
-            <section>
-              <CardDescription className="text-gray-300 mb-1">自己紹介</CardDescription>
+            <section className="space-y-2">
+              <p className="text-xs font-bold text-gray-500 tracking-wider uppercase mb-1 block">自己紹介</p>
               <p className="text-sm text-gray-200 whitespace-pre-wrap">{profile.bio}</p>
             </section>
           )}
-          {(profile.owned_gear || (profile.owned_gear_images && profile.owned_gear_images.length > 0)) && (
+          {hasContactOrSns && (
+            <section className="space-y-4">
+              {profile.contact_email && (
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-gray-500 tracking-wider uppercase mb-2 block">連絡先</p>
+                  {disableLinks ? (
+                    <span className="text-sm text-gray-400 flex items-center gap-2 break-all">
+                      <Mail className="h-4 w-4 text-gray-500" aria-hidden />
+                      {profile.contact_email}
+                    </span>
+                  ) : (
+                    <a
+                      href={`mailto:${profile.contact_email}`}
+                      className="text-sm text-gray-400 flex items-center gap-2 break-all hover:text-gray-200 transition-colors"
+                    >
+                      <Mail className="h-4 w-4 text-gray-500" aria-hidden />
+                      {profile.contact_email}
+                    </a>
+                  )}
+                </div>
+              )}
+              {(xUrl || instagramUrl || youtubeUrl || twitchUrl) && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-gray-500 tracking-wider uppercase mb-2 block">SNS</p>
+                  <div className="flex gap-3">
+                    {xUrl &&
+                      (disableLinks ? (
+                        <span
+                          className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 text-gray-200 bg-white/5"
+                          aria-label="X"
+                          title="X"
+                        >
+                          <XIcon className="h-5 w-5" aria-hidden />
+                        </span>
+                      ) : (
+                        <a
+                          href={xUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="X"
+                          title="X"
+                          className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 text-gray-200 bg-white/5 hover:bg-white/20"
+                        >
+                          <XIcon className="h-5 w-5" aria-hidden />
+                        </a>
+                      ))}
+                    {youtubeUrl &&
+                      (disableLinks ? (
+                        <span
+                          className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 text-[#FF0000] bg-white/5"
+                          aria-label="YouTube"
+                          title="YouTube"
+                        >
+                          <Youtube className="h-5 w-5" aria-hidden />
+                        </span>
+                      ) : (
+                        <a
+                          href={youtubeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="YouTube"
+                          title="YouTube"
+                          className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 text-[#FF0000] bg-white/5 hover:bg-[#FF0000]/15"
+                        >
+                          <Youtube className="h-5 w-5" aria-hidden />
+                        </a>
+                      ))}
+                    {twitchUrl &&
+                      (disableLinks ? (
+                        <span
+                          className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 text-[#9146FF] bg-white/5"
+                          aria-label="Twitch"
+                          title="Twitch"
+                        >
+                          <Twitch className="h-5 w-5" aria-hidden />
+                        </span>
+                      ) : (
+                        <a
+                          href={twitchUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="Twitch"
+                          title="Twitch"
+                          className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 text-[#9146FF] bg-white/5 hover:bg-[#9146FF]/15"
+                        >
+                          <Twitch className="h-5 w-5" aria-hidden />
+                        </a>
+                      ))}
+                    {instagramUrl &&
+                      (disableLinks ? (
+                        <span
+                          className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 text-[#E1306C] bg-white/5"
+                          aria-label="Instagram"
+                          title="Instagram"
+                        >
+                          <Instagram className="h-5 w-5" aria-hidden />
+                        </span>
+                      ) : (
+                        <a
+                          href={instagramUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="Instagram"
+                          title="Instagram"
+                          className="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 text-[#E1306C] bg-white/5 hover:bg-[#E1306C]/15"
+                        >
+                          <Instagram className="h-5 w-5" aria-hidden />
+                        </a>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {hasGear && (profile.bio || hasContactOrSns) && <hr className="border-white/10 my-6" />}
+
+          {hasGear && (
             <section>
-              <CardDescription className="text-gray-300 mb-3">ボード・所有機材</CardDescription>
+              <div className="mb-4">
+                <h3 className="text-base font-bold text-gray-200">ボード・所有機材</h3>
+              </div>
               {profile.owned_gear && (
                 <div className="grid gap-3 sm:grid-cols-2 mb-4">
                   {profile.owned_gear
@@ -173,84 +304,6 @@ export function PublicProfileView({
                   ))}
                 </div>
               )}
-            </section>
-          )}
-          {profile.contact_email && (
-            <section>
-              <CardDescription className="text-gray-300 mb-1">連絡先メールアドレス</CardDescription>
-              {disableLinks ? (
-                <span className="text-sm text-electric-blue break-all">{profile.contact_email}</span>
-              ) : (
-                <a
-                  href={`mailto:${profile.contact_email}`}
-                  className="text-sm text-electric-blue hover:underline break-all"
-                >
-                  {profile.contact_email}
-                </a>
-              )}
-            </section>
-          )}
-          {(xUrl || instagramUrl || youtubeUrl || twitchUrl) && (
-            <section className="space-y-2">
-              <CardDescription className="text-gray-300">リンク</CardDescription>
-              <div className="flex flex-wrap gap-2">
-                {xUrl && (disableLinks ? (
-                  <span className="rounded-full border border-surface-border px-3 py-1 text-xs text-gray-200">
-                    X
-                  </span>
-                ) : (
-                  <a
-                    href={xUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-full border border-surface-border px-3 py-1 text-xs text-gray-200 hover:border-electric-blue/60 hover:text-electric-blue transition-colors"
-                  >
-                    X
-                  </a>
-                ))}
-                {instagramUrl && (disableLinks ? (
-                  <span className="rounded-full border border-surface-border px-3 py-1 text-xs text-gray-200">
-                    Instagram
-                  </span>
-                ) : (
-                  <a
-                    href={instagramUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-full border border-surface-border px-3 py-1 text-xs text-gray-200 hover:border-electric-blue/60 hover:text-electric-blue transition-colors"
-                  >
-                    Instagram
-                  </a>
-                ))}
-                {youtubeUrl && (disableLinks ? (
-                  <span className="rounded-full border border-surface-border px-3 py-1 text-xs text-gray-200">
-                    YouTube
-                  </span>
-                ) : (
-                  <a
-                    href={youtubeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-full border border-surface-border px-3 py-1 text-xs text-gray-200 hover:border-electric-blue/60 hover:text-electric-blue transition-colors"
-                  >
-                    YouTube
-                  </a>
-                ))}
-                {twitchUrl && (disableLinks ? (
-                  <span className="rounded-full border border-surface-border px-3 py-1 text-xs text-gray-200">
-                    Twitch
-                  </span>
-                ) : (
-                  <a
-                    href={twitchUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-full border border-surface-border px-3 py-1 text-xs text-gray-200 hover:border-electric-blue/60 hover:text-electric-blue transition-colors"
-                  >
-                    Twitch
-                  </a>
-                ))}
-              </div>
             </section>
           )}
         </CardContent>
