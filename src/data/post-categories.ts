@@ -11,11 +11,13 @@ import {
   getCategoryDisplayLabel,
   getCategoryParentName,
   getCategoryParentIconName,
+  getLevel2IdBySubGroupName,
   LEGACY_SLUG_TO_NEW,
   toCategorySlug,
   parseCategorySlug,
   type CategoryOption,
 } from "./category-hierarchy";
+import { MEGA_MENU_CATEGORIES } from "./categories";
 
 const PATH_SEP = " > ";
 
@@ -41,6 +43,83 @@ export function getCategoryPathDisplay(slug: string): string {
   }
   if (parts.length === 1) return getCategoryLabel(normalized) || parts[0];
   return getCategoryLabel(normalized) || normalized;
+}
+
+const SLUG_SEP = "__";
+
+/**
+ * Firestore 検索用：slug に対応する日本語パスを "__" 区切りで返す。
+ * 英語 slug (level2Id__level3Id) の場合は「大__中__小」に変換する。
+ */
+export function getCategoryPathSlug(slug: string): string {
+  const normalized = normalizeCategorySlug(slug);
+  if (!normalized.trim()) return "";
+  const parts = normalized.split(SLUG_SEP).filter(Boolean);
+  if (parts.length >= 3) return normalized;
+  if (parts.length === 2) {
+    const parsed = parseCategorySlug(normalized);
+    if (parsed) {
+      const l2 = CATEGORY_LEVEL2.find((c) => c.id === parsed.parentId);
+      const l3 = CATEGORY_LEVEL3.find((c) => c.id === parsed.childId);
+      if (l2 && l3) {
+        const l1 = CATEGORY_LEVEL1.find((c) => c.id === l2.parentId);
+        return [l1?.name ?? parsed.parentId, l2.name, l3.name].join(SLUG_SEP);
+      }
+    }
+  }
+  return normalized;
+}
+
+/**
+ * Firestore 検索用：1つの slug でヒットさせるための候補を返す。
+ * 英語 slug・階層の日本語パス・メガメニュー上の日本語パスの3パターンを返す（重複除く）。
+ */
+export function getCategoryPathSlugVariants(slug: string): string[] {
+  const normalized = normalizeCategorySlug(slug);
+  if (!normalized.trim()) return [];
+  const seen = new Set<string>([normalized]);
+  const pathSlug = getCategoryPathSlug(normalized);
+  if (pathSlug && !seen.has(pathSlug)) seen.add(pathSlug);
+  const parts = normalized.split(SLUG_SEP).filter(Boolean);
+  if (parts.length === 2) {
+    const parsed = parseCategorySlug(normalized);
+    if (parsed) {
+      const l2 = CATEGORY_LEVEL2.find((c) => c.id === parsed.parentId);
+      const l3 = CATEGORY_LEVEL3.find((c) => c.id === parsed.childId);
+      if (l2 && l3) {
+        const menuMain = MEGA_MENU_CATEGORIES.find((cat) =>
+          cat.subGroups.some((sg) => sg.title === l2.name)
+        );
+        if (menuMain) {
+          const menuPath = [menuMain.mainCategory, l2.name, l3.name].join(SLUG_SEP);
+          if (!seen.has(menuPath)) seen.add(menuPath);
+        }
+      }
+    }
+  }
+  return Array.from(seen);
+}
+
+/**
+ * 第1階層名（メガメニューの大カテゴリ名）から、その直下にある第2階層の level2 id 一覧を返す。
+ * 「ベース」→ ["electric-bass", "bass-amp", "bass-effector", ...] のように、検索で使う prefix 用。
+ */
+export function getLevel2IdsForMainCategoryName(mainCategoryName: string): string[] {
+  const name = mainCategoryName.trim();
+  if (!name) return [];
+  const cat = MEGA_MENU_CATEGORIES.find((c) => c.mainCategory === name);
+  if (!cat) return [];
+  const ids: string[] = [];
+  for (const sg of cat.subGroups) {
+    const id = getLevel2IdBySubGroupName(sg.title);
+    if (id && !ids.includes(id)) ids.push(id);
+  }
+  return ids;
+}
+
+/** 渡した文字列がメガメニューの第1階層名かどうか */
+export function isMainCategoryName(name: string): boolean {
+  return MEGA_MENU_CATEGORIES.some((c) => c.mainCategory === (name || "").trim());
 }
 
 export type PostCategoryItem = { slug: string; name_ja: string };
@@ -130,6 +209,26 @@ export function getCategoryParentLabel(slug: string): string {
 
 export function getCategoryIconName(slug: string): string {
   return getCategoryParentIconName(normalizeCategorySlug(slug));
+}
+
+/**
+ * X 連携用：ハッシュタグに使うカテゴリラベルを返す。
+ * 3階層ある場合は第2階層、2階層の場合は第2階層、1階層のみの場合は第1階層を使う。
+ */
+export function getCategoryHashtagLabel(slug: string): string {
+  const normalized = normalizeCategorySlug(slug);
+  if (!normalized.trim()) return "";
+  const parts = normalized.split("__").filter(Boolean);
+  if (parts.length >= 2) {
+    const parsed = parseCategorySlug(normalized);
+    if (parsed) {
+      const l2 = CATEGORY_LEVEL2.find((c) => c.id === parsed.parentId);
+      if (l2) return l2.name;
+    }
+    return parts[1];
+  }
+  if (parts.length === 1) return parts[0];
+  return getCategoryLabel(normalized) || "";
 }
 
 /**

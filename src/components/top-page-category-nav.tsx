@@ -4,12 +4,18 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import { Search, ChevronRight, ChevronDown } from "lucide-react";
 import { MEGA_MENU_CATEGORIES } from "@/data/rakuten-genres";
+import { getCategorySlugFromDisplayPath, getLevel2IdBySubGroupName } from "@/data/category-hierarchy";
 
 /**
- * カテゴリ名からレビュー一覧へのリンクを生成
+ * カテゴリ slug（または表示名）からカテゴリ一覧ページへのリンクを生成。
+ * 第3階層で同名カテゴリ（バッファ・コンプレッサー等）の誤認を防ぐため、parent を付与可能。
  */
-function getCategoryHref(categoryName: string): string {
-  return `/reviews?category=${encodeURIComponent(categoryName)}`;
+function getCategoryHref(categorySlugOrName: string, parent?: string): string {
+  const path = `/category/${encodeURIComponent(categorySlugOrName)}`;
+  if (parent != null && parent !== "") {
+    return `${path}?parent=${encodeURIComponent(parent)}`;
+  }
+  return path;
 }
 
 /** モバイル用：ボタンで開閉する多段アコーディオンメニュー（縦方向インライン展開のみ） */
@@ -78,6 +84,20 @@ export function TopPageCategoryNavMobile() {
                   {/* 第2階層（第1階層の直下にインライン展開） */}
                   {hasSub && isCategoryOpen && (
                     <ul className="border-t border-gray-800 bg-slate-800/50">
+                      <li>
+                        <Link
+                          href={getCategoryHref(category.mainCategory)}
+                          className="flex w-full items-center gap-2 py-3 pl-8 pr-4 text-sm font-semibold text-cyan-500 transition-colors hover:bg-slate-700/50 hover:text-cyan-400 active:bg-slate-700/70 border-l-2 border-cyan-500/50"
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            setOpenCategory(null);
+                            setOpenSubGroup(null);
+                          }}
+                        >
+                          <Search className="h-4 w-4 shrink-0" aria-hidden />
+                          {category.mainCategory}をすべて見る
+                        </Link>
+                      </li>
                       {category.subGroups.map((sg) => {
                         const hasItems = sg.items.length > 0;
                         const isSubOpen = openSubGroup === sg.title;
@@ -101,21 +121,45 @@ export function TopPageCategoryNavMobile() {
                             {/* 第3階層（第2階層の直下にインライン展開） */}
                             {hasItems && isSubOpen && (
                               <ul className="border-t border-gray-800 bg-slate-900/60">
-                                {sg.items.map((item) => (
-                                  <li key={item}>
-                                    <Link
-                                      href={getCategoryHref(item)}
-                                      className="flex w-full items-center py-3 pl-12 pr-4 text-sm text-gray-400 transition-colors hover:bg-slate-700/50 hover:text-cyan-400 active:bg-slate-700/70 border-l-2 border-cyan-500/50"
-                                      onClick={() => {
-                                        setIsMobileMenuOpen(false);
-                                        setOpenCategory(null);
-                                        setOpenSubGroup(null);
-                                      }}
-                                    >
-                                      {item}
-                                    </Link>
-                                  </li>
-                                ))}
+                                <li>
+                                  <Link
+                                    href={getCategoryHref(
+                                      getLevel2IdBySubGroupName(sg.title) ?? sg.title
+                                    )}
+                                    className="flex w-full items-center gap-2 py-3 pl-12 pr-4 text-sm font-semibold text-cyan-500 transition-colors hover:bg-slate-700/50 hover:text-cyan-400 active:bg-slate-700/70 border-l-2 border-cyan-500/50"
+                                    onClick={() => {
+                                      setIsMobileMenuOpen(false);
+                                      setOpenCategory(null);
+                                      setOpenSubGroup(null);
+                                    }}
+                                  >
+                                    <Search className="h-4 w-4 shrink-0" aria-hidden />
+                                    {sg.title}をすべて見る
+                                  </Link>
+                                </li>
+                                {sg.items.map((item) => {
+                                  const slug =
+                                    getCategorySlugFromDisplayPath(
+                                      category.mainCategory,
+                                      sg.title,
+                                      item
+                                    ) ?? item;
+                                  return (
+                                    <li key={item}>
+                                      <Link
+                                        href={getCategoryHref(slug, sg.title)}
+                                        className="flex w-full items-center py-3 pl-12 pr-4 text-sm text-gray-400 transition-colors hover:bg-slate-700/50 hover:text-cyan-400 active:bg-slate-700/70 border-l-2 border-cyan-500/50"
+                                        onClick={() => {
+                                          setIsMobileMenuOpen(false);
+                                          setOpenCategory(null);
+                                          setOpenSubGroup(null);
+                                        }}
+                                      >
+                                        {item}
+                                      </Link>
+                                    </li>
+                                  );
+                                })}
                               </ul>
                             )}
                           </li>
@@ -158,7 +202,13 @@ export function TopPageCategoryNav() {
                 className={`relative overflow-visible ${hasSub ? "group/main" : ""}`}
               >
                 <div className="flex cursor-pointer items-center justify-between gap-2 px-4 py-2 text-sm text-gray-300 transition-colors hover:bg-cyan-900/20 hover:text-cyan-400">
-                  <span className="truncate min-w-0">{category.mainCategory}</span>
+                  <Link
+                    href={getCategoryHref(category.mainCategory)}
+                    className="truncate min-w-0 flex-1 hover:text-cyan-400"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {category.mainCategory}
+                  </Link>
                   {hasSub && <ChevronRight className="h-4 w-4 shrink-0 opacity-70" aria-hidden />}
                 </div>
 
@@ -174,7 +224,15 @@ export function TopPageCategoryNav() {
                           className={`relative overflow-visible ${sg.items.length > 0 ? "group/sub" : ""}`}
                         >
                           <div className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-4 py-2 text-sm text-gray-300 transition-colors hover:bg-cyan-900/20 hover:text-cyan-400">
-                            <span className="truncate min-w-0">{sg.title}</span>
+                            <Link
+                              href={getCategoryHref(
+                                getLevel2IdBySubGroupName(sg.title) ?? sg.title
+                              )}
+                              className="truncate min-w-0 flex-1 hover:text-cyan-400"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {sg.title}
+                            </Link>
                             {sg.items.length > 0 && (
                               <ChevronRight className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
                             )}
@@ -193,15 +251,23 @@ export function TopPageCategoryNav() {
                                   sg.items.length > 18 ? "grid-cols-3" : "grid-cols-2"
                                 }`}
                               >
-                                {sg.items.map((item) => (
-                                  <Link
-                                    key={item}
-                                    href={getCategoryHref(item)}
-                                    className="block w-full rounded-md px-4 py-2 text-sm text-gray-300 transition-colors hover:bg-cyan-900/20 hover:text-cyan-400 whitespace-nowrap"
-                                  >
-                                    {item}
-                                  </Link>
-                                ))}
+                                {sg.items.map((item) => {
+                                  const slug =
+                                    getCategorySlugFromDisplayPath(
+                                      category.mainCategory,
+                                      sg.title,
+                                      item
+                                    ) ?? item;
+                                  return (
+                                    <Link
+                                      key={item}
+                                      href={getCategoryHref(slug, sg.title)}
+                                      className="block w-full rounded-md px-4 py-2 text-sm text-gray-300 transition-colors hover:bg-cyan-900/20 hover:text-cyan-400 whitespace-nowrap"
+                                    >
+                                      {item}
+                                    </Link>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
