@@ -30,7 +30,7 @@ export function buildReviewShareText(opts: {
 
   const MAX_LEN = 120;
   let header = hasMakerAndGear
-    ? `${maker} ${gear} のレビューを投稿しました！🎸`
+    ? `${maker} ${gear} のレビューを投稿しました！`
     : rawTitle;
   let tweet: string;
 

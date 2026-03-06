@@ -21,11 +21,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { CategoryDropdown } from "@/components/category-dropdown";
+import { CategoryCascadeSelect } from "@/components/category-cascade-select";
 import {
   getGroupSlugByCategorySlug,
+  getCategoryLabel,
   isContentOnlyCategorySlug,
-  POST_CATEGORIES_FLAT,
+  normalizeCategorySlug,
 } from "@/data/post-categories";
 import { getPendingGear, clearPendingGear } from "@/lib/pending-gear";
 
@@ -91,11 +92,9 @@ export default function NewReviewPage() {
     const gearNameFromUrl = params.get("gear_name") ?? "";
 
     if (categoryFromUrl) {
-      setCategorySlug((prev) => prev || categoryFromUrl);
-      if (!categoryNameJa) {
-        const found = POST_CATEGORIES_FLAT.find((c) => c.slug === categoryFromUrl);
-        if (found) setCategoryNameJa(found.name_ja);
-      }
+      const normalized = normalizeCategorySlug(categoryFromUrl) || categoryFromUrl;
+      setCategorySlug((prev) => prev || normalized);
+      if (!categoryNameJa) setCategoryNameJa(getCategoryLabel(categoryFromUrl));
     }
     if (manufacturerFromUrl) {
       setMakerName((prev) => prev || manufacturerFromUrl);
@@ -452,15 +451,13 @@ export default function NewReviewPage() {
         <Card className="space-y-6 p-6">
           <div className="space-y-2">
             <Label htmlFor="category">カテゴリ（必須）</Label>
-            <p className="text-xs text-gray-500">検索して選択できます</p>
-            <CategoryDropdown
+            <CategoryCascadeSelect
               id="category"
               value={categorySlug}
               onChange={(slug, name_ja) => {
                 setCategorySlug(slug);
                 setCategoryNameJa(name_ja);
               }}
-              placeholder="カテゴリを検索・選択"
               required
             />
           </div>
@@ -503,7 +500,7 @@ export default function NewReviewPage() {
                   list="maker-list"
                   value={makerName}
                   onChange={(e) => setMakerName(e.target.value)}
-                  placeholder="例: Fender, BlackSmoker … 一覧にない場合は入力するとトップのメーカー一覧に追加されます"
+                  placeholder="例: Fender, BlackSmoker"
                   className="flex h-10 w-full rounded-lg border border-surface-border bg-surface-card px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:ring-2 focus:ring-electric-blue"
                 />
                 <datalist id="maker-list">

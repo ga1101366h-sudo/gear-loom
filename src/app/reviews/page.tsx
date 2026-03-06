@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getFirebaseStorageUrl } from "@/lib/utils";
-import { isContentOnlyCategorySlug } from "@/data/post-categories";
+import { isContentOnlyCategorySlug, getCategoryPathDisplay } from "@/data/post-categories";
 import { RAKUTEN_GENRE_INSTRUMENTS } from "@/data/rakuten-genres";
 import { fetchRakutenItems } from "@/lib/rakuten";
 import type { Review } from "@/types/database";
@@ -133,9 +133,7 @@ export default async function ReviewsListPage({ searchParams }: Props) {
                 r.categories && "slug" in r.categories && (r.categories as { slug: string }).slug
                   ? (r.categories as { slug: string }).slug
                   : r.category_id;
-              const categoryName = r.categories && "name_ja" in r.categories
-                ? (r.categories as { name_ja: string }).name_ja
-                : null;
+              const categoryName = slug ? getCategoryPathDisplay(slug) : null;
               return (
                 <li key={r.id}>
                   <Card className="h-full overflow-hidden transition-all hover:border-electric-blue/50">

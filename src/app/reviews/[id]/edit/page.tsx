@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { CategoryDropdown } from "@/components/category-dropdown";
+import { CategoryCascadeSelect } from "@/components/category-cascade-select";
 import { ReviewFormPreview } from "@/components/review-form-preview";
 import { BodyTextareaWithAi } from "@/components/body-textarea-with-ai";
 import { getGroupSlugByCategorySlug, isContentOnlyCategorySlug } from "@/data/post-categories";
@@ -66,6 +66,8 @@ export default function EditReviewPage() {
   /** 機材レビュー時のみ。マイページの所持機材に追加するか（編集時は未チェックがデフォルト） */
   const [addToOwnedGear, setAddToOwnedGear] = useState(false);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  /** 管理者が他ユーザーの記事を編集している場合 true（更新を API 経由で行う） */
+  const [isAdminEditingOthers, setIsAdminEditingOthers] = useState(false);
 
   const SITUATION_OPTIONS: { id: string; label: string }[] = [
     { id: "home", label: "自宅・宅録" },
@@ -113,6 +115,7 @@ export default function EditReviewPage() {
           router.push(`/reviews/${reviewId}`);
           return;
         }
+        setIsAdminEditingOthers(isAdminUserId(uid) && data.author_id !== user.uid);
 
         const tags: SpecTag[] = tagSnap.docs.map((d) => {
           const t = d.data();
@@ -206,8 +209,15 @@ export default function EditReviewPage() {
 
       const profileSnap = await getDoc(doc(db, "profiles", user.uid));
       const profile = profileSnap.data();
-      const authorDisplayName = profile?.display_name ?? user.email?.split("@")[0] ?? "";
-      const authorUserId = profile?.user_id ?? null;
+      const authorDisplayName = isAdminEditingOthers
+        ? (data.author_display_name as string) ?? ""
+        : (profile?.display_name ?? user.email?.split("@")[0] ?? "");
+      const authorUserId = isAdminEditingOthers
+        ? (data.author_user_id as string) ?? null
+        : (profile?.user_id ?? null);
+      const authorAvatarUrl = isAdminEditingOthers
+        ? (data.author_avatar_url as string) ?? null
+        : (profile?.avatar_url ?? null);
 
       let makerId: string | null = (data.maker_id as string | null) ?? null;
       const name = makerName.trim();
@@ -255,28 +265,62 @@ export default function EditReviewPage() {
         }
       }
 
-      await updateDoc(reviewRef, {
-        category_id: categorySlug,
-        ...(makerId && { maker_id: makerId }),
-        maker_name: isContentOnlyCategory ? null : (makerName.trim() || null),
-        category_name_ja: categoryNameJa,
-        category_slug: categorySlug,
-        author_display_name: authorDisplayName,
-        author_user_id: authorUserId,
-        author_avatar_url: profile?.avatar_url ?? null,
-        title: title.trim(),
-        gear_name: isContentOnlyCategory ? "" : gearName.trim(),
-        rating: isContentOnlyCategory ? 0 : rating,
-        body_md: bodyMd.trim() || null,
-        body_html: null,
-        youtube_url: youtubeUrl.trim() || null,
-        event_url: categorySlug === "event" ? (eventUrl.trim() || null) : null,
-        situations: situations.length > 0 ? situations : null,
-        updated_at: new Date().toISOString(),
-        spec_tag_ids: specTagIds,
-        spec_tag_names: specTagNames,
-        review_images: updatedImages,
-      });
+      if (isAdminEditingOthers) {
+        const token = await user.getIdToken();
+        const res = await fetch(`/api/admin/reviews/${reviewId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            category_id: categorySlug,
+            ...(makerId && { maker_id: makerId }),
+            maker_name: isContentOnlyCategory ? null : (makerName.trim() || null),
+            category_name_ja: categoryNameJa,
+            category_slug: categorySlug,
+            author_display_name: authorDisplayName,
+            author_user_id: authorUserId,
+            author_avatar_url: authorAvatarUrl,
+            title: title.trim(),
+            gear_name: isContentOnlyCategory ? "" : gearName.trim(),
+            rating: isContentOnlyCategory ? 0 : rating,
+            body_md: bodyMd.trim() || null,
+            youtube_url: youtubeUrl.trim() || null,
+            event_url: categorySlug === "event" ? (eventUrl.trim() || null) : null,
+            situations: situations.length > 0 ? situations : null,
+            spec_tag_ids: specTagIds,
+            spec_tag_names: specTagNames,
+            review_images: updatedImages,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setError((json.error as string) || "更新に失敗しました。");
+          setSubmitting(false);
+          return;
+        }
+      } else {
+        await updateDoc(reviewRef, {
+          category_id: categorySlug,
+          ...(makerId && { maker_id: makerId }),
+          maker_name: isContentOnlyCategory ? null : (makerName.trim() || null),
+          category_name_ja: categoryNameJa,
+          category_slug: categorySlug,
+          author_display_name: authorDisplayName,
+          author_user_id: authorUserId,
+          author_avatar_url: authorAvatarUrl,
+          title: title.trim(),
+          gear_name: isContentOnlyCategory ? "" : gearName.trim(),
+          rating: isContentOnlyCategory ? 0 : rating,
+          body_md: bodyMd.trim() || null,
+          body_html: null,
+          youtube_url: youtubeUrl.trim() || null,
+          event_url: categorySlug === "event" ? (eventUrl.trim() || null) : null,
+          situations: situations.length > 0 ? situations : null,
+          updated_at: new Date().toISOString(),
+          spec_tag_ids: specTagIds,
+          spec_tag_names: specTagNames,
+          review_images: updatedImages,
+        });
+      }
 
       if (addToOwnedGear && !isContentOnlyCategory && gearName.trim()) {
         const currentOwnedGear = (profile?.owned_gear as string | undefined) ?? "";
@@ -361,15 +405,13 @@ export default function EditReviewPage() {
         <Card className="space-y-6 p-6">
           <div className="space-y-2">
             <Label htmlFor="category">カテゴリ（必須）</Label>
-            <p className="text-xs text-gray-500">検索して選択できます</p>
-            <CategoryDropdown
+            <CategoryCascadeSelect
               id="category"
               value={categorySlug}
               onChange={(slug, name_ja) => {
                 setCategorySlug(slug);
                 setCategoryNameJa(name_ja);
               }}
-              placeholder="カテゴリを検索・選択"
               required
             />
           </div>
@@ -412,7 +454,7 @@ export default function EditReviewPage() {
                   list="maker-list"
                   value={makerName}
                   onChange={(e) => setMakerName(e.target.value)}
-                  placeholder="例: Fender, BlackSmoker … 一覧にない場合は入力するとトップのメーカー一覧に追加されます"
+                  placeholder="例: Fender, BlackSmoker"
                   className="flex h-10 w-full rounded-lg border border-surface-border bg-surface-card px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:ring-2 focus:ring-electric-blue"
                 />
                 <datalist id="maker-list">

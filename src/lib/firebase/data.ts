@@ -143,7 +143,12 @@ export async function getReviewsFromFirestore(
   try {
     let snap;
     if (categorySlug) {
-      const q = db.collection("reviews").where("category_slug", "==", categorySlug);
+      // 階層リンク対応: slug が「大」「大__中」「大__中__小」のいずれでも、その階層以下のレビューを取得（プレフィックス一致）
+      const q = db
+        .collection("reviews")
+        .where("category_slug", ">=", categorySlug)
+        .where("category_slug", "<=", categorySlug + "\uf8ff")
+        .orderBy("category_slug");
       snap = await q.get();
     } else {
       let q = db.collection("reviews").orderBy("created_at", "desc");

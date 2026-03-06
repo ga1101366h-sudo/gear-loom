@@ -32,6 +32,7 @@ import {
   getSiteAnnouncementsFromFirestore,
 } from "@/lib/firebase/data";
 import { SiteAnnouncements } from "@/components/site-announcements";
+import { getCategoryPathDisplay } from "@/data/post-categories";
 import type { Review, LiveEvent } from "@/types/database";
 
 /** トップページ：60秒間はキャッシュして Firestore リード数を削減（ISR） */
@@ -124,10 +125,11 @@ function getFirebaseStorageUrl(storagePath: string): string {
 }
 
 function toNewReviewItem(r: Review): NewReviewItem {
-  const categoryName =
-    r.categories && "name_ja" in r.categories
-      ? (r.categories as { name_ja: string }).name_ja
-      : "";
+  const slug =
+    r.categories && "slug" in r.categories
+      ? (r.categories as { slug: string }).slug
+      : r.category_id ?? "";
+  const categoryName = slug ? getCategoryPathDisplay(slug) : "";
   let image: string | null = null;
   if (r.review_images && r.review_images.length > 0) {
     const first = [...r.review_images].sort(

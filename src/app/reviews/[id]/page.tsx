@@ -2,18 +2,19 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { PenLine } from "lucide-react";
+import { PenLine, X } from "lucide-react";
 import {
   getReviewByIdFromFirestore,
   getReviewLikeCountFromFirestore,
   getReviewHelpfulCountFromFirestore,
   type ReviewDetail,
 } from "@/lib/firebase/data";
-import { isContentOnlyCategorySlug } from "@/data/post-categories";
+import { isContentOnlyCategorySlug, getCategoryLabel } from "@/data/post-categories";
 import { ECSearchLinks } from "@/components/ec-search-links";
 import { ReviewHelpfulButton } from "@/components/review-helpful-button";
 import { ReviewCompareButton } from "@/components/review-compare-button";
 import { ReviewLikeButton } from "@/components/review-like-button";
+import { ReviewAddToOwnedGearButton } from "@/components/review-add-to-owned-gear-button";
 import { ReviewImagesGallery } from "@/components/review-images-gallery";
 import { ReviewOwnerActions } from "@/components/review-owner-actions";
 import { ShareToXButton } from "@/components/share-to-x-button";
@@ -156,14 +157,13 @@ export default async function ReviewDetailPage({
     getReviewHelpfulCountFromFirestore(id),
   ]);
 
-  const categoryName =
-    review.categories && "name_ja" in review.categories
-      ? (review.categories as { name_ja: string }).name_ja
-      : "";
   const categorySlug =
     review.categories && "slug" in review.categories
       ? (review.categories as { slug: string }).slug
       : "";
+  const categoryName = categorySlug
+    ? getCategoryLabel(categorySlug)
+    : (review.categories && "name_ja" in review.categories ? (review.categories as { name_ja: string }).name_ja : "");
   const isContentOnlyCategory = categorySlug ? isContentOnlyCategorySlug(categorySlug) : false;
   const makerName = (review as ReviewDetail).maker_name ?? null;
   const profile = review.profiles as { display_name: string | null; user_id: string | null } | undefined;
@@ -214,12 +214,35 @@ export default async function ReviewDetailPage({
         <CardHeader className="space-y-2">
           <CardDescription className="flex items-center gap-2 flex-wrap">
             {categorySlug ? (
-              <Link
-                href={`/reviews?category=${encodeURIComponent(categorySlug)}`}
-                className="text-electric-blue hover:underline"
-              >
-                {categoryName}
-              </Link>
+              (() => {
+                const parts = categorySlug.split("__").filter(Boolean);
+                if (parts.length === 0) {
+                  return (
+                    <Link
+                      href={`/reviews?category=${encodeURIComponent(categorySlug)}`}
+                      className="text-electric-blue hover:underline"
+                    >
+                      {categoryName}
+                    </Link>
+                  );
+                }
+                return (
+                  <>
+                    {parts.map((label, i) => {
+                      const slugUpToHere = parts.slice(0, i + 1).join("__");
+                      const href = `/reviews?category=${encodeURIComponent(slugUpToHere)}`;
+                      return (
+                        <span key={`${label}-${i}`}>
+                          {i > 0 && <span className="text-gray-500 mx-1">›</span>}
+                          <Link href={href} className="text-electric-blue hover:underline">
+                            {label}
+                          </Link>
+                        </span>
+                      );
+                    })}
+                  </>
+                );
+              })()
             ) : (
               <span className="text-electric-blue">{categoryName}</span>
             )}
@@ -263,23 +286,54 @@ export default async function ReviewDetailPage({
               <StarRating rating={review.rating} />
             </div>
           )}
-          {/* ハート・役に立った・比較リスト・Xでポスト：スマホは2列、PCは横並び */}
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
-            <ReviewLikeButton reviewId={review.id} initialCount={likeCount} initialLiked={false} className="w-full sm:w-auto justify-center sm:justify-start" />
-            <ReviewHelpfulButton reviewId={review.id} initialCount={helpfulCount} className="w-full sm:w-auto justify-center sm:justify-start" />
-            <ReviewCompareButton reviewId={review.id} className="w-full sm:w-auto justify-center sm:justify-start" />
-            <Button variant="outline" size="sm" asChild className="w-full sm:w-auto justify-center sm:justify-start">
-              <ShareToXButton
-                path={`/reviews/${review.id}`}
-                text={buildReviewShareText({
-                  title: review.title,
-                  makerName,
-                  gearName: review.gear_name,
-                  categoryNameJa: categoryName,
-                  categorySlug,
-                })}
+          {/* アクションボタン：上段2列・下段3列グリッド、高さ・スタイル統一 */}
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <ReviewHelpfulButton
+                reviewId={review.id}
+                initialCount={helpfulCount}
+                className="h-10 w-full flex items-center justify-center gap-1.5 rounded-md border border-white/20 bg-white/5 px-2 text-xs font-medium text-gray-200 whitespace-nowrap hover:bg-white/10"
               />
-            </Button>
+              <ReviewAddToOwnedGearButton
+                gearName={review.gear_name}
+                categoryNameJa={categoryName}
+                makerName={makerName}
+                className="h-10 w-full"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2 md:gap-3">
+              <ReviewLikeButton
+                reviewId={review.id}
+                initialCount={likeCount}
+                initialLiked={false}
+                className="h-10 w-full flex items-center justify-center gap-1.5 rounded-md border border-white/20 bg-white/5 px-2 text-xs font-medium text-gray-200 whitespace-nowrap hover:bg-white/10"
+              />
+              <ReviewCompareButton
+                reviewId={review.id}
+                className="h-10 w-full flex items-center justify-center gap-1.5 rounded-md border border-white/20 bg-white/5 px-2 text-xs font-medium text-gray-200 whitespace-nowrap hover:bg-white/10"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="h-10 w-full flex items-center justify-center gap-1.5 rounded-md border border-white/20 bg-zinc-950 px-2 text-xs font-medium text-white whitespace-nowrap shadow-lg shadow-white/5 transition-all hover:bg-zinc-800"
+              >
+                <ShareToXButton
+                  path={`/reviews/${review.id}`}
+                  text={buildReviewShareText({
+                    title: review.title,
+                    makerName,
+                    gearName: review.gear_name,
+                    categoryNameJa: categoryName,
+                    categorySlug,
+                  })}
+                  className="inline-flex h-full w-full items-center justify-center gap-1.5 text-white"
+                >
+                  <X className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span className="hidden sm:inline">でポスト</span>
+                </ShareToXButton>
+              </Button>
+            </div>
           </div>
           {/* 投稿者・日付 */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">

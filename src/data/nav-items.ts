@@ -4,7 +4,7 @@ export const MAIN_NAV_ITEMS = [
   { href: "/reviews/compare", label: "比較リスト" },
   { href: "/notebook", label: "カスタム手帳" },
   { href: "/blog", label: "ブログ" },
-  { href: "/likes", label: "いいね" },
+  { href: "/likes", label: "ボード" },
   { href: "/photos", label: "フォト" },
   { href: "/events", label: "イベント" },
   { href: "/help", label: "ヘルプ" },

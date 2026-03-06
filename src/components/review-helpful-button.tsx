@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc } from "firebase/firestore";
+import { ThumbsUp } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFirebaseFirestore } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/button";
@@ -74,11 +75,14 @@ export function ReviewHelpfulButton({ reviewId, initialCount, className }: Revie
       size="sm"
       onClick={handleToggle}
       disabled={loading}
-      className={`gap-1.5 border-electric-blue/50 text-xs ${className ?? ""}`}
+      className={`gap-2 border-white/20 bg-transparent text-xs font-medium ${className ?? ""}`}
     >
-      <span className={marked ? "text-electric-blue" : "text-gray-400"}>👍</span>
+      <ThumbsUp
+        className={`h-4 w-4 shrink-0 ${marked ? "text-electric-blue fill-electric-blue/30" : "text-gray-400"}`}
+        aria-hidden
+      />
       <span className="text-gray-200">役に立った</span>
-      <span className="text-gray-400 text-[11px]">({count})</span>
+      <span className="text-gray-400 text-[11px] tabular-nums">({count})</span>
     </Button>
   );
 }

@@ -93,6 +93,25 @@ body {
   display: none;
 }
 
+/* メガメニュー等：控えめな縦スクロールバー */
+.scrollbar-subtle {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(75 85 99) transparent;
+}
+.scrollbar-subtle::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-subtle::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-subtle::-webkit-scrollbar-thumb {
+  background: rgb(75 85 99);
+  border-radius: 3px;
+}
+.scrollbar-subtle::-webkit-scrollbar-thumb:hover {
+  background: rgb(107 114 128);
+}
+
 /* 新着・人気レビュー：カルーセル自動スライド（CSSアニメーション） */
 .carousel-track-animate {
   animation: carouselSlide 80s linear infinite;
@@ -113,4 +132,17 @@ body {
   100% {
     transform: translateX(-50%);
   }
+}
+
+/* エフェクターボード編集：React Flow ダークテーマ */
+.react-flow-dark.react-flow {
+  --xy-edge-stroke-default: rgba(148, 163, 184, 0.5);
+  --xy-edge-stroke-selected-default: rgba(34, 211, 238, 0.8);
+  --xy-connectionline-stroke-default: rgba(34, 211, 238, 0.6);
+  --xy-background-color-default: transparent;
+  --xy-background-pattern-dots-color-default: rgba(255, 255, 255, 0.06);
+  --xy-minimap-background-color-default: rgb(24 24 27);
+  --xy-minimap-mask-background-color-default: rgba(0, 0, 0, 0.5);
+  --xy-minimap-node-background-color-default: rgb(39 39 42);
+  --xy-minimap-node-stroke-color-default: rgba(255, 255, 255, 0.15);
 }

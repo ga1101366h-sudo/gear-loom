@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getFirebaseStorageUrl } from "@/lib/utils";
-import { isContentOnlyCategorySlug } from "@/data/post-categories";
+import { isContentOnlyCategorySlug, getCategoryPathDisplay } from "@/data/post-categories";
 import type { Review } from "@/types/database";
 
 function StarRating({ rating }: { rating: number }) {
@@ -59,9 +59,7 @@ export function CategoryListSection({
             const categorySlug = (r.categories && "slug" in r.categories && (r.categories as { slug: string }).slug)
               ? (r.categories as { slug: string }).slug
               : r.category_id;
-            const categoryName = r.categories && "name_ja" in r.categories
-              ? (r.categories as { name_ja: string }).name_ja
-              : null;
+            const categoryName = categorySlug ? getCategoryPathDisplay(categorySlug) : null;
             return (
               <li key={r.id}>
                 <Card className="h-full overflow-hidden transition-all hover:border-electric-blue/50">
