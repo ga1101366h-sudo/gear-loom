@@ -1,3 +1,5 @@
+import { getCategoryHashtagLabel } from "@/data/post-categories";
+
 export function buildReviewShareText(opts: {
   title?: string | null;
   makerName?: string | null;
@@ -8,7 +10,6 @@ export function buildReviewShareText(opts: {
   const rawTitle = (opts.title ?? "").trim() || "Gear-Loomレビュー";
   const maker = (opts.makerName ?? "").trim();
   const gear = (opts.gearName ?? "").trim();
-  const category = (opts.categoryNameJa ?? "").trim();
   const hasMakerAndGear = !!maker && !!gear;
 
   const sanitizeForTag = (name: string): string | null => {
@@ -23,7 +24,11 @@ export function buildReviewShareText(opts: {
     const makerTag = maker ? sanitizeForTag(maker) : null;
     if (makerTag) tags.push(`#${makerTag}`);
   }
-  const categoryTag = category ? sanitizeForTag(category) : null;
+  const categoryLabelForTag =
+    opts.categorySlug && opts.categorySlug.trim()
+      ? getCategoryHashtagLabel(opts.categorySlug.trim())
+      : (opts.categoryNameJa ?? "").trim();
+  const categoryTag = categoryLabelForTag ? sanitizeForTag(categoryLabelForTag) : null;
   if (categoryTag) tags.push(`#${categoryTag}`);
 
   const hashtagBlock = tags.join("\n");

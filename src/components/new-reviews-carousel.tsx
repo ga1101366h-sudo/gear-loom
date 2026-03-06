@@ -23,6 +23,8 @@ export interface NewReviewItem {
   excerpt: string;
   image: string | null;
   category: string;
+  /** Firestore の category_slug（X共有時のハッシュタグ用） */
+  category_slug?: string | null;
   author: string;
   /** 投稿者アバターURL（未設定時はイニシャル表示） */
   author_avatar: string | null;
@@ -47,6 +49,7 @@ function ReviewCard({ item }: { item: NewReviewItem }) {
     title: item.title,
     makerName: item.maker_name ?? undefined,
     gearName: item.gear_name,
+    categorySlug: item.category_slug ?? undefined,
     categoryNameJa: item.category,
   });
   return (

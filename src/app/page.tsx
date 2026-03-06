@@ -152,6 +152,7 @@ function toNewReviewItem(r: Review): NewReviewItem {
     excerpt: "レビューを読む →",
     image,
     category: categoryName,
+    category_slug: slug || null,
     author: authorName,
     author_avatar: authorAvatar || null,
   };

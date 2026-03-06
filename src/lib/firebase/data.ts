@@ -1,4 +1,6 @@
 import { getAdminFirestore } from "./admin";
+import { getCategoryLevel, getAllTargetSlugs, getAllTargetItems } from "@/data/category-search";
+import { getCategoryLabel, getCategoryPathSlugVariants } from "@/data/post-categories";
 import type { Review, Category, Maker, LiveEvent, Profile, Gear } from "@/types/database";
 
 export type ReviewDetail = Review & {
@@ -136,20 +138,101 @@ async function getProfilesByAuthorIds(
 
 export async function getReviewsFromFirestore(
   limit?: number,
-  categorySlug?: string
+  categorySlug?: string,
+  parentParam?: string
 ): Promise<Review[]> {
   const db = getAdminFirestore();
   if (!db) return [];
   try {
     let snap;
     if (categorySlug) {
-      // 階層リンク対応: slug が「大」「大__中」「大__中__小」のいずれでも、その階層以下のレビューを取得（プレフィックス一致）
-      const q = db
-        .collection("reviews")
-        .where("category_slug", ">=", categorySlug)
-        .where("category_slug", "<=", categorySlug + "\uf8ff")
-        .orderBy("category_slug");
-      snap = await q.get();
+      let slugTrimmed = categorySlug.trim();
+      try {
+        while (slugTrimmed.includes("%")) {
+          const decoded = decodeURIComponent(slugTrimmed);
+          if (decoded === slugTrimmed) break;
+          slugTrimmed = decoded;
+        }
+      } catch {
+        // デコード失敗時はそのまま使用
+      }
+      const parentDecoded =
+        parentParam != null && parentParam !== ""
+          ? (() => {
+              try {
+                return decodeURIComponent(String(parentParam).trim());
+              } catch {
+                return String(parentParam).trim();
+              }
+            })()
+          : undefined;
+
+      const displayName = getCategoryLabel(slugTrimmed) || slugTrimmed;
+      const level = getCategoryLevel(displayName);
+      const targetItems = getAllTargetItems(displayName);
+      const seenIds = new Set<string>();
+      const docs: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[] = [];
+
+      console.log("=== カテゴリ検索デバッグ ===");
+      console.log("① デコード済みの検索ワード(slug):", slugTrimmed);
+      console.log("② parent(param):", parentDecoded ?? "(なし)");
+      console.log("③ 解決した表示名(displayName):", displayName);
+      console.log("④ 階層(level):", level);
+      console.log("⑤ 取得した検索対象配列(targetItems):", targetItems);
+      const targetSlugsForLog =
+        parentDecoded != null && parentDecoded !== ""
+          ? getAllTargetSlugs(displayName, parentDecoded)
+          : getAllTargetSlugs(displayName);
+      console.log("⑥ 取得したslug配列(targetSlugs):", targetSlugsForLog);
+      console.log("========================");
+
+      if (level !== null) {
+        const targetSlugs =
+          parentDecoded != null && parentDecoded !== ""
+            ? getAllTargetSlugs(displayName, parentDecoded)
+            : getAllTargetSlugs(displayName);
+        const slugsToQuery =
+          targetSlugs.length > 0
+            ? targetSlugs
+            : getCategoryPathSlugVariants(slugTrimmed).length > 0
+              ? getCategoryPathSlugVariants(slugTrimmed)
+              : [slugTrimmed];
+        console.log("⑦ 実際にIN句に渡す配列(slugsToQuery):", slugsToQuery);
+        const IN_LIMIT = 10;
+        for (let i = 0; i < slugsToQuery.length; i += IN_LIMIT) {
+          const chunk = slugsToQuery.slice(i, i + IN_LIMIT);
+          if (chunk.length === 0) continue;
+          const q = db.collection("reviews").where("category_slug", "in", chunk);
+          const snapIn = await q.get();
+          for (const doc of snapIn.docs) {
+            if (!seenIds.has(doc.id)) {
+              seenIds.add(doc.id);
+              docs.push(doc);
+            }
+          }
+        }
+      }
+
+      if (docs.length === 0) {
+        const slugsToTry = getCategoryPathSlugVariants(slugTrimmed);
+        const fallback = slugsToTry.length > 0 ? slugsToTry : [slugTrimmed];
+        for (const s of fallback) {
+          const q = db
+            .collection("reviews")
+            .where("category_slug", ">=", s)
+            .where("category_slug", "<=", s + "\uf8ff")
+            .orderBy("category_slug");
+          const snapSlug = await q.get();
+          for (const doc of snapSlug.docs) {
+            if (!seenIds.has(doc.id)) {
+              seenIds.add(doc.id);
+              docs.push(doc);
+            }
+          }
+        }
+      }
+
+      snap = { docs, empty: docs.length === 0 } as { docs: typeof docs; empty: boolean };
     } else {
       let q = db.collection("reviews").orderBy("created_at", "desc");
       if (limit) q = q.limit(limit) as ReturnType<typeof q.limit>;

@@ -9,24 +9,30 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getFirebaseStorageUrl } from "@/lib/utils";
-import { isContentOnlyCategorySlug, POST_CATEGORY_FLAT, normalizeCategorySlug, getCategoryLabel, getCategoryPathDisplay } from "@/data/post-categories";
+import { isContentOnlyCategorySlug, isMainCategoryName, POST_CATEGORY_FLAT, normalizeCategorySlug, getCategoryLabel, getCategoryPathDisplay } from "@/data/post-categories";
 import { getRakutenGenreIdForCategory } from "@/data/rakuten-genres";
 import { getReviewsFromFirestore } from "@/lib/firebase/data";
 import { fetchRakutenItemsByGenreId } from "@/lib/rakuten";
 import type { Review } from "@/types/database";
 import { CategoryCatalogSection, type CatalogItem } from "./CategoryCatalogSection";
+import { SearchSidebar } from "./SearchSidebar";
 
 const PLACEHOLDER_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260' viewBox='0 0 400 260'%3E%3Crect fill='%231a2332' width='400' height='260'/%3E%3Ctext fill='%236b7280' x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='14'%3EGear-Loom%3C/text%3E%3C/svg%3E";
 
-/** URLで渡された slug をデコード（％エンコードされた日本語対策） */
+/** URLで渡された slug をデコード（％エンコード・二重エンコード対策） */
 function decodeSlug(slug: string): string {
-  try {
-    if (slug.includes("%")) return decodeURIComponent(slug);
-  } catch {
-    // 不正なエンコード時はそのまま
+  let s = slug;
+  let prev = "";
+  while (s.includes("%") && s !== prev) {
+    prev = s;
+    try {
+      s = decodeURIComponent(s);
+    } catch {
+      break;
+    }
   }
-  return slug;
+  return s;
 }
 
 /** 日本語の「大__中__小」形式なら最後の1つ（詳細名）を返し、それ以外は getCategoryLabel に任せる */
@@ -42,6 +48,7 @@ function getCategoryDisplayNameFromSlug(slug: string): string {
 function getCategoryNameBySlug(slug: string): string | null {
   const decoded = decodeSlug(slug);
   if (!decoded.trim()) return null;
+  if (isMainCategoryName(decoded)) return decoded;
   const normalized = normalizeCategorySlug(decoded);
   const flat = Array.isArray(POST_CATEGORY_FLAT) ? POST_CATEGORY_FLAT : [];
   const fromFlat = flat.find((c) => c.slug === normalized)?.name_ja;
@@ -70,7 +77,10 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ parent?: string }>;
+};
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
@@ -80,14 +90,20 @@ export async function generateMetadata({ params }: Props) {
   return { title: `${name} | カテゴリ`, description: `${name}のレビュー一覧と機材カタログ` };
 }
 
-export default async function CategoryPage({ params }: Props) {
+export default async function CategoryPage({ params, searchParams }: Props) {
   const { slug: rawSlug } = await params;
+  const { parent: parentFromUrl } = await searchParams;
   const slug = decodeSlug(rawSlug);
   const categoryName = getCategoryNameBySlug(slug);
   if (!categoryName) notFound();
 
+  const parentParam =
+    parentFromUrl != null && String(parentFromUrl).trim() !== ""
+      ? decodeURIComponent(String(parentFromUrl).trim())
+      : undefined;
+
   const [reviews, rakutenItems] = await Promise.all([
-    getReviewsFromFirestore(undefined, slug),
+    getReviewsFromFirestore(undefined, slug, parentParam),
     fetchRakutenItemsByGenreId(getRakutenGenreIdForCategory(slug)),
   ]);
 
@@ -117,7 +133,10 @@ export default async function CategoryPage({ params }: Props) {
     }));
 
   return (
-    <div className="container mx-auto max-w-5xl space-y-10 px-4 py-6">
+    <div className="container mx-auto max-w-6xl px-4 py-6">
+      <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+        <SearchSidebar currentCategoryName={categoryName} parentFromUrl={parentParam} />
+        <main className="min-w-0 flex-1 space-y-10">
       <h1 className="text-2xl font-bold text-white">{categoryName}</h1>
 
       <section>
@@ -197,6 +216,8 @@ export default async function CategoryPage({ params }: Props) {
         categoryNameJa={categoryName}
         catalogItems={catalogItems}
       />
+        </main>
+      </div>
     </div>
   );
 }

@@ -147,6 +147,15 @@ export const CATEGORY_LEVEL3: CategoryLevel3[] = [
 
   // Bass Effector
   { id: "buffer", name: "バッファ", parentId: "bass-effector" },
+  { id: "overdrive", name: "オーバードライブ", parentId: "bass-effector" },
+  { id: "distortion", name: "ディストーション", parentId: "bass-effector" },
+  { id: "fuzz", name: "ファズ", parentId: "bass-effector" },
+  { id: "eq", name: "イコライザー", parentId: "bass-effector" },
+  { id: "compressor", name: "コンプレッサー", parentId: "bass-effector" },
+  { id: "tuner", name: "ペダルチューナー", parentId: "bass-effector" },
+  { id: "chorus", name: "コーラス/フランジャー", parentId: "bass-effector" },
+  { id: "looper", name: "ルーパー", parentId: "bass-effector" },
+  { id: "octaver", name: "オクターバー", parentId: "bass-effector" },
 
   // Content
   { id: "custom", name: "カスタム手帳", parentId: "custom-root" },
@@ -173,8 +182,62 @@ export function parseCategorySlug(slug: string): { parentId: string; childId: st
   return null;
 }
 
+/** メガメニュー中カテゴリ名 → level2 id（nav と hierarchy で表記が異なる場合の対応） */
+const MEGA_MENU_SUB_TO_LEVEL2_ID: Record<string, string> = {
+  "ギター本体": "electric-guitar",
+  "ベース本体": "electric-bass",
+};
+
+/**
+ * メガメニュー用：表示名（大・中・小）から Firestore 用 slug (level2Id__level3Id) を返す。
+ * 見つからない場合は null。
+ */
+export function getCategorySlugFromDisplayPath(
+  mainCategoryName: string,
+  subGroupTitle: string,
+  itemName: string
+): string | null {
+  const m = mainCategoryName.trim();
+  const s = subGroupTitle.trim();
+  const i = itemName.trim();
+  if (!m || !s || !i) return null;
+  const l1 = CATEGORY_LEVEL1.find((c) => c.name === m);
+  if (!l1) return null;
+  let l2 = CATEGORY_LEVEL2.find((c) => c.parentId === l1.id && c.name === s);
+  if (!l2 && MEGA_MENU_SUB_TO_LEVEL2_ID[s]) {
+    const level2Id = MEGA_MENU_SUB_TO_LEVEL2_ID[s];
+    l2 = CATEGORY_LEVEL2.find((c) => c.parentId === l1.id && c.id === level2Id);
+  }
+  if (!l2) {
+    l2 = CATEGORY_LEVEL2.find((c) => c.name === s);
+  }
+  if (!l2) return null;
+  let l3 = CATEGORY_LEVEL3.find((c) => c.parentId === l2.id && c.name === i);
+  if (!l3) {
+    l3 = CATEGORY_LEVEL3.find(
+      (c) =>
+        c.parentId === l2.id &&
+        (c.name.startsWith(i) || i.startsWith(c.name) || c.name === `${i}タイプ` || `${i}タイプ` === c.name)
+    );
+  }
+  if (!l3) return null;
+  return toCategorySlug(l2.id, l3.id);
+}
+
 export function getParentById(id: string): CategoryLevel1 | undefined {
   return CATEGORY_LEVEL1.find((p) => p.id === id);
+}
+
+/**
+ * メガメニューの中カテゴリ名（第2階層表示名）から level2 id を返す。
+ * 「ベースエフェクター」→ "bass-effector" など。「ギター本体」などは MEGA_MENU_SUB_TO_LEVEL2_ID で解決。
+ */
+export function getLevel2IdBySubGroupName(subGroupTitle: string): string | null {
+  const s = subGroupTitle.trim();
+  if (!s) return null;
+  if (MEGA_MENU_SUB_TO_LEVEL2_ID[s]) return MEGA_MENU_SUB_TO_LEVEL2_ID[s];
+  const l2 = CATEGORY_LEVEL2.find((c) => c.name === s);
+  return l2?.id ?? null;
 }
 
 // ------------------------------------------------------------------
@@ -214,26 +277,25 @@ export const CHILD_CATEGORIES = CATEGORY_LEVEL2.map(c => ({
 
 /**
  * 表示用ラベル取得（New Review dropdown などで使用）
- * 新仕様: Level 2 Name > Level 3 Name
+ * 新仕様: Level 2 Name > Level 3 Name。単体の level2 id の場合は Level 2 Name を返す。
  */
 export function getCategoryDisplayLabel(slug: string): string {
   const parsed = parseCategorySlug(slug);
   if (!parsed) {
-    // マッチしない場合、Level 3 ID で直接検索（古いslugや単体IDの場合）
+    const l2 = CATEGORY_LEVEL2.find(c => c.id === slug);
+    if (l2) return l2.name;
+    const l1 = CATEGORY_LEVEL1.find(c => c.id === slug);
+    if (l1) return l1.name;
     const l3Direct = CATEGORY_LEVEL3.find(c => c.id === slug);
     if (l3Direct) {
-      const l2 = CATEGORY_LEVEL2.find(c => c.id === l3Direct.parentId);
-      return l2 ? `${l2.name} > ${l3Direct.name}` : l3Direct.name;
+      const l2p = CATEGORY_LEVEL2.find(c => c.id === l3Direct.parentId);
+      return l2p ? `${l2p.name} > ${l3Direct.name}` : l3Direct.name;
     }
     return slug;
   }
-  
   const l2 = CATEGORY_LEVEL2.find(c => c.id === parsed.parentId);
   const l3 = CATEGORY_LEVEL3.find(c => c.id === parsed.childId);
-  
-  if (l2 && l3) {
-    return `${l2.name} > ${l3.name}`;
-  }
+  if (l2 && l3) return `${l2.name} > ${l3.name}`;
   return slug;
 }
 

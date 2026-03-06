@@ -26,6 +26,11 @@ export const metadata: Metadata = {
   title: "Gear-Loom（ギアルーム）| 楽器・機材レビュー UGC プラットフォーム",
   description:
     "ギアルーム（Gear-Loom）は楽器演奏者向けユーザー生成コンテンツプラットフォーム。機材レビューを共有し、EC検索リンクで購入までサポート。",
+  icons: {
+    icon: { url: "/icon.svg", type: "image/svg+xml" },
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
   openGraph: {
     siteName: "Gear-Loom（ギアルーム）",
   },
