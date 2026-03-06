@@ -48,6 +48,23 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
+function getReviewExcerpt(r: Review): string {
+  const bodyMd = (r.body_md ?? "").trim();
+  if (bodyMd) {
+    const snippet = bodyMd.replace(/\s+/g, " ").slice(0, 80);
+    return snippet + (bodyMd.length > 80 ? "…" : "");
+  }
+  const bodyHtml = (r.body_html ?? "").trim();
+  if (bodyHtml) {
+    const text = bodyHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (text) {
+      const snippet = text.slice(0, 80);
+      return snippet + (text.length > 80 ? "…" : "");
+    }
+  }
+  if (r.gear_name && r.gear_name.trim()) return r.gear_name.trim();
+  return "";
+}
 const PLACEHOLDER_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260' viewBox='0 0 400 260'%3E%3Crect fill='%231a2332' width='400' height='260'/%3E%3Ctext fill='%236b7280' x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='14'%3EGear-Loom%3C/text%3E%3C/svg%3E";
 
@@ -125,7 +142,7 @@ export default async function ReviewsListPage({ searchParams }: Props) {
             </CardContent>
           </Card>
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {reviews.map((r) => {
               const imageUrl = getFirstReviewImageUrl(r);
               const showStars = !isContentOnlyCategorySlug(r.category_id) && r.rating > 0;
@@ -134,18 +151,19 @@ export default async function ReviewsListPage({ searchParams }: Props) {
                   ? (r.categories as { slug: string }).slug
                   : r.category_id;
               const categoryName = slug ? getCategoryPathDisplay(slug) : null;
+              const excerpt = getReviewExcerpt(r);
               return (
                 <li key={r.id}>
                   <Card className="h-full overflow-hidden transition-all hover:border-electric-blue/50">
                     <Link href={`/reviews/${r.id}`} className="block">
-                      <div className="relative aspect-[2/1] w-full bg-surface-card overflow-hidden">
+                      <div className="relative aspect-[16/9] w-full bg-surface-card overflow-hidden">
                         {imageUrl ? (
                           <Image
                             src={imageUrl}
                             alt=""
                             fill
                             className="object-cover"
-                            sizes="(max-width:640px) 50vw, 25vw"
+                            sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
                           />
                         ) : (
                           <Image
@@ -153,26 +171,31 @@ export default async function ReviewsListPage({ searchParams }: Props) {
                             alt=""
                             fill
                             className="object-cover"
-                            sizes="(max-width:640px) 50vw, 25vw"
+                            sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
                             unoptimized
                           />
                         )}
                       </div>
-                      <CardHeader className="p-3">
-                        <CardTitle className="line-clamp-2 text-sm text-white">
+                      <CardHeader className="px-3 pt-3 pb-1">
+                        <CardTitle className="text-sm font-bold leading-snug line-clamp-2">
                           {r.title}
                         </CardTitle>
-                        <CardDescription className="flex flex-wrap gap-1 text-xs text-gray-400">
+                        <CardDescription className="flex flex-wrap gap-1 text-xs text-gray-400 pt-1">
                           {r.maker_name && <span>{r.maker_name}</span>}
                           <span>{r.gear_name}</span>
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="px-3 pb-2 pt-0">
+                      <CardContent className="px-3 pb-3 pt-1 flex flex-col gap-1.5">
                         {showStars && <StarRating rating={r.rating} />}
+                        {excerpt && (
+                          <p className="text-xs text-gray-400 leading-relaxed line-clamp-3">
+                            {excerpt}
+                          </p>
+                        )}
                       </CardContent>
                     </Link>
                     {categoryName && (
-                      <div className="px-3 pb-2">
+                      <div className="px-3 pb-3 -mt-1">
                         <Link
                           href={`/category/${encodeURIComponent(slug)}`}
                           className="text-xs text-electric-blue hover:underline"

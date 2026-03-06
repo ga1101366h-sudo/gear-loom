@@ -170,6 +170,34 @@ export function TopPageCategoryNavMobile() {
                 </li>
               );
             })}
+
+            {/* コンテンツ系（ブログ・イベント）へのショートカット */}
+            <li>
+              <Link
+                href="/blog"
+                className="flex w-full items-center justify-between gap-2 py-3 px-4 text-left text-sm font-medium text-gray-200 transition-colors hover:bg-slate-800/80 active:bg-slate-800"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setOpenCategory(null);
+                  setOpenSubGroup(null);
+                }}
+              >
+                <span className="min-w-0 flex-1">ブログ</span>
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/events"
+                className="flex w-full items-center justify-between gap-2 py-3 px-4 text-left text-sm font-medium text-gray-200 transition-colors hover:bg-slate-800/80 active:bg-slate-800"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setOpenCategory(null);
+                  setOpenSubGroup(null);
+                }}
+              >
+                <span className="min-w-0 flex-1">イベント</span>
+              </Link>
+            </li>
           </ul>
         </div>
       )}
@@ -279,6 +307,28 @@ export function TopPageCategoryNav() {
               </li>
             );
           })}
+
+          {/* コンテンツ系（ブログ・イベント）へのショートカット */}
+          <li className="relative overflow-visible">
+            <div className="flex items-center justify-between gap-2 px-4 py-2 text-sm text-gray-300 transition-colors hover:bg-cyan-900/20 hover:text-cyan-400">
+              <Link
+                href="/blog"
+                className="truncate min-w-0 flex-1 hover:text-cyan-400"
+              >
+                ブログ
+              </Link>
+            </div>
+          </li>
+          <li className="relative overflow-visible">
+            <div className="flex items-center justify-between gap-2 px-4 py-2 text-sm text-gray-300 transition-colors hover:bg-cyan-900/20 hover:text-cyan-400">
+              <Link
+                href="/events"
+                className="truncate min-w-0 flex-1 hover:text-cyan-400"
+              >
+                イベント
+              </Link>
+            </div>
+          </li>
         </ul>
       </nav>
     </div>
