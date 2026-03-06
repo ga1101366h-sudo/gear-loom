@@ -1,6 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef, Suspense } from "react";
+import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -22,8 +34,86 @@ import {
 } from "@/components/ui/card";
 import { ProfilePreviewOverlay } from "@/components/profile-preview-overlay";
 import type { Profile } from "@/types/database";
+import { GripVertical, Trash2 } from "lucide-react";
 
 const ACCEPT_IMAGE = "image/jpeg,image/png,image/webp,image/gif";
+
+type OwnedGearItem = {
+  id: string;
+  line: string;
+};
+
+function parseOwnedGearLines(text: string | null | undefined): OwnedGearItem[] {
+  const lines = (text ?? "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  return lines.map((line, index) => ({
+    id: String(index),
+    line,
+  }));
+}
+
+function OwnedGearSortableItem({
+  item,
+  index,
+  onDelete,
+}: {
+  item: OwnedGearItem;
+  index: number;
+  onDelete: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.8 : 1,
+  };
+
+  const match = item.line.match(/^\[([^\]]+)\]\s*(.*)$/);
+  const categoryLabel = match ? match[1] : null;
+  const name = match ? match[2].trim() : item.line;
+
+  return (
+    <li ref={setNodeRef} style={style} className="mb-2">
+      <div className="flex items-center gap-3 p-3 bg-[#1a1a1a] bg-white/[0.02] border border-white/10 rounded-md">
+        <button
+          type="button"
+          className="text-gray-500 cursor-grab hover:text-gray-300 transition-colors"
+          {...listeners}
+          {...attributes}
+          aria-label="並び替えハンドル"
+        >
+          <GripVertical className="w-4 h-4" aria-hidden />
+        </button>
+        <div className="flex-1 min-w-0">
+          {categoryLabel && (
+            <span className="inline-flex items-center rounded bg-white/10 px-2 py-0.5 text-[11px] text-gray-200 mb-1">
+              {categoryLabel}
+            </span>
+          )}
+          <div className="text-sm text-gray-100 truncate">{name}</div>
+        </div>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="text-gray-500 hover:text-red-500 transition-colors"
+          aria-label="この機材を削除"
+        >
+          <Trash2 className="w-4 h-4" aria-hidden />
+        </button>
+      </div>
+    </li>
+  );
+}
 
 function ProfilePageContent() {
   const router = useRouter();
@@ -314,6 +404,37 @@ function ProfilePageContent() {
     }
   }
 
+  async function handleOwnedGearDragEnd(event: DragEndEvent) {
+    if (!user || !db) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const items = parseOwnedGearLines(ownedGear);
+    const oldIndex = items.findIndex((i) => i.id === String(active.id));
+    const newIndex = items.findIndex((i) => i.id === String(over.id));
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+
+    const newItems = arrayMove(items, oldIndex, newIndex);
+    const newLines = newItems.map((i) => i.line);
+    const newText = newLines.join("\n");
+
+    setGearError(null);
+    setGearSaving(true);
+    try {
+      await updateDoc(doc(db, "profiles", user.uid), {
+        owned_gear: newText.trim() || null,
+        updated_at: new Date().toISOString(),
+      });
+      setOwnedGear(newText);
+      setProfile((prev) => (prev ? { ...prev, owned_gear: newText || null } : prev));
+    } catch (err: unknown) {
+      console.error(err);
+      setGearError("所有機材の並び替えに失敗しました。");
+    } finally {
+      setGearSaving(false);
+    }
+  }
+
   async function handleDeleteOwnedGearImage(url: string) {
     if (!user || !db) return;
     const newList = ownedGearImages.filter((u) => u !== url);
@@ -396,7 +517,7 @@ function ProfilePageContent() {
   }
 
   return (
-    <div className="max-w-md mx-auto py-8">
+    <div className="max-w-5xl mx-auto w-full px-4 pt-8 pb-16">
       <Card>
         <CardHeader>
           <CardTitle className="text-electric-blue">プロフィール編集</CardTitle>
@@ -405,305 +526,354 @@ function ProfilePageContent() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>プロフィールアイコン</Label>
-              <div className="flex items-center gap-4">
-                <div className="shrink-0">
-                  {avatarUrl ? (
-                    <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-electric-blue/50 bg-surface-card">
-                      <Image
-                        src={avatarUrl}
-                        alt=""
-                        fill
-                        className="object-cover"
-                        sizes="80px"
-                        unoptimized
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* 上部エリア：2カラム（テキスト情報） */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+              {/* 左カラム：基本情報・連絡先 */}
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label>プロフィールアイコン</Label>
+                  <div className="flex items-center gap-4">
+                    <div className="shrink-0">
+                      {avatarUrl ? (
+                        <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-electric-blue/50 bg-surface-card">
+                          <Image
+                            src={avatarUrl}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            sizes="80px"
+                            unoptimized
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          className="w-20 h-20 rounded-full border-2 border-electric-blue/50 bg-surface-card flex items-center justify-center text-2xl font-bold text-electric-blue"
+                          aria-hidden
+                        >
+                          {(displayName || user?.email?.split("@")[0] || "?").charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept={ACCEPT_IMAGE}
+                        className="hidden"
+                        onChange={handleAvatarChange}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={uploadingAvatar}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {uploadingAvatar ? "アップロード中..." : "アイコンを変更"}
+                      </Button>
+                      <p className="text-xs text-gray-500">JPEG/PNG/WebP/GIF、3MB以下</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="displayName">表示名</Label>
+                  <Input
+                    id="displayName"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="ニックネーム"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>ユーザーID</Label>
+                  <p className="text-sm text-gray-300">
+                    {profile?.user_id ? (
+                      <>@{profile.user_id}</>
+                    ) : (
+                      <>
+                        未設定です。{" "}
+                        <Link href="/onboarding" className="text-electric-blue hover:underline">
+                          オンボーディングで設定
+                        </Link>
+                      </>
+                    )}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bio">自己紹介（マイページに表示）</Label>
+                  <textarea
+                    id="bio"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="自分について・活動内容などを自由に記述"
+                    rows={4}
+                    className="flex w-full rounded-lg border border-surface-border bg-surface-card px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:ring-2 focus:ring-electric-blue"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contactEmail">連絡用メールアドレス（任意）</Label>
+                  <Input
+                    id="contactEmail"
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="example@example.com"
+                  />
+                </div>
+              </div>
+
+              {/* 右カラム：活動情報・SNS */}
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="mainInstrument">担当楽器（任意）</Label>
+                  <Input
+                    id="mainInstrument"
+                    value={mainInstrument}
+                    onChange={(e) => setMainInstrument(e.target.value)}
+                    placeholder="例: ギター、ベース"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bandName">所属バンド名（任意）</Label>
+                  <Input
+                    id="bandName"
+                    value={bandName}
+                    onChange={(e) => setBandName(e.target.value)}
+                    placeholder="例: ○○バンド"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bandUrl">バンドURL（任意）</Label>
+                  <Input
+                    id="bandUrl"
+                    type="url"
+                    value={bandUrl}
+                    onChange={(e) => setBandUrl(e.target.value)}
+                    placeholder="https://..."
+                  />
+                </div>
+                <div className="space-y-2 pt-2 border-t border-surface-border/50">
+                  <Label className="text-gray-400 text-xs uppercase tracking-wider mb-2 block">
+                    SNSリンク（任意）
+                  </Label>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="snsTwitter" className="text-xs font-normal text-gray-400">
+                        Twitter / X URL
+                      </Label>
+                      <Input
+                        id="snsTwitter"
+                        type="url"
+                        value={snsTwitter}
+                        onChange={(e) => setSnsTwitter(e.target.value)}
+                        placeholder="https://twitter.com/..."
                       />
                     </div>
-                  ) : (
-                    <div
-                      className="w-20 h-20 rounded-full border-2 border-electric-blue/50 bg-surface-card flex items-center justify-center text-2xl font-bold text-electric-blue"
-                      aria-hidden
-                    >
-                      {(displayName || user?.email?.split("@")[0] || "?").charAt(0).toUpperCase()}
+                    <div className="space-y-1">
+                      <Label htmlFor="snsInstagram" className="text-xs font-normal text-gray-400">
+                        Instagram URL
+                      </Label>
+                      <Input
+                        id="snsInstagram"
+                        type="url"
+                        value={snsInstagram}
+                        onChange={(e) => setSnsInstagram(e.target.value)}
+                        placeholder="https://instagram.com/..."
+                      />
                     </div>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept={ACCEPT_IMAGE}
-                    className="hidden"
-                    onChange={handleAvatarChange}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={uploadingAvatar}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    {uploadingAvatar ? "アップロード中..." : "アイコンを変更"}
-                  </Button>
-                  <p className="text-xs text-gray-500">JPEG/PNG/WebP/GIF、3MB以下</p>
+                    <div className="space-y-1">
+                      <Label htmlFor="snsYoutube" className="text-xs font-normal text-gray-400">
+                        YouTube URL
+                      </Label>
+                      <Input
+                        id="snsYoutube"
+                        type="url"
+                        value={snsYoutube}
+                        onChange={(e) => setSnsYoutube(e.target.value)}
+                        placeholder="https://youtube.com/..."
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="snsTwitch" className="text-xs font-normal text-gray-400">
+                        Twitch URL
+                      </Label>
+                      <Input
+                        id="snsTwitch"
+                        type="url"
+                        value={snsTwitch}
+                        onChange={(e) => setSnsTwitch(e.target.value)}
+                        placeholder="https://www.twitch.tv/..."
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="displayName">表示名</Label>
-              <Input
-                id="displayName"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="ニックネーム"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>ユーザーID</Label>
-              <p className="text-sm text-gray-300">
-                {profile?.user_id ? (
-                  <>@{profile.user_id}</>
-                ) : (
-                  <>
-                    未設定です。{" "}
-                    <Link href="/onboarding" className="text-electric-blue hover:underline">
-                      オンボーディングで設定
-                    </Link>
-                  </>
-                )}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="bio">自己紹介（マイページに表示）</Label>
-              <textarea
-                id="bio"
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="自分について・活動内容などを自由に記述"
-                rows={4}
-                className="flex w-full rounded-lg border border-surface-border bg-surface-card px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:ring-2 focus:ring-electric-blue"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="mainInstrument">担当楽器（任意）</Label>
-              <Input
-                id="mainInstrument"
-                value={mainInstrument}
-                onChange={(e) => setMainInstrument(e.target.value)}
-                placeholder="例: ギター、ベース"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>所有機材（任意）</Label>
-              <div className="space-y-3 border border-surface-border/60 rounded-lg p-3 bg-surface-card/40">
-                <div className="space-y-1">
-                  <Label className="text-xs text-gray-300">カテゴリから追加</Label>
-                  <select
-                    value={ownedGearCategory}
-                    onChange={(e) => setOwnedGearCategory(e.target.value)}
-                    className="w-full rounded-lg border border-surface-border bg-surface-card px-3 py-2 text-sm text-gray-100"
-                  >
-                    <option value="">カテゴリを選択...</option>
-                    <option value="guitar">ギター</option>
-                    <option value="bass">ベース</option>
-                    <option value="guitar-effects">ギターエフェクター</option>
-                    <option value="bass-effects">ベースエフェクター</option>
-                    <option value="board">エフェクターボード</option>
-                    <option value="amp">アンプ</option>
-                    <option value="keyboard">鍵盤</option>
-                    <option value="drums">ドラム</option>
-                    <option value="vocal">ボーカル</option>
-                    <option value="dtm">DTM・レコーディング</option>
-                    <option value="other">その他</option>
-                  </select>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Input
-                    type="text"
-                    placeholder="メーカー（任意）"
-                    value={ownedGearMakerInput}
-                    onChange={(e) => setOwnedGearMakerInput(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Input
-                    type="text"
-                    placeholder="機材名"
-                    value={ownedGearNameInput}
-                    onChange={(e) => setOwnedGearNameInput(e.target.value)}
-                    className="flex-1"
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2 items-center">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleAddOwnedGearLine}
-                    disabled={gearSaving}
-                  >
-                    {gearSaving ? "追加中..." : "所有機材に追加"}
-                  </Button>
-                  {gearError && (
-                    <p className="text-xs text-red-400 mt-1">{gearError}</p>
-                  )}
-                </div>
-                {ownedGear.trim() && (
-                  <ul className="mt-2 space-y-1 text-sm text-gray-200">
-                    {ownedGear
-                      .split(/\r?\n/)
-                      .map((line) => line.trim())
-                      .filter(Boolean)
-                      .map((line, idx) => (
-                        <li key={idx} className="flex items-start gap-2 group">
-                          <span className="mt-[3px] text-electric-blue shrink-0">•</span>
-                          <span className="whitespace-pre-wrap flex-1 min-w-0">
-                            {line}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="shrink-0 h-7 px-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => handleDeleteOwnedGearLine(idx)}
-                            disabled={gearSaving}
-                            aria-label="この機材を削除"
-                          >
-                            削除
-                          </Button>
-                        </li>
-                      ))}
-                  </ul>
-                )}
+
+            {/* 下部エリア：1カラム全幅（機材情報） */}
+            <div className="mt-12 space-y-6 pt-8 border-t border-surface-border">
+              <div>
+                <Label className="text-lg font-semibold text-electric-blue">所有機材（任意）</Label>
+                <p className="text-sm text-gray-400 mt-1">
+                  使用している機材を登録すると、機材レビューやカスタム手帳で引用できるようになります。
+                </p>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>所有機材の写真（任意・複数可）</Label>
-              <div className="space-y-2">
-                {ownedGearImages.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {ownedGearImages.map((url) => (
-                      <div
-                        key={url}
-                        className="relative w-20 h-20 rounded-md overflow-hidden border border-surface-border group"
+
+              <div className="space-y-4 border border-surface-border/60 rounded-lg p-6 bg-surface-card/40">
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div className="space-y-1.5 md:col-span-1">
+                      <Label className="text-xs text-gray-300">カテゴリ</Label>
+                      <select
+                        value={ownedGearCategory}
+                        onChange={(e) => setOwnedGearCategory(e.target.value)}
+                        className="w-full h-10 rounded-lg border border-surface-border bg-surface-card px-3 py-2 text-sm text-gray-100 focus:ring-2 focus:ring-electric-blue"
                       >
-                        <Image src={url} alt="" fill className="object-cover" sizes="80px" unoptimized />
+                        <option value="">選択...</option>
+                        <option value="guitar">ギター</option>
+                        <option value="bass">ベース</option>
+                        <option value="guitar-effects">ギターエフェクター</option>
+                        <option value="bass-effects">ベースエフェクター</option>
+                        <option value="board">エフェクターボード</option>
+                        <option value="amp">アンプ</option>
+                        <option value="keyboard">鍵盤</option>
+                        <option value="drums">ドラム</option>
+                        <option value="vocal">ボーカル</option>
+                        <option value="dtm">DTM・レコーディング</option>
+                        <option value="other">その他</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5 md:col-span-1">
+                      <Label className="text-xs text-gray-300">メーカー（任意）</Label>
+                      <Input
+                        type="text"
+                        placeholder="例: Fender"
+                        value={ownedGearMakerInput}
+                        onChange={(e) => setOwnedGearMakerInput(e.target.value)}
+                        className="h-10"
+                      />
+                    </div>
+                    <div className="space-y-1.5 md:col-span-2 flex gap-2">
+                      <div className="flex-1 space-y-1.5">
+                        <Label className="text-xs text-gray-300">機材名</Label>
+                        <Input
+                          type="text"
+                          placeholder="例: Stratocaster"
+                          value={ownedGearNameInput}
+                          onChange={(e) => setOwnedGearNameInput(e.target.value)}
+                          className="h-10"
+                        />
+                      </div>
+                      <div className="flex flex-col justify-end">
                         <Button
                           type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="absolute top-1 right-1 h-6 w-6 min-w-0 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                          onClick={() => handleDeleteOwnedGearImage(url)}
+                          onClick={handleAddOwnedGearLine}
                           disabled={gearSaving}
-                          aria-label="この画像を削除"
+                          className="h-10 px-6 text-sm font-medium rounded-md bg-transparent border border-cyan-500 text-cyan-500 hover:bg-cyan-500/10 transition-colors whitespace-nowrap"
                         >
-                          ×
+                          {gearSaving ? "追加中..." : "追加"}
                         </Button>
                       </div>
-                    ))}
+                    </div>
                   </div>
-                )}
-                <div className="space-y-1">
-                  <input
-                    ref={gearImagesInputRef}
-                    type="file"
-                    accept={ACCEPT_IMAGE}
-                    multiple
-                    className="hidden"
-                    onChange={handleOwnedGearImagesChange}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => gearImagesInputRef.current?.click()}
+                  {gearError && (
+                    <p className="text-xs text-red-400">{gearError}</p>
+                  )}
+                </div>
+
+                {ownedGear.trim() && (
+                  <DndContext
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleOwnedGearDragEnd}
                   >
-                    所有機材の写真を追加
-                  </Button>
-                  <p className="text-xs text-gray-500">JPEG/PNG/WebP/GIF、1枚あたり3MB程度までを推奨</p>
+                    <SortableContext
+                      items={parseOwnedGearLines(ownedGear).map((i) => i.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="mt-6 max-h-[400px] overflow-y-auto pr-2 scrollbar-subtle">
+                        <ul>
+                          {parseOwnedGearLines(ownedGear).map((item, idx) => (
+                            <OwnedGearSortableItem
+                              key={item.id}
+                              item={item}
+                              index={idx}
+                              onDelete={() => handleDeleteOwnedGearLine(idx)}
+                            />
+                          ))}
+                        </ul>
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                )}
+              </div>
+
+              <div className="space-y-3 pt-4">
+                <Label>所有機材の写真（任意・複数可）</Label>
+                <div className="space-y-4 rounded-lg border border-surface-border/40 p-4 bg-surface-card/20">
+                  {ownedGearImages.length > 0 && (
+                    <div className="flex flex-wrap gap-4">
+                      {ownedGearImages.map((url) => (
+                        <div
+                          key={url}
+                          className="relative w-24 h-24 rounded-md overflow-hidden border border-surface-border group"
+                        >
+                          <Image src={url} alt="" fill className="object-cover" sizes="96px" unoptimized />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-1 right-1 h-6 w-6 min-w-0 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                            onClick={() => handleDeleteOwnedGearImage(url)}
+                            disabled={gearSaving}
+                            aria-label="この画像を削除"
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-4">
+                    <input
+                      ref={gearImagesInputRef}
+                      type="file"
+                      accept={ACCEPT_IMAGE}
+                      multiple
+                      className="hidden"
+                      onChange={handleOwnedGearImagesChange}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => gearImagesInputRef.current?.click()}
+                      className="px-4 py-2 text-sm font-medium rounded-md bg-transparent border border-cyan-500 text-cyan-500 hover:bg-cyan-500/10 transition-colors"
+                    >
+                      所有機材の写真を追加
+                    </Button>
+                    <p className="text-xs text-gray-500">JPEG/PNG/WebP/GIF、1枚あたり3MB程度までを推奨</p>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="bandName">所属バンド名（任意）</Label>
-              <Input
-                id="bandName"
-                value={bandName}
-                onChange={(e) => setBandName(e.target.value)}
-                placeholder="例: ○○バンド"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="bandUrl">バンドURL（任意）</Label>
-              <Input
-                id="bandUrl"
-                type="url"
-                value={bandUrl}
-                onChange={(e) => setBandUrl(e.target.value)}
-                placeholder="https://..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contactEmail">連絡用メールアドレス（任意）</Label>
-              <Input
-                id="contactEmail"
-                type="email"
-                value={contactEmail}
-                onChange={(e) => setContactEmail(e.target.value)}
-                placeholder="example@example.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="snsTwitter">Twitter / X URL（任意）</Label>
-              <Input
-                id="snsTwitter"
-                type="url"
-                value={snsTwitter}
-                onChange={(e) => setSnsTwitter(e.target.value)}
-                placeholder="https://twitter.com/..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="snsInstagram">Instagram URL（任意）</Label>
-              <Input
-                id="snsInstagram"
-                type="url"
-                value={snsInstagram}
-                onChange={(e) => setSnsInstagram(e.target.value)}
-                placeholder="https://instagram.com/..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="snsYoutube">YouTube URL（任意）</Label>
-              <Input
-                id="snsYoutube"
-                type="url"
-                value={snsYoutube}
-                onChange={(e) => setSnsYoutube(e.target.value)}
-                placeholder="https://youtube.com/..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="snsTwitch">Twitch URL（任意）</Label>
-              <Input
-                id="snsTwitch"
-                type="url"
-                value={snsTwitch}
-                onChange={(e) => setSnsTwitch(e.target.value)}
-                placeholder="https://www.twitch.tv/..."
-              />
-            </div>
+
             {message && (
               <p
-                className={`text-sm ${
+                className={`text-sm text-center ${
                   message.type === "success" ? "text-electric-blue" : "text-red-400"
                 }`}
               >
                 {message.text}
               </p>
             )}
-            <div className="space-y-2">
-              <Button type="submit" disabled={saving} className="w-full">
+
+            {/* アクションエリア（フル幅・中央寄せ） */}
+            <div className="space-y-3 flex flex-col items-center">
+              <Button
+                type="submit"
+                disabled={saving}
+                className="w-full max-w-md mx-auto block py-3 text-center font-bold rounded-md bg-transparent border border-cyan-500 text-cyan-500 hover:bg-cyan-500/10 transition-colors"
+              >
                 {saving ? "保存中..." : "保存"}
               </Button>
               {profile?.user_id && (
@@ -711,10 +881,10 @@ function ProfilePageContent() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full"
+                    className="w-full max-w-md mx-auto block py-3 text-center font-medium rounded-md bg-transparent border border-surface-border text-gray-200 hover:bg-white/5 transition-colors"
                     onClick={() => setShowProfilePreview(true)}
                   >
-                    他の人からはこう見えますよ
+                    他の人からはどう見えますか
                   </Button>
                   <ProfilePreviewOverlay
                     userId={profile.user_id}
