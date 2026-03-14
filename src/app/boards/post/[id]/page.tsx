@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getProfilesByUids } from "@/lib/firebase/data";
@@ -17,9 +18,17 @@ import {
 
 export const dynamic = "force-dynamic";
 
+function getSiteOrigin(): string {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://www.gear-loom.com")
+  );
+}
+
 type Props = { params: Promise<{ id: string }> };
 
-export async function generateMetadata({ params }: Props) {
+/** X・Facebook 等でシェア時に画像プレビューを表示するため、動的OG画像URLを明示的に指定 */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const post = await prisma.boardPost.findUnique({
     where: { id },
@@ -28,11 +37,30 @@ export async function generateMetadata({ params }: Props) {
   if (!post) return { title: "エフェクターボード | Gear-Loom" };
   const title =
     post.title?.trim() || post.board?.name?.trim() || "エフェクターボード";
+  const description =
+    post.content?.slice(0, 120) ||
+    "Gear-Loomで共有されたエフェクターボードの投稿です。";
+  const origin = getSiteOrigin();
+  const url = `${origin}/boards/post/${id}`;
+  const ogImageUrl = `${origin}/boards/post/${id}/opengraph-image`;
+
   return {
     title: `${title} | Gear-Loom`,
-    description:
-      post.content?.slice(0, 120) ||
-      "Gear-Loomで共有されたエフェクターボードの投稿です。",
+    description,
+    openGraph: {
+      title: `${title} | Gear-Loom`,
+      description,
+      url,
+      siteName: "Gear-Loom",
+      type: "article",
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} | Gear-Loom`,
+      description,
+      images: [ogImageUrl],
+    },
   };
 }
 
