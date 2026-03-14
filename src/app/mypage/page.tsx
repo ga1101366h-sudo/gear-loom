@@ -332,10 +332,17 @@ export default function MypagePage() {
     { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 60_000 }
   );
 
+  // スマホで公開プレビュー（iframe）を開いたときに Firebase の user が一瞬 null になることがあるため、
+  // 即リダイレクトせず短い遅延を入れる。またプレビュー表示中はリダイレクトしない。
   useEffect(() => {
     if (authLoading) return;
-    if (!user) router.push("/login?next=/mypage");
-  }, [authLoading, user, router]);
+    if (user) return;
+    if (showProfilePreview) return;
+    const t = setTimeout(() => {
+      router.push("/login?next=/mypage");
+    }, 400);
+    return () => clearTimeout(t);
+  }, [authLoading, user, showProfilePreview, router]);
 
   useEffect(() => {
     if (mypageData) {
