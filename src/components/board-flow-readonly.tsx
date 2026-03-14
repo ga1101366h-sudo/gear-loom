@@ -89,6 +89,8 @@ function BoardFlowReadonlyInner({ nodesJson, edgesJson }: BoardFlowReadonlyProps
         panOnDrag
         zoomOnScroll
         zoomOnPinch
+        minZoom={0.1}
+        maxZoom={2}
         fitView
         onNodeClick={(_, node) => setHighlightNodeId(node.id)}
         onPaneClick={() => setHighlightNodeId(null)}
