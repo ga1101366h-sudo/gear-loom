@@ -69,13 +69,17 @@ export async function GET(request: Request) {
     ]);
 
     const buffer = Array.isArray(downloadResult) ? downloadResult[0] : downloadResult;
+    if (!Buffer.isBuffer(buffer)) {
+      return NextResponse.json({ error: "Failed to download file" }, { status: 500 });
+    }
+
     const meta = Array.isArray(metadataResult) ? metadataResult[0] : metadataResult;
     const contentType =
       meta && typeof meta === "object" && "contentType" in meta
         ? String((meta as { contentType: string }).contentType)
         : "image/jpeg";
 
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "private, max-age=300",
