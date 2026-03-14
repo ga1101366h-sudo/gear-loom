@@ -3,11 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { BoardPostEditForm } from "@/components/board-post-edit-form";
 
 type PageProps = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export default async function BoardPostEditPage({ params }: PageProps) {
-  const { id } = params;
+  const { id } = await params;
 
   const post = await prisma.boardPost.findUnique({
     where: { id },
