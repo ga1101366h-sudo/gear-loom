@@ -109,7 +109,7 @@ export function BoardPostEditForm({
             maxSizeMB: 1,
             maxWidthOrHeight: 1920,
             useWebWorker: true,
-            exifOrientation: true,
+            exifOrientation: 1,
           });
           const ext = file.name.split(".").pop() ?? "jpg";
           const storagePath = `board-posts/${user.uid}/${Date.now()}-${Math.random()

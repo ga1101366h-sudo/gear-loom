@@ -2,6 +2,8 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
+/** Avoid prerender on Windows where @vercel/og can throw Invalid URL (fileURLToPath) */
+export const dynamic = "force-dynamic";
 
 export default function AppleIcon() {
   return new ImageResponse(

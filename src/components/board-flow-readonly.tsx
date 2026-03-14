@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Edge, Node } from "@xyflow/react";
-import { Background, ReactFlow, ReactFlowProvider } from "@xyflow/react";
+import { Background, BackgroundVariant, ReactFlow, ReactFlowProvider } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { boardFlowNodeTypes, boardFlowEdgeTypes } from "@/components/board-flow-editor";
 
@@ -95,7 +95,7 @@ function BoardFlowReadonlyInner({ nodesJson, edgesJson }: BoardFlowReadonlyProps
         colorMode="dark"
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant="lines" color="#111827" gap={32} />
+        <Background variant={BackgroundVariant.Lines} color="#111827" gap={32} />
       </ReactFlow>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,7 +20,7 @@ type SelectableBoard = {
   updatedAt: string;
 };
 
-export default function BoardsPublishPage() {
+function BoardsPublishContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -313,6 +313,24 @@ export default function BoardsPublishPage() {
         </Card>
       </form>
     </div>
+  );
+}
+
+export default function BoardsPublishPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-3xl mx-auto py-8">
+          <Card>
+            <CardContent className="py-12 text-center text-gray-400">
+              読み込み中...
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <BoardsPublishContent />
+    </Suspense>
   );
 }
 

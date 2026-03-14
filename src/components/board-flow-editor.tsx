@@ -7,6 +7,7 @@ import type { Connection, Edge, EdgeProps, Node, NodeProps } from "@xyflow/react
 import {
   ReactFlow,
   Background,
+  BackgroundVariant,
   Controls,
   Handle,
   Position,
@@ -176,7 +177,7 @@ function LoopTerminalsRow({
 
 const NodeSettingsContext = createContext<(id: string) => void>(() => {});
 
-function PedalNode({ id, data }: NodeProps<PedalNodeData>) {
+function PedalNode({ id, data }: NodeProps<Node<PedalNodeData>>) {
   const [imageError, setImageError] = useState(false);
   const { setNodes } = useReactFlow();
   const useImage = data.useImage !== false;
@@ -734,7 +735,7 @@ function BoardFlowEditorInner({
           maxSizeMB: 1,
           maxWidthOrHeight: 1920,
           useWebWorker: true,
-          exifOrientation: true,
+          exifOrientation: 1,
         };
         let compressedFile: File;
         try {
@@ -945,7 +946,7 @@ function BoardFlowEditorInner({
   );
 
   const onDragStart = useCallback(
-    (event: React.DragEvent<HTMLDivElement>, gearId: string) => {
+    (event: React.DragEvent<HTMLElement>, gearId: string) => {
       const gear = sidebarGears.find((g) => g.id === gearId);
       if (!gear) return;
       event.dataTransfer.setData(
@@ -1729,7 +1730,7 @@ function BoardFlowEditorInner({
           colorMode="dark"
           proOptions={{ hideAttribution: true }}
         >
-          <Background variant="lines" color="#111827" gap={32} />
+          <Background variant={BackgroundVariant.Lines} color="#111827" gap={32} />
           <Controls />
         </ReactFlow>
       </div>
@@ -1854,7 +1855,7 @@ function BoardFlowEditorInner({
           <div className="w-full max-w-4xl mx-4 rounded-xl border border-white/10 bg-[#1a1a1a] shadow-2xl relative">
             <button
               type="button"
-              onClick={closeGenerator}
+              onClick={() => closeGenerator()}
               className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/10 text-gray-200 flex items-center justify-center hover:bg-white/20 hover:text-white transition-colors"
               aria-label="閉じる"
             >

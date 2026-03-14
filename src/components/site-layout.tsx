@@ -131,7 +131,7 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
                 aria-label="メインメニュー"
               >
                 {MAIN_NAV_ITEMS.map(({ href, label }) => {
-                  const isActive = pathname === href || (href !== "/" && pathname?.startsWith(href + "/"));
+                  const isActive = pathname === href || pathname?.startsWith(href + "/");
                   return (
                     <a
                       key={href + label}
