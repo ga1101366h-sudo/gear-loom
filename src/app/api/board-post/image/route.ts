@@ -70,7 +70,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Storage not configured" }, { status: 500 });
     }
 
-    const bucket = storage.bucket(bucketName);
+    // Admin SDK では .appspot.com のバケット名が使われることが多いため、同一プロジェクトなら env のバケットを使用
+    const bucketToUse =
+      BUCKET && bucketProjectId(bucketName) === bucketProjectId(BUCKET) ? BUCKET : bucketName;
+    const bucket = storage.bucket(bucketToUse);
     const file = bucket.file(objectPath);
 
     const [downloadResult, metadataResult] = await Promise.all([
