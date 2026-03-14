@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { randomUUID } from "crypto";
-import { getAdminAuth } from "@/lib/firebase/admin";
+import { getAdminAuth, getAdminStorage } from "@/lib/firebase/admin";
 import { prisma } from "@/lib/prisma";
 
 function getBearerToken(request: Request): string | null {
@@ -14,7 +12,8 @@ function getBearerToken(request: Request): string | null {
 
 /**
  * ユーザー専用の機材画像をアップロードする。
- * 認証必須。UserGear.customImageUrl のみ更新し、Gear.imageUrl は変更しない。
+ * 認証必須。Firebase Storage に保存し、UserGear.customImageUrl を更新。Gear.imageUrl は変更しない。
+ * 本番（Vercel）ではローカルディスクが使えないため、常に Firebase Storage を使用する。
  */
 export async function POST(request: Request) {
   try {
@@ -38,6 +37,12 @@ export async function POST(request: Request) {
     } catch (err) {
       console.error("🔥 [upload] Token verification error:", err);
       return NextResponse.json({ error: "認証に失敗しました" }, { status: 401 });
+    }
+
+    const storage = getAdminStorage();
+    if (!storage) {
+      console.error("[api/gears/upload] Storage not configured");
+      return NextResponse.json({ error: "サーバー設定エラー" }, { status: 500 });
     }
 
     const formData = await request.formData();
@@ -68,13 +73,28 @@ export async function POST(request: Request) {
       );
     }
 
-    const dir = path.join(process.cwd(), "public", "uploads", "user", uid);
-    await mkdir(dir, { recursive: true });
+    const explicitBucketName =
+      process.env.FIREBASE_STORAGE_BUCKET ?? process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+    const bucket = explicitBucketName ? storage.bucket(explicitBucketName) : storage.bucket();
+    const bucketName = bucket.name;
     const filename = `${randomUUID()}.webp`;
-    const filePath = path.join(dir, filename);
+    const storagePath = `user-gear-images/${uid}/${filename}`;
     const buffer = Buffer.from(await (image as Blob).arrayBuffer());
-    await writeFile(filePath, buffer);
-    const customImageUrl = `/uploads/user/${uid}/${filename}`;
+    const downloadToken = randomUUID();
+    const file = bucket.file(storagePath);
+    await file.save(buffer, {
+      contentType: (image as File).type || "image/webp",
+      resumable: false,
+      metadata: {
+        metadata: {
+          firebaseStorageDownloadTokens: downloadToken,
+        },
+      },
+    });
+
+    const customImageUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(
+      storagePath,
+    )}?alt=media&token=${downloadToken}`;
 
     await prisma.userGear.update({
       where: { id: userGear.id },
