@@ -238,7 +238,10 @@ export async function updateBoardOrder(
       select: { id: true },
     });
     const ownedIds = new Set(owned.map((b) => b.id));
-    const orderMap = new Map(trimmedIds.map((id, index) => [id, index]).filter(([id]) => ownedIds.has(id as string)));
+    const entries: [string, number][] = trimmedIds
+      .map((id, index) => [id, index] as [string, number])
+      .filter(([id]) => ownedIds.has(id));
+    const orderMap = new Map(entries);
 
     await prisma.$transaction(
       Array.from(orderMap.entries()).map(([id, sortOrder]) =>
