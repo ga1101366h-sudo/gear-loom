@@ -13,6 +13,15 @@ export function getFirebaseStorageUrl(storagePath: string): string {
   return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encoded}?alt=media`;
 }
 
+/**
+ * DB に保存された __ 区切りのカテゴリパスをスラッシュ区切りで表示用に整形する。
+ * 1階層のみの過去データ（例: ベースエフェクター）にも対応。
+ */
+export function formatCategoryPath(category?: string | null): string {
+  if (category == null || typeof category !== "string") return "";
+  return category.trim().split("__").filter(Boolean).join(" / ");
+}
+
 /** Firebase Storage のダウンロード URL からストレージパスを取得（削除用） */
 export function getStoragePathFromDownloadUrl(downloadUrl: string): string | null {
   try {

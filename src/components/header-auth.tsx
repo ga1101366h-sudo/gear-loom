@@ -2,9 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Edit3, Layout } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { isAdminUserId } from "@/lib/admin";
 import { useUserProfile } from "@/hooks/use-user-profile";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function HeaderAuth() {
   const { user, loading, signOut } = useAuth();
@@ -47,12 +54,30 @@ export function HeaderAuth() {
         >
           マイページ
         </Link>
-        <Link
-          href="/reviews/new"
-          className="inline-flex items-center justify-center rounded-lg bg-electric-blue px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-surface-dark hover:bg-electric-blue-dim transition-all duration-300 hover:scale-105 hover:shadow-electric-glow shrink-0 whitespace-nowrap"
-        >
-          投稿する
-        </Link>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-lg bg-electric-blue px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-surface-dark hover:bg-electric-blue-dim transition-all duration-300 hover:scale-105 hover:shadow-electric-glow shrink-0 whitespace-nowrap"
+            >
+              投稿する
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[200px]">
+            <DropdownMenuItem asChild>
+              <Link href="/reviews/new" className="flex items-center gap-2 cursor-pointer">
+                <Edit3 className="h-4 w-4 shrink-0" aria-hidden />
+                機材レビューを投稿
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/boards/publish" className="flex items-center gap-2 cursor-pointer">
+                <Layout className="h-4 w-4 shrink-0" aria-hidden />
+                エフェクターボードを投稿
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <button
           type="button"
           onClick={handleSignOut}

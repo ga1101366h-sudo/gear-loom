@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { PublicProfileView, type ReviewWithLikeCount } from "@/components/public-profile-view";
+import type { PublicBoardItem } from "@/lib/board-public";
 import type { Profile } from "@/types/database";
 import type { LiveEvent } from "@/types/database";
+import type { UserGearItem } from "@/types/gear";
 
 const MESSAGE_TYPE = "GEARLOOM_UPDATE_FOLLOW_COUNTS";
 
@@ -11,6 +13,8 @@ type Props = {
   profile: Profile;
   events: LiveEvent[];
   reviews: ReviewWithLikeCount[];
+  gears?: UserGearItem[];
+  boards?: PublicBoardItem[];
   initialFollowersCount: number;
   initialFollowingCount: number;
 };
@@ -19,6 +23,8 @@ export function EmbedProfileClient({
   profile,
   events,
   reviews,
+  gears = [],
+  boards = [],
   initialFollowersCount,
   initialFollowingCount,
 }: Props) {
@@ -45,6 +51,8 @@ export function EmbedProfileClient({
       profile={profile}
       events={events}
       reviews={reviews}
+      gears={gears}
+      boards={boards}
       followersCount={initialFollowersCount}
       followingCount={initialFollowingCount}
       overrideFollowersCount={followersCount}

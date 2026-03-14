@@ -38,6 +38,8 @@ export type CategoryCascadeSelectProps = {
   placeholderItem?: string;
   /** セレクト上にある補足テキスト（未指定時は非表示） */
   hintText?: string;
+  /** 3階層すべて選択時にラベルパス（main__sub__item）を渡す。所有機材等で DB に __ 区切りで保存する場合に使用 */
+  onLabelPathChange?: (path: string) => void;
 };
 
 export function CategoryCascadeSelect({
@@ -49,6 +51,7 @@ export function CategoryCascadeSelect({
   placeholderSub = "エレキギター、ベースアンプ等を選択...",
   placeholderItem = "さらに詳細なタイプを選択...",
   hintText = "レビューする機材のジャンルを絞り込んでください",
+  onLabelPathChange,
 }: CategoryCascadeSelectProps) {
   const [selectedMainCategory, setSelectedMainCategory] = useState<string>("");
   const [selectedSubGroup, setSelectedSubGroup] = useState<string>("");
@@ -70,71 +73,90 @@ export function CategoryCascadeSelect({
     [onChange]
   );
 
-  // 外部 value から内部 state を復元（編集時・URLプレフィル用）
-  // 第3階層選択直後に親が同じ slug を渡した場合は再パースせずリセットを防ぐ
-  // value が空でも「大カテゴリだけ選択中」のときは state をクリアしない（中・詳細が出るようにする）
+  // 親から降ってくる value を split('__') で分割し、要素数に応じてローカル state を復元する
   useEffect(() => {
-    if (!value) {
-      if (!selectedMainCategory) {
-        setSelectedSubGroup("");
-        setSelectedItem("");
-      }
+    const trimmed = (value ?? "").trim();
+    if (!trimmed) {
+      setSelectedMainCategory("");
+      setSelectedSubGroup("");
+      setSelectedItem("");
       return;
     }
-    const megaFromState = MEGA_MENU_CATEGORIES.find((c) => c.mainCategory === selectedMainCategory);
-    const sgFromState = megaFromState?.subGroups.find((s) => s.title === selectedSubGroup);
-    const currentSlug =
-      selectedMainCategory && selectedSubGroup && selectedItem && megaFromState && sgFromState
-        ? buildSlug(megaFromState.mainCategory, sgFromState.title, selectedItem)
-        : "";
-    if (value === currentSlug) return;
 
-    const standalone = STANDALONE_CATEGORIES.find((c) => c.slug === value);
+    // 独立カテゴリ（blog / event / custom）
+    const standalone = STANDALONE_CATEGORIES.find((c) => c.slug === trimmed || c.mainCategory === trimmed);
     if (standalone) {
       setSelectedMainCategory(standalone.mainCategory);
       setSelectedSubGroup("");
       setSelectedItem("");
       return;
     }
-    const parts = value.split("__");
-    if (parts.length >= 3) {
-      const [main, sub, ...rest] = parts;
-      const mainLabel = main?.replace(/-/g, " ") ?? "";
-      const subLabel = sub?.replace(/-/g, " ") ?? "";
-      const itemLabel = rest.join("__").replace(/-/g, " ") ?? "";
-      const mega = MEGA_MENU_CATEGORIES.find(
-        (c) => c.mainCategory === mainLabel || c.mainCategory.replace(/\s/g, "-") === main
-      );
-      if (mega) {
-        const sg = mega.subGroups.find(
-          (s) => s.title === subLabel || s.title.replace(/\s/g, "-") === sub
-        );
-        if (sg) {
-          const it = sg.items.find((i) => i === itemLabel || i.replace(/\s/g, "-") === itemLabel);
-          if (it) {
-            setSelectedMainCategory(mega.mainCategory);
-            setSelectedSubGroup(sg.title);
-            setSelectedItem(it);
-            return;
-          }
-        }
-      }
+
+    const parts = trimmed.split("__").map((p) => (p ?? "").trim());
+    const [megaStr, subStr, itemStr] = parts;
+
+    // megaStr がマスタに存在するか確認し、順に state を復元
+    const mega = MEGA_MENU_CATEGORIES.find(
+      (c) =>
+        c.mainCategory === megaStr ||
+        c.mainCategory === (megaStr?.replace(/-/g, " ") ?? "") ||
+        c.mainCategory.replace(/\s/g, "-") === megaStr
+    );
+    if (!mega) {
+      setSelectedMainCategory("");
+      setSelectedSubGroup("");
+      setSelectedItem("");
+      return;
     }
-    setSelectedMainCategory("");
-    setSelectedSubGroup("");
-    setSelectedItem("");
-  }, [value, selectedMainCategory, selectedSubGroup, selectedItem]);
+    setSelectedMainCategory(mega.mainCategory);
+
+    if (subStr) {
+      const sg = mega.subGroups.find(
+        (s) =>
+          s.title === subStr ||
+          s.title === (subStr?.replace(/-/g, " ") ?? "") ||
+          s.title.replace(/\s/g, "-") === subStr
+      );
+      if (sg) {
+        setSelectedSubGroup(sg.title);
+        if (itemStr) {
+          const it = sg.items.find(
+            (i) =>
+              i === itemStr ||
+              i === (itemStr?.replace(/-/g, " ") ?? "") ||
+              i.replace(/\s/g, "-") === itemStr
+          );
+          setSelectedItem(it ?? "");
+        } else {
+          setSelectedItem("");
+        }
+      } else {
+        setSelectedSubGroup("");
+        setSelectedItem("");
+      }
+    } else {
+      setSelectedSubGroup("");
+      setSelectedItem("");
+    }
+  }, [value]);
 
   const handleMainChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const v = e.target.value;
     setSelectedMainCategory(v);
     setSelectedSubGroup("");
     setSelectedItem("");
+    if (!v) {
+      onChange("", "");
+      onLabelPathChange?.("");
+      return;
+    }
     const standalone = STANDALONE_OPTIONS.find((o) => o.label === v);
     if (standalone) {
       emitChange(standalone.slug, standalone.label);
+      onLabelPathChange?.(standalone.slug);
     } else {
       onChange("", "");
+      onLabelPathChange?.(v);
     }
   };
 
@@ -142,15 +164,24 @@ export function CategoryCascadeSelect({
     const v = e.target.value;
     setSelectedSubGroup(v);
     setSelectedItem("");
-    onChange("", "");
+    if (v) {
+      onLabelPathChange?.(`${selectedMainCategory}__${v}`);
+    } else {
+      onLabelPathChange?.(selectedMainCategory);
+    }
   };
 
   const handleItemChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const v = e.target.value;
     setSelectedItem(v);
-    if (selectedMega && activeSubGroupData && v) {
-      const slug = buildSlug(selectedMega.mainCategory, activeSubGroupData.title, v);
-      emitChange(slug, v);
+    if (v) {
+      onLabelPathChange?.(`${selectedMainCategory}__${selectedSubGroup}__${v}`);
+      if (selectedMega && activeSubGroupData) {
+        const slug = buildSlug(selectedMega.mainCategory, activeSubGroupData.title, v);
+        emitChange(slug, v);
+      }
+    } else {
+      onLabelPathChange?.(`${selectedMainCategory}__${selectedSubGroup}`);
     }
   };
 

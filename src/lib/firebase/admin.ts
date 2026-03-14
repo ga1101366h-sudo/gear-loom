@@ -8,16 +8,47 @@ function getAdminApp(): admin.app.App | null {
     adminApp = admin.apps[0] as admin.app.App;
     return adminApp;
   }
-  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID ?? process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
-  if (!projectId || !clientEmail || !privateKey) return null;
+
+  // 環境変数取得（プロジェクトIDは credential と initializeApp の両方で明示的に渡す）
+  const projectId =
+    (process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID)?.trim() ?? "";
+  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL?.trim() ?? "";
+  const rawPrivateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+  const privateKey = rawPrivateKey ? rawPrivateKey.replace(/\\n/g, "\n") : "";
+
+  // サーバー起動時にターミナルで確認するためのデバッグログ
+  console.log("🔥 [Firebase Admin] Project ID:", projectId || "UNDEFINED ❌");
+  console.log("🔥 [Firebase Admin] Client Email:", clientEmail ? "Loaded ✅" : "UNDEFINED ❌");
+  console.log("🔥 [Firebase Admin] Private Key:", privateKey ? "Loaded ✅" : "UNDEFINED ❌");
+
+  if (!projectId || !clientEmail || !privateKey) {
+    console.error(
+      "🚨 致命的なエラー: Firebase Adminの環境変数が不足しています！.env.localを確認してください。",
+    );
+    console.error(
+      "[firebase-admin] 不足している変数:",
+      [
+        !projectId && "FIREBASE_ADMIN_PROJECT_ID または NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+        !clientEmail && "FIREBASE_ADMIN_CLIENT_EMAIL",
+        !rawPrivateKey && "FIREBASE_ADMIN_PRIVATE_KEY",
+      ].filter(Boolean),
+    );
+    return null;
+  }
+
   try {
+    // projectId を credential とルートの両方に明示的に渡す（verifyIdToken の aud 検証で必須）
     adminApp = admin.initializeApp({
-      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
+      projectId,
     });
     return adminApp;
-  } catch {
+  } catch (err) {
+    console.error("[firebase-admin] initializeApp failed:", err);
     return null;
   }
 }
@@ -92,6 +123,47 @@ export async function deleteUserStorageFiles(uid: string): Promise<void> {
     deleteStoragePrefix(`owned-gear-images/${uid}/`),
     deleteStoragePrefix(`notebook-images/${uid}/`),
   ]);
+}
+
+/**
+ * Firebase Storage のダウンロードURL（firebasestorage.googleapis.com/v0/b/.../o/...）から
+ * バケット名とオブジェクトパスを抽出し、対象ファイルを個別に削除する。
+ * - 対象外のホストやパス形式の場合はスキップする。
+ * - 削除失敗時は警告ログのみ出して処理継続する（DB 側の削除はブロックしない）。
+ */
+export async function deleteStorageFilesByUrls(urls: string[]): Promise<void> {
+  if (!urls || urls.length === 0) return;
+  const storage = getAdminStorage();
+  if (!storage) return;
+
+  for (const rawUrl of urls) {
+    try {
+      if (typeof rawUrl !== "string" || rawUrl.trim().length === 0) continue;
+      const u = new URL(rawUrl);
+      if (u.hostname !== "firebasestorage.googleapis.com") continue;
+      const segments = u.pathname.split("/").filter(Boolean);
+      const bIndex = segments.indexOf("b");
+      const oIndex = segments.indexOf("o");
+      if (bIndex === -1 || oIndex === -1 || bIndex + 1 >= segments.length || oIndex + 1 >= segments.length) {
+        continue;
+      }
+      const bucketName = segments[bIndex + 1];
+      const objectEncoded = segments[oIndex + 1];
+      const objectPath = decodeURIComponent(objectEncoded);
+      if (!bucketName || !objectPath) continue;
+
+      const bucket = storage.bucket(bucketName);
+      const file = bucket.file(objectPath);
+      try {
+        await file.delete();
+      } catch (err: unknown) {
+        // NotFound などは無視し、ログだけ残す
+        console.warn("[deleteStorageFilesByUrls] delete failed", { rawUrl, bucketName, objectPath }, err);
+      }
+    } catch (err) {
+      console.warn("[deleteStorageFilesByUrls] invalid url", rawUrl, err);
+    }
+  }
 }
 
 /**

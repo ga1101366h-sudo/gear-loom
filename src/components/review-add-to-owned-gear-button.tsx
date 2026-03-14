@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { PlusCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getFirebaseFirestore } from "@/lib/firebase/client";
 
 type Props = {
   /** レビューに紐づく機材名（必須。ない場合は追加不可） */
@@ -16,7 +14,7 @@ type Props = {
   className?: string;
 };
 
-/** レビュー詳細のアクションバー用。「持ってる（所有機材に追加）」→ プロフィールの owned_gear に追記。 */
+/** レビュー詳細のアクションバー用。「持ってる（所有機材に追加）」→ Prisma UserGear に登録。 */
 export function ReviewAddToOwnedGearButton({
   gearName,
   categoryNameJa,
@@ -37,30 +35,29 @@ export function ReviewAddToOwnedGearButton({
       window.alert("このレビューには機材名が登録されていないため、所有機材に追加できません。");
       return;
     }
-    const db = getFirebaseFirestore();
-    if (!db) {
-      window.alert("通信環境を確認してもう一度お試しください。");
-      return;
-    }
-    const categoryLabel = (categoryNameJa ?? "").trim() || "その他";
-    const lineCore = (makerName ?? "").trim() ? `${(makerName ?? "").trim()} / ${name}` : name;
-    const newLine = `[${categoryLabel}] ${lineCore}`;
+    const category = (categoryNameJa ?? "").trim() || "その他";
+    const manufacturer = (makerName ?? "").trim() || undefined;
 
     setLoading(true);
     try {
-      const profileRef = doc(db, "profiles", user.uid);
-      const snap = await getDoc(profileRef);
-      const existing = (snap.data()?.owned_gear as string) ?? "";
-      const lines = existing.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-      if (lines.some((l) => l === newLine)) {
-        window.alert("既に所有機材に追加済みです。");
+      const token = await user.getIdToken();
+      if (!token) {
+        window.alert("認証の有効期限が切れています。再ログインしてください。");
         return;
       }
-      const newText = existing.trim() ? `${existing.trim()}\n${newLine}` : newLine;
-      await updateDoc(profileRef, {
-        owned_gear: newText.trim() || null,
-        updated_at: new Date().toISOString(),
+      const res = await fetch("/api/user/gears", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, category, manufacturer: manufacturer || null }),
       });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        window.alert(data?.error ?? "所有機材の追加に失敗しました。");
+        return;
+      }
       window.alert("マイページの所有機材に追加しました。");
     } catch (err) {
       console.error(err);

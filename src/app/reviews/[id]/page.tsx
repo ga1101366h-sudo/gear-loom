@@ -19,6 +19,7 @@ import { ReviewImagesGallery } from "@/components/review-images-gallery";
 import { ReviewOwnerActions } from "@/components/review-owner-actions";
 import { ShareToXButton } from "@/components/share-to-x-button";
 import { buildReviewShareText } from "@/lib/x-share";
+import { ReviewShareToXButton } from "@/components/review-share-to-x-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -329,20 +330,16 @@ export default async function ReviewDetailPage({
                 asChild
                 className="h-10 w-full flex items-center justify-center gap-1.5 rounded-md border border-white/20 bg-zinc-950 px-2 text-xs font-medium text-white whitespace-nowrap shadow-lg shadow-white/5 transition-all hover:bg-zinc-800"
               >
-                <ShareToXButton
-                  path={`/reviews/${review.id}`}
-                  text={buildReviewShareText({
-                    title: review.title,
-                    makerName,
-                    gearName: review.gear_name,
-                    categoryNameJa: categoryName,
-                    categorySlug,
-                  })}
+                <ReviewShareToXButton
+                  reviewId={review.id}
+                  title={review.title}
+                  makerName={makerName}
+                  gearName={review.gear_name}
+                  categoryNameJa={categoryName}
+                  categorySlug={categorySlug}
+                  authorUid={review.author_id}
                   className="inline-flex h-full w-full items-center justify-center gap-1.5 text-white"
-                >
-                  <X className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  <span className="hidden sm:inline">でポスト</span>
-                </ShareToXButton>
+                />
               </Button>
             </div>
           </div>

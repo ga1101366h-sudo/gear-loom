@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 
@@ -41,6 +41,11 @@ export function ProfilePreviewOverlay({
   followingCount,
 }: Props) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -69,7 +74,7 @@ export function ProfilePreviewOverlay({
     sendFollowCountsToFrame(iframeRef, followersCount, followingCount);
   }, [followersCount, followingCount]);
 
-  if (!open || typeof document === "undefined") return null;
+  if (!mounted || !open || typeof document === "undefined") return null;
 
   const profileUrl = `/embed/users/${encodeURIComponent(userId)}`;
 

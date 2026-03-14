@@ -1,21 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, Suspense } from "react";
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-  arrayMove,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -37,86 +22,8 @@ import {
 } from "@/components/ui/card";
 import { ProfilePreviewOverlay } from "@/components/profile-preview-overlay";
 import type { Profile } from "@/types/database";
-import { GripVertical, Trash2 } from "lucide-react";
 
-const ACCEPT_IMAGE = "image/jpeg,image/png,image/webp,image/gif";
-
-type OwnedGearItem = {
-  id: string;
-  line: string;
-};
-
-function parseOwnedGearLines(text: string | null | undefined): OwnedGearItem[] {
-  const lines = (text ?? "")
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
-  return lines.map((line, index) => ({
-    id: String(index),
-    line,
-  }));
-}
-
-function OwnedGearSortableItem({
-  item,
-  index,
-  onDelete,
-}: {
-  item: OwnedGearItem;
-  index: number;
-  onDelete: () => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: item.id });
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.8 : 1,
-  };
-
-  const match = item.line.match(/^\[([^\]]+)\]\s*(.*)$/);
-  const categoryLabel = match ? match[1] : null;
-  const name = match ? match[2].trim() : item.line;
-
-  return (
-    <li ref={setNodeRef} style={style} className="mb-2">
-      <div className="flex items-center gap-3 p-3 bg-[#1a1a1a] bg-white/[0.02] border border-white/10 rounded-md">
-        <button
-          type="button"
-          className="text-gray-500 cursor-grab hover:text-gray-300 transition-colors touch-none"
-          {...listeners}
-          {...attributes}
-          aria-label="並び替えハンドル"
-        >
-          <GripVertical className="w-4 h-4" aria-hidden />
-        </button>
-        <div className="flex-1 min-w-0">
-          {categoryLabel && (
-            <span className="inline-flex items-center rounded bg-white/10 px-2 py-0.5 text-[11px] text-gray-200 mb-1">
-              {categoryLabel}
-            </span>
-          )}
-          <div className="text-sm text-gray-100 truncate">{name}</div>
-        </div>
-        <button
-          type="button"
-          onClick={onDelete}
-          className="text-gray-500 hover:text-red-500 transition-colors"
-          aria-label="この機材を削除"
-        >
-          <Trash2 className="w-4 h-4" aria-hidden />
-        </button>
-      </div>
-    </li>
-  );
-}
+const ACCEPT_IMAGE = "image/jpeg,image/jpg,image/png,image/webp";
 
 function ProfilePageContent() {
   const router = useRouter();
@@ -127,7 +34,6 @@ function ProfilePageContent() {
   const db = getFirebaseFirestore();
   const storage = getFirebaseStorage();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const gearImagesInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -137,7 +43,6 @@ function ProfilePageContent() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [mainInstrument, setMainInstrument] = useState("");
-  const [ownedGear, setOwnedGear] = useState("");
   const [snsTwitter, setSnsTwitter] = useState("");
   const [snsInstagram, setSnsInstagram] = useState("");
   const [snsYoutube, setSnsYoutube] = useState("");
@@ -145,24 +50,10 @@ function ProfilePageContent() {
   const [contactEmail, setContactEmail] = useState("");
   const [bandName, setBandName] = useState("");
   const [bandUrl, setBandUrl] = useState("");
-  const [ownedGearImages, setOwnedGearImages] = useState<string[]>([]);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [gearSaving, setGearSaving] = useState(false);
-  const [gearError, setGearError] = useState<string | null>(null);
-  const [ownedGearCategory, setOwnedGearCategory] = useState("");
-  const [ownedGearMakerInput, setOwnedGearMakerInput] = useState("");
-  const [ownedGearNameInput, setOwnedGearNameInput] = useState("");
   const [showProfilePreview, setShowProfilePreview] = useState(false);
   const [followingCount, setFollowingCount] = useState(0);
   const [followersCount, setFollowersCount] = useState(0);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5, // 5px動かしたらドラッグ開始（タップ/スクロール誤爆防止）
-      },
-    })
-  );
 
   useEffect(() => {
     if (!showProfilePreview || !user) return;
@@ -227,8 +118,6 @@ function ProfilePageContent() {
         setDisplayName(p.display_name ?? "");
         setBio(p.bio ?? "");
         setMainInstrument(p.main_instrument ?? "");
-        setOwnedGear(p.owned_gear ?? "");
-        setOwnedGearImages(p.owned_gear_images ?? []);
         setBandName(p.band_name ?? "");
         setBandUrl(p.band_url ?? "");
         setSnsTwitter(p.sns_twitter ?? "");
@@ -298,182 +187,6 @@ function ProfilePageContent() {
     }
   }
 
-  async function handleOwnedGearImagesChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length || !user || !db || !storage) return;
-    setMessage(null);
-    setGearError(null);
-    try {
-      const urls: string[] = [];
-      for (const file of files) {
-        if (!file.type.startsWith("image/")) continue;
-        const ext = file.name.split(".").pop() ?? "jpg";
-        const storagePath = `owned-gear-images/${user.uid}/${Date.now()}-${Math.random()
-          .toString(36)
-          .slice(2)}.${ext}`;
-        const storageRef = ref(storage, storagePath);
-        await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(storageRef);
-        urls.push(url);
-      }
-      if (urls.length > 0) {
-        const newList = [...ownedGearImages, ...urls];
-        await updateDoc(doc(db, "profiles", user.uid), {
-          owned_gear_images: newList,
-          updated_at: new Date().toISOString(),
-        });
-        setOwnedGearImages(newList);
-        setProfile((prev) => (prev ? { ...prev, owned_gear_images: newList } : prev));
-        setMessage({ type: "success", text: "所有機材画像を追加しました。" });
-      }
-    } catch (err: unknown) {
-      setMessage({
-        type: "error",
-        text: err instanceof Error ? err.message : "所有機材画像のアップロードに失敗しました。",
-      });
-    } finally {
-      e.target.value = "";
-    }
-  }
-
-  function getOwnedGearCategoryLabel(value: string): string {
-    return value === "guitar"
-      ? "ギター"
-      : value === "bass"
-        ? "ベース"
-        : value === "guitar-effects"
-          ? "ギターエフェクター"
-          : value === "bass-effects"
-            ? "ベースエフェクター"
-            : value === "board"
-              ? "エフェクターボード"
-              : value === "amp"
-                ? "アンプ"
-                : value === "keyboard"
-                  ? "鍵盤"
-                  : value === "drums"
-                    ? "ドラム"
-                    : value === "vocal"
-                      ? "ボーカル"
-                      : value === "dtm"
-                        ? "DTM・レコーディング"
-                        : "その他";
-  }
-
-  async function handleAddOwnedGearLine() {
-    if (!user || !db) return;
-    if (!ownedGearCategory || !ownedGearNameInput.trim()) {
-      setGearError("カテゴリと機材名を入力してください。");
-      return;
-    }
-    setGearError(null);
-    setGearSaving(true);
-    try {
-      const categoryLabel = getOwnedGearCategoryLabel(ownedGearCategory);
-      const lineCore = `${ownedGearMakerInput ? `${ownedGearMakerInput} / ` : ""}${ownedGearNameInput}`.trim();
-      const line = `[${categoryLabel}] ${lineCore}`;
-      const existing = ownedGear ?? "";
-      const newText = existing ? `${existing}\n${line}` : line;
-      await updateDoc(doc(db, "profiles", user.uid), {
-        owned_gear: newText.trim() || null,
-        updated_at: new Date().toISOString(),
-      });
-      setOwnedGear(newText);
-      setProfile((prev) => (prev ? { ...prev, owned_gear: newText } : prev));
-      setOwnedGearNameInput("");
-    } catch (err: unknown) {
-      console.error(err);
-      setGearError("所有機材への追加に失敗しました。");
-    } finally {
-      setGearSaving(false);
-    }
-  }
-
-  async function handleDeleteOwnedGearLine(index: number) {
-    if (!user || !db) return;
-    const lines = (ownedGear ?? "")
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (index < 0 || index >= lines.length) return;
-    setGearError(null);
-    setGearSaving(true);
-    try {
-      const newLines = lines.filter((_, i) => i !== index);
-      const newText = newLines.join("\n");
-      await updateDoc(doc(db, "profiles", user.uid), {
-        owned_gear: newText.trim() || null,
-        updated_at: new Date().toISOString(),
-      });
-      setOwnedGear(newText);
-      setProfile((prev) => (prev ? { ...prev, owned_gear: newText || null } : prev));
-    } catch (err: unknown) {
-      console.error(err);
-      setGearError("所有機材の削除に失敗しました。");
-    } finally {
-      setGearSaving(false);
-    }
-  }
-
-  async function handleOwnedGearDragEnd(event: DragEndEvent) {
-    if (!user || !db) return;
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const items = parseOwnedGearLines(ownedGear);
-    const oldIndex = items.findIndex((i) => i.id === String(active.id));
-    const newIndex = items.findIndex((i) => i.id === String(over.id));
-    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
-
-    const newItems = arrayMove(items, oldIndex, newIndex);
-    const newLines = newItems.map((i) => i.line);
-    const newText = newLines.join("\n");
-
-    setGearError(null);
-    setGearSaving(true);
-    try {
-      await updateDoc(doc(db, "profiles", user.uid), {
-        owned_gear: newText.trim() || null,
-        updated_at: new Date().toISOString(),
-      });
-      setOwnedGear(newText);
-      setProfile((prev) => (prev ? { ...prev, owned_gear: newText || null } : prev));
-    } catch (err: unknown) {
-      console.error(err);
-      setGearError("所有機材の並び替えに失敗しました。");
-    } finally {
-      setGearSaving(false);
-    }
-  }
-
-  async function handleDeleteOwnedGearImage(url: string) {
-    if (!user || !db) return;
-    const newList = ownedGearImages.filter((u) => u !== url);
-    setGearError(null);
-    setGearSaving(true);
-    try {
-      const path = getStoragePathFromDownloadUrl(url);
-      if (path && storage) {
-        try {
-          await deleteObject(ref(storage, path));
-        } catch {
-          // Storage 削除失敗は無視（Firestore の整合は取る）
-        }
-      }
-      await updateDoc(doc(db, "profiles", user.uid), {
-        owned_gear_images: newList,
-        updated_at: new Date().toISOString(),
-      });
-      setOwnedGearImages(newList);
-      setProfile((prev) => (prev ? { ...prev, owned_gear_images: newList } : prev));
-    } catch (err: unknown) {
-      console.error(err);
-      setGearError("所有機材画像の削除に失敗しました。");
-    } finally {
-      setGearSaving(false);
-    }
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user || !db) return;
@@ -484,7 +197,6 @@ function ProfilePageContent() {
         display_name: displayName.trim() || null,
         bio: bio.trim() || null,
         main_instrument: mainInstrument.trim() || null,
-        owned_gear: ownedGear.trim() || null,
         band_name: bandName.trim() || null,
         band_url: bandUrl.trim() || null,
         sns_twitter: snsTwitter.trim() || null,
@@ -533,7 +245,7 @@ function ProfilePageContent() {
         <CardHeader>
           <CardTitle className="text-electric-blue">プロフィール編集</CardTitle>
           <CardDescription>
-            自己紹介・担当楽器・所有機材・SNSリンクを設定できます（マイページに表示されます）
+            自己紹介・担当楽器・SNSリンクを設定できます（所有機材はマイページの「機材」タブから編集できます）
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -722,153 +434,6 @@ function ProfilePageContent() {
               </div>
             </div>
 
-            {/* 下部エリア：1カラム全幅（機材情報） */}
-            <div className="mt-12 space-y-6 pt-8 border-t border-surface-border">
-              <div>
-                <Label className="text-lg font-semibold text-electric-blue">所有機材（任意）</Label>
-                <p className="text-sm text-gray-400 mt-1">
-                  使用している機材を登録すると、機材レビューやカスタム手帳で引用できるようになります。
-                </p>
-              </div>
-
-              <div className="space-y-4 border border-surface-border/60 rounded-lg p-6 bg-surface-card/40">
-                <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <div className="space-y-1.5 md:col-span-1">
-                      <Label className="text-xs text-gray-300">カテゴリ</Label>
-                      <select
-                        value={ownedGearCategory}
-                        onChange={(e) => setOwnedGearCategory(e.target.value)}
-                        className="w-full h-10 rounded-lg border border-surface-border bg-surface-card px-3 py-2 text-sm text-gray-100 focus:ring-2 focus:ring-electric-blue"
-                      >
-                        <option value="">選択...</option>
-                        <option value="guitar">ギター</option>
-                        <option value="bass">ベース</option>
-                        <option value="guitar-effects">ギターエフェクター</option>
-                        <option value="bass-effects">ベースエフェクター</option>
-                        <option value="board">エフェクターボード</option>
-                        <option value="amp">アンプ</option>
-                        <option value="keyboard">鍵盤</option>
-                        <option value="drums">ドラム</option>
-                        <option value="vocal">ボーカル</option>
-                        <option value="dtm">DTM・レコーディング</option>
-                        <option value="other">その他</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5 md:col-span-1">
-                      <Label className="text-xs text-gray-300">メーカー（任意）</Label>
-                      <Input
-                        type="text"
-                        placeholder="例: Fender"
-                        value={ownedGearMakerInput}
-                        onChange={(e) => setOwnedGearMakerInput(e.target.value)}
-                        className="h-10"
-                      />
-                    </div>
-                    <div className="space-y-1.5 md:col-span-2 flex gap-2">
-                      <div className="flex-1 space-y-1.5">
-                        <Label className="text-xs text-gray-300">機材名</Label>
-                        <Input
-                          type="text"
-                          placeholder="例: Stratocaster"
-                          value={ownedGearNameInput}
-                          onChange={(e) => setOwnedGearNameInput(e.target.value)}
-                          className="h-10"
-                        />
-                      </div>
-                      <div className="flex flex-col justify-end">
-                        <Button
-                          type="button"
-                          onClick={handleAddOwnedGearLine}
-                          disabled={gearSaving}
-                          className="h-10 px-6 text-sm font-medium rounded-md bg-transparent border border-cyan-500 text-cyan-500 hover:bg-cyan-500/10 transition-colors whitespace-nowrap"
-                        >
-                          {gearSaving ? "追加中..." : "追加"}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  {gearError && (
-                    <p className="text-xs text-red-400">{gearError}</p>
-                  )}
-                </div>
-
-                {ownedGear.trim() && (
-                  <DndContext
-                    collisionDetection={closestCenter}
-                    sensors={sensors}
-                    onDragEnd={handleOwnedGearDragEnd}
-                  >
-                    <SortableContext
-                      items={parseOwnedGearLines(ownedGear).map((i) => i.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <div className="mt-6 max-h-[400px] overflow-y-auto pr-2 scrollbar-subtle">
-                        <ul>
-                          {parseOwnedGearLines(ownedGear).map((item, idx) => (
-                            <OwnedGearSortableItem
-                              key={item.id}
-                              item={item}
-                              index={idx}
-                              onDelete={() => handleDeleteOwnedGearLine(idx)}
-                            />
-                          ))}
-                        </ul>
-                      </div>
-                    </SortableContext>
-                  </DndContext>
-                )}
-              </div>
-
-              <div className="space-y-3 pt-4">
-                <Label>所有機材の写真（任意・複数可）</Label>
-                <div className="space-y-4 rounded-lg border border-surface-border/40 p-4 bg-surface-card/20">
-                  {ownedGearImages.length > 0 && (
-                    <div className="flex flex-wrap gap-4">
-                      {ownedGearImages.map((url) => (
-                        <div
-                          key={url}
-                          className="relative w-24 h-24 rounded-md overflow-hidden border border-surface-border group"
-                        >
-                          <Image src={url} alt="" fill className="object-cover" sizes="96px" unoptimized />
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="sm"
-                            className="absolute top-1 right-1 h-6 w-6 min-w-0 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                            onClick={() => handleDeleteOwnedGearImage(url)}
-                            disabled={gearSaving}
-                            aria-label="この画像を削除"
-                          >
-                            ×
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-4">
-                    <input
-                      ref={gearImagesInputRef}
-                      type="file"
-                      accept={ACCEPT_IMAGE}
-                      multiple
-                      className="hidden"
-                      onChange={handleOwnedGearImagesChange}
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => gearImagesInputRef.current?.click()}
-                      className="px-4 py-2 text-sm font-medium rounded-md bg-transparent border border-cyan-500 text-cyan-500 hover:bg-cyan-500/10 transition-colors"
-                    >
-                      所有機材の写真を追加
-                    </Button>
-                    <p className="text-xs text-gray-500">JPEG/PNG/WebP/GIF、1枚あたり3MB程度までを推奨</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {message && (
               <p
                 className={`text-sm text-center ${
@@ -888,27 +453,41 @@ function ProfilePageContent() {
               >
                 {saving ? "保存中..." : "保存"}
               </Button>
-              {profile?.user_id && (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full max-w-md mx-auto block py-3 text-center font-medium rounded-md bg-transparent border border-surface-border text-gray-200 hover:bg-white/5 transition-colors"
-                    onClick={() => setShowProfilePreview(true)}
-                  >
-                    他の人からはどう見えますか
-                  </Button>
-                  <ProfilePreviewOverlay
-                    userId={profile.user_id}
-                    open={showProfilePreview}
-                    onClose={() => setShowProfilePreview(false)}
-                    followersCount={followersCount}
-                    followingCount={followingCount}
-                  />
-                </>
-              )}
             </div>
           </form>
+
+          {/* プレビューボタンは form の外に配置し、submit が絶対に発火しないようにする */}
+          {profile?.user_id && (
+            <div className="mt-6 flex flex-col items-center">
+              <div
+                role="button"
+                tabIndex={0}
+                aria-label="他の人からはどう見えますか"
+                className="w-full max-w-md mx-auto block py-3 text-center font-medium rounded-md bg-transparent border border-surface-border text-gray-200 hover:bg-white/5 transition-colors cursor-pointer border-solid"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowProfilePreview(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowProfilePreview(true);
+                  }
+                }}
+              >
+                他の人からはどう見えますか
+              </div>
+              <ProfilePreviewOverlay
+                userId={profile.user_id}
+                open={showProfilePreview}
+                onClose={() => setShowProfilePreview(false)}
+                followersCount={followersCount}
+                followingCount={followingCount}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
       <p className="mt-6 text-center flex flex-wrap justify-center gap-4">

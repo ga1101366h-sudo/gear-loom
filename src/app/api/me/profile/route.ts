@@ -28,6 +28,7 @@ export async function GET(request: Request) {
     }
 
     const data = snap.data()!;
+    // 所持機材は Prisma (UserGear) に統一。GET /api/user/gears で取得すること。
     const profile = {
       id: uid,
       display_name: data.display_name ?? null,
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
       phone: data.phone ?? null,
       bio: data.bio ?? null,
       main_instrument: data.main_instrument ?? null,
-      owned_gear: data.owned_gear ?? null,
+      owned_gear: null as string | null,
       owned_gear_images: (data.owned_gear_images as string[] | null) ?? null,
       band_name: data.band_name ?? null,
       band_url: data.band_url ?? null,
@@ -49,7 +50,9 @@ export async function GET(request: Request) {
       updated_at: (data.updated_at as string) ?? "",
     };
 
-    return NextResponse.json({ profile });
+    const res = NextResponse.json({ profile });
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    return res;
   } catch (err) {
     console.error("[api/me/profile]", err);
     return NextResponse.json({ error: "認証に失敗しました。" }, { status: 401 });

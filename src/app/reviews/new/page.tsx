@@ -31,12 +31,13 @@ import {
 import { getPendingGear, clearPendingGear } from "@/lib/pending-gear";
 
 const REVIEW_TITLE_MAX = 100;
-const REVIEW_BODY_MAX = 10000;
+const REVIEW_BODY_MAX = 2000;
 import { ReviewFormPreview, type ReviewPreviewData } from "@/components/review-form-preview";
 import { BodyTextareaWithAi } from "@/components/body-textarea-with-ai";
 import type { Maker } from "@/types/database";
 import type { SpecTag } from "@/types/database";
 import { buildReviewShareText } from "@/lib/x-share";
+import toast from "react-hot-toast";
 
 export default function NewReviewPage() {
   const router = useRouter();
@@ -270,6 +271,7 @@ export default function NewReviewPage() {
           gearName: gearName.trim() || pending.name,
           categoryNameJa: categoryNameJa || undefined,
           categorySlug: categorySlug || undefined,
+          sharedByOwner: true,
         });
         const shareUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
           text: `${baseText}\n${reviewUrl}`,
@@ -289,9 +291,29 @@ export default function NewReviewPage() {
     e.preventDefault();
     if (!user || !db) return;
     setError(null);
-    if (!validateLengths()) return;
+
     if (!categorySlug || !categoryNameJa) {
       setError("カテゴリを選択してください。");
+      toast.error("必須項目を入力してください");
+      return;
+    }
+    if (!title.trim()) {
+      setError("タイトルを入力してください。");
+      toast.error("必須項目を入力してください");
+      return;
+    }
+    if (!isContentOnlyCategory && !gearName.trim()) {
+      setError("機材名を入力してください。");
+      toast.error("必須項目を入力してください");
+      return;
+    }
+    if (!bodyMd.trim()) {
+      setError("本文を入力してください。");
+      toast.error("必須項目を入力してください");
+      return;
+    }
+    if (!validateLengths()) {
+      toast.error("必須項目を入力してください");
       return;
     }
 
@@ -403,6 +425,7 @@ export default function NewReviewPage() {
           gearName: gearName.trim() || undefined,
           categoryNameJa: categoryNameJa || undefined,
           categorySlug: categorySlug || undefined,
+          sharedByOwner: true,
         });
         const shareUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
           text: `${baseText}\n${reviewUrl}`,
@@ -556,6 +579,7 @@ export default function NewReviewPage() {
             rows={8}
             disabled={submitting}
             maxLength={REVIEW_BODY_MAX}
+            required
           />
           <p className="text-xs text-gray-500 tabular-nums">
             {bodyMd.length.toLocaleString()} / {REVIEW_BODY_MAX.toLocaleString()} 文字

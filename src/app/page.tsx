@@ -13,14 +13,12 @@ import {
   NewReviewsCarousel,
   type NewReviewItem,
 } from "@/components/new-reviews-carousel";
-import { TopPageLiveCalendar } from "@/components/top-page-live-calendar";
 import {
   TopPageCategoryNav,
   TopPageCategoryNavMobile,
 } from "@/components/top-page-category-nav";
 import { TopPageUserSidebarGate } from "@/components/top-page-user-sidebar";
 import { TopPageFollowingReviews } from "@/components/top-page-following-reviews";
-import { NearbySpotsMap } from "@/components/nearby-spots-map";
 import { HeroSlideshow } from "@/components/hero-slideshow";
 import { HeroSearchInput } from "@/components/hero-search-input";
 import {
@@ -30,13 +28,16 @@ import {
 import {
   getProfilesListForTopPage,
   getSiteAnnouncementsFromFirestore,
+  getProfilesByUids,
 } from "@/lib/firebase/data";
+import { prisma } from "@/lib/prisma";
 import { SiteAnnouncements } from "@/components/site-announcements";
+import { BoardCarousel } from "@/components/board-carousel";
 import { getCategoryPathDisplay } from "@/data/post-categories";
 import type { Review, LiveEvent } from "@/types/database";
 
-/** トップページ：60秒間はキャッシュして Firestore リード数を削減（ISR） */
-export const revalidate = 60;
+/** トップページ：右サイドバーのマイプロフィール・所持機材等を常に最新にするためキャッシュ無効化 */
+export const dynamic = "force-dynamic";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.gear-loom.com";
 const DEFAULT_OG_IMAGE = `${SITE_URL}/images/mock/ogp-final.png`;
@@ -90,28 +91,28 @@ async function getPopularReviews(): Promise<Review[]> {
   }
 }
 
-async function getEventAndBlogReviews(): Promise<Review[]> {
-  try {
-    const { getReviewsFromFirestore } = await import("@/lib/firebase/data");
-    const [eventReviews, blogReviews] = await Promise.all([
-      getReviewsFromFirestore(12, "event"),
-      getReviewsFromFirestore(12, "blog"),
-    ]);
-    const merged = [...eventReviews, ...blogReviews].sort((a, b) =>
-      (b.created_at || "").localeCompare(a.created_at || ""),
-    );
-    return merged.slice(0, 12);
-  } catch {
-    return [];
-  }
-}
-
 async function getLiveEvents(): Promise<LiveEvent[]> {
   try {
     const { getLiveEventsFromFirestore } = await import(
       "@/lib/firebase/data"
     );
     return await getLiveEventsFromFirestore();
+  } catch {
+    return [];
+  }
+}
+
+/** 新着エフェクターボード（公開投稿のみ・最新6件） */
+async function getLatestBoardPosts() {
+  try {
+    return await prisma.boardPost.findMany({
+      where: { isPublic: true },
+      include: {
+        board: { include: { user: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 6,
+    });
   } catch {
     return [];
   }
@@ -155,13 +156,14 @@ function toNewReviewItem(r: Review): NewReviewItem {
     category_slug: slug || null,
     author: authorName,
     author_avatar: authorAvatar || null,
+    author_uid: r.author_id ?? null,
   };
 }
 
 const getCachedRecentReviews = React.cache(getRecentReviews);
 const getCachedPopularReviews = React.cache(getPopularReviews);
-const getCachedEventAndBlogReviews = React.cache(getEventAndBlogReviews);
 const getCachedLiveEvents = React.cache(getLiveEvents);
+const getCachedLatestBoardPosts = React.cache(getLatestBoardPosts);
 const getCachedExternalNews = React.cache(getExternalNewsForTopPage);
 const getCachedProfilesList = React.cache(() => getProfilesListForTopPage(20));
 const getCachedSiteAnnouncements = React.cache(() => getSiteAnnouncementsFromFirestore(10));
@@ -170,26 +172,36 @@ export default async function HomePage() {
   const [
     recentReviews,
     popularReviews,
-    eventBlogReviews,
     liveEvents,
+    latestBoardPosts,
     externalNews,
     profilesList,
     siteAnnouncements,
   ] = await Promise.all([
     getCachedRecentReviews(),
     getCachedPopularReviews(),
-    getCachedEventAndBlogReviews(),
     getCachedLiveEvents(),
+    getCachedLatestBoardPosts(),
     getCachedExternalNews(),
     getCachedProfilesList(),
     getCachedSiteAnnouncements(),
   ]);
 
+  const boardAuthorUids = [
+    ...new Set(
+      latestBoardPosts.map((p) => p.board?.userId).filter(Boolean),
+    ),
+  ] as string[];
+  let boardProfileMap: Awaited<ReturnType<typeof getProfilesByUids>>;
+  try {
+    boardProfileMap = await getProfilesByUids(boardAuthorUids);
+  } catch {
+    boardProfileMap = new Map();
+  }
+
   const newReviewItems: NewReviewItem[] = recentReviews.map(toNewReviewItem);
   const popularReviewItems: NewReviewItem[] =
     popularReviews.map(toNewReviewItem);
-  const eventBlogItems: NewReviewItem[] =
-    eventBlogReviews.map(toNewReviewItem);
 
   // ヒーロースライドショー用：新着記事の画像を順に5件まで表示
   const heroImageUrls = newReviewItems
@@ -222,15 +234,17 @@ export default async function HomePage() {
             <h1 className="font-display text-[2rem] font-bold leading-tight tracking-tight text-white drop-shadow-lg sm:text-[2.3rem] md:text-[2.6rem] lg:text-[3rem]">
               あなたの愛機を語ろう。
             </h1>
-            <p className="text-[0.9rem] font-medium leading-relaxed text-gray-200 drop-shadow-md sm:text-sm md:text-base">
-              こだわりのセッティングを共有して、みんなの音作りを応援しよう。機材の歴史を
+            <p className="text-sm sm:text-base text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed drop-shadow-md">
+              買ったばかりのペダルから、夢のエフェクターボードまで、誰でも気軽に愛機をシェア！
+              <br className="hidden sm:block" />
+              初心者からプロまで、みんなで音作りを楽しめる
               <Link
-                href="/notebook"
-                className="font-semibold text-electric-blue underline decoration-electric-blue/60 underline-offset-2 transition-colors hover:text-cyan-300 hover:decoration-cyan-300/80"
+                href="/about"
+                className="font-semibold text-electric-blue underline decoration-electric-blue/60 underline-offset-4 mx-1 transition-colors hover:text-cyan-300 hover:decoration-cyan-300/80"
               >
-                カスタム手帳
+                次世代のデジタル機材プラットフォーム
               </Link>
-              に刻み、あなただけのデジタル機材庫を完成させませんか？
+              です。
             </p>
             <div className="mt-2 flex flex-col items-center gap-3 sm:gap-4">
               <Button
@@ -280,6 +294,52 @@ export default async function HomePage() {
           {/* スマホ：カテゴリ横スクロール */}
           <TopPageCategoryNavMobile />
 
+          {/* 新着エフェクターボード（キラーフィーチャー・コンテンツ最上部） */}
+          <section className="min-w-0 overflow-hidden">
+            <h2 className="mb-2 font-display text-xl font-semibold tracking-tight text-white md:text-2xl">
+              新着エフェクターボード
+            </h2>
+            <p className="mb-6 text-sm text-gray-400">
+              みんなの公開ボードを最新順で表示。クリックで詳細へ
+            </p>
+            {latestBoardPosts.length === 0 ? (
+              <Card>
+                <CardContent className="py-10 text-center text-gray-400">
+                  まだ公開されたボードはありません。
+                </CardContent>
+              </Card>
+            ) : (
+              <BoardCarousel
+                cards={latestBoardPosts.map((post) => {
+                  const board = post.board;
+                  const uid = board?.userId;
+                  const profile = uid ? boardProfileMap.get(uid) : undefined;
+                  const authorLabel =
+                    profile?.display_name?.trim() ||
+                    profile?.user_id?.trim() ||
+                    (board?.user
+                      ? (board.user.displayName?.trim() ||
+                          board.user.email?.trim() ||
+                          "名無しユーザー")
+                      : "名無しユーザー");
+                  const authorAvatarUrl = profile?.avatar_url?.trim() || null;
+                  const title =
+                    post.title?.trim() || board?.name?.trim() || "無題";
+                  return {
+                    postId: post.id,
+                    title,
+                    updatedAt: post.updatedAt.toISOString(),
+                    authorLabel,
+                    authorAvatarUrl,
+                    actualPhotoUrl: board?.actualPhotoUrl?.trim() ?? null,
+                    thumbnail: board?.thumbnail?.trim() ?? null,
+                    ownerUid: uid ?? null,
+                  };
+                })}
+              />
+            )}
+          </section>
+
           {/* 新着レビュー */}
           <section className="min-w-0 overflow-hidden">
             <h2 className="mb-2 font-display text-xl font-semibold tracking-tight text-white md:text-2xl">
@@ -313,25 +373,6 @@ export default async function HomePage() {
             )}
           </section>
 
-          {/* イベント・ブログ */}
-          <section className="min-w-0 overflow-hidden">
-            <h2 className="mb-2 font-display text-xl font-semibold tracking-tight text-white md:text-2xl">
-              イベント・ブログ
-            </h2>
-            <p className="mb-6 text-sm text-gray-400">
-              イベントやブログ記事の新着。クリックで記事へ
-            </p>
-            {eventBlogItems.length === 0 ? (
-              <Card>
-                <CardContent className="py-10 text-center text-gray-400">
-                  まだイベント・ブログ記事がありません。
-                </CardContent>
-              </Card>
-            ) : (
-              <NewReviewsCarousel items={eventBlogItems} />
-            )}
-          </section>
-
           {/* 楽器・機材ニュース */}
           <section>
             <h2 className="mb-2 font-display text-xl font-semibold tracking-tight text-white md:text-2xl">
@@ -361,31 +402,6 @@ export default async function HomePage() {
             </div>
           </section>
 
-          {/* みんなのライブ日程 */}
-          <section>
-            <h2 className="mb-2 font-display text-xl font-semibold tracking-tight text-white md:text-2xl">
-              みんなのライブ日程
-            </h2>
-            <p className="mb-6 text-sm text-gray-400">
-              日付をクリックするとその日のライブ予定が表示されます。マイページで自分の予定を追加・編集できます。
-            </p>
-            <Card className="card-hover">
-              <CardContent className="py-6">
-                <TopPageLiveCalendar events={liveEvents} />
-              </CardContent>
-            </Card>
-          </section>
-
-          {/* 近くのお店・ライブハウスを探す */}
-          <section className="min-w-0">
-            <h2 className="mb-2 font-display text-xl font-semibold tracking-tight text-white md:text-2xl">
-              近くのお店・ライブハウスを探す
-            </h2>
-            <p className="mb-4 text-sm text-gray-400">
-              ボタンで切り替えて、Googleマップで楽器屋さん・ライブハウスを検索できます。
-            </p>
-            <NearbySpotsMap />
-          </section>
         </div>
 
         {/* 右サイドバー（スマホでは order-1 で新着レビューの上に表示・PCでは右側） */}

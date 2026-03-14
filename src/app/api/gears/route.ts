@@ -1,58 +1,67 @@
-/**
- * 機材一括取得・新規作成 API
- * GET /api/gears - 一覧（未使用の場合は削除可）
- * POST /api/gears - 楽天API結果を gears に新規保存
- */
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
-import { NextRequest } from "next/server";
-import { getAdminFirestore } from "@/lib/firebase/admin";
-
-export type CreateGearBody = {
+export type GearCreateBody = {
   name: string;
-  imageUrl: string;
-  affiliateUrl: string;
+  manufacturer?: string | null;
+  category?: string;
+  effectorType?: string | null;
+  imageUrl?: string | null;
+  defaultIcon?: string | null;
+  authorId?: string | null;
 };
 
-export async function POST(request: NextRequest) {
-  const db = getAdminFirestore();
-  if (!db) {
-    return Response.json(
-      { error: "Database unavailable" },
-      { status: 503 }
-    );
-  }
-
-  let body: unknown;
+export async function GET() {
   try {
-    body = await request.json();
-  } catch {
-    return Response.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
+    const gears = await prisma.gear.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(gears);
+  } catch (error) {
+    console.error("🗄️ Database Error:", error);
+    return NextResponse.json(
+      { error: "機材一覧の取得に失敗しました" },
+      { status: 500 },
     );
   }
+}
 
-  const { name, imageUrl, affiliateUrl } = body as CreateGearBody;
-  const nameStr = typeof name === "string" ? name.trim() : "";
-  const imageStr = typeof imageUrl === "string" ? imageUrl.trim() : "";
-  const affiliateStr = typeof affiliateUrl === "string" ? affiliateUrl.trim() : "";
-
-  if (!nameStr) {
-    return Response.json(
-      { error: "name is required" },
-      { status: 400 }
+export async function POST(request: Request) {
+  try {
+    const body = (await request.json()) as GearCreateBody;
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    if (!name) {
+      return NextResponse.json(
+        { error: "機材名（name）は必須です" },
+        { status: 400 },
+      );
+    }
+    const category =
+      typeof body.category === "string" && body.category.trim()
+        ? body.category.trim()
+        : "ギターエフェクター";
+    const gear = await prisma.gear.create({
+      data: {
+        name,
+        manufacturer:
+          typeof body.manufacturer === "string" ? body.manufacturer.trim() || null : null,
+        category,
+        effectorType:
+          typeof body.effectorType === "string" ? body.effectorType.trim() || null : null,
+        imageUrl:
+          typeof body.imageUrl === "string" ? body.imageUrl.trim() || null : null,
+        defaultIcon:
+          typeof body.defaultIcon === "string" ? body.defaultIcon.trim() || null : null,
+        authorId:
+          typeof body.authorId === "string" ? body.authorId.trim() || null : null,
+      },
+    });
+    return NextResponse.json(gear);
+  } catch (error) {
+    console.error("🗄️ Database Error:", error);
+    return NextResponse.json(
+      { error: "機材の登録に失敗しました" },
+      { status: 500 },
     );
   }
-
-  const ref = db.collection("gears").doc();
-  const now = new Date();
-  await ref.set({
-    name: nameStr,
-    imageUrl: imageStr || "",
-    affiliateUrl: affiliateStr || "",
-    reviewCount: 0,
-    createdAt: now,
-  });
-
-  return Response.json({ id: ref.id });
 }

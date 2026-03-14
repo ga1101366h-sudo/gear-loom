@@ -6,6 +6,8 @@ export function buildReviewShareText(opts: {
   gearName?: string | null;
   categoryNameJa?: string | null;
   categorySlug?: string | null;
+  /** true の場合は投稿者本人としてのシェア文、false/未指定は第三者視点のシェア文を生成する */
+  sharedByOwner?: boolean | null;
 }): string {
   const rawTitle = (opts.title ?? "").trim() || "Gear-Loomレビュー";
   const maker = (opts.makerName ?? "").trim();
@@ -34,9 +36,18 @@ export function buildReviewShareText(opts: {
   const hashtagBlock = tags.join("\n");
 
   const MAX_LEN = 120;
-  let header = hasMakerAndGear
-    ? `${maker} ${gear} のレビューを投稿しました！`
-    : rawTitle;
+
+  // 投稿者本人かどうかでヘッダー文言を分岐
+  let header: string;
+  if (opts.sharedByOwner) {
+    header = hasMakerAndGear
+      ? `${maker} ${gear} のレビューを投稿しました！`
+      : rawTitle;
+  } else {
+    // 第三者・未ログイン時はシンプルにタイトル＋サイト名
+    header = `${rawTitle} | Gear-Loom`;
+  }
+
   let tweet: string;
 
   tweet = `${header}\n${hashtagBlock}`;

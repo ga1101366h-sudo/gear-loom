@@ -19,6 +19,8 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithPopup,
+  setPersistence,
+  browserLocalPersistence,
   GoogleAuthProvider,
   TwitterAuthProvider,
   type User,
@@ -49,11 +51,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u ?? null);
-      setLoading(false);
-    });
-    return () => unsubscribe();
+    let unsubscribe: (() => void) | null = null;
+    setPersistence(auth, browserLocalPersistence)
+      .then(() => {
+        unsubscribe = onAuthStateChanged(auth, (u) => {
+          setUser(u ?? null);
+          setLoading(false);
+        });
+      })
+      .catch((err) => {
+        console.error("[AuthContext] setPersistence failed", err);
+        setLoading(false);
+      });
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [auth]);
 
   const signIn = useCallback(

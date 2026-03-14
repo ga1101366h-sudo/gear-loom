@@ -6,8 +6,12 @@ import {
   getFollowCountsFromFirestore,
   getReviewLikeCountsForIdsFromFirestore,
 } from "@/lib/firebase/data";
+import { getGearsByUserId } from "@/lib/user-gears";
+import { getPublishedBoardsByUserUid } from "@/lib/board-public";
 import { EmbedProfileClient } from "@/components/embed-profile-client";
 import type { ReviewWithLikeCount } from "@/components/public-profile-view";
+
+export const dynamic = "force-dynamic";
 
 export default async function EmbedProfilePage({
   params,
@@ -17,10 +21,12 @@ export default async function EmbedProfilePage({
   const { userId } = await params;
   const profile = await getProfileByUserIdFromFirestore(decodeURIComponent(userId));
   if (!profile) notFound();
-  const [events, reviews, followCounts] = await Promise.all([
+  const [events, reviews, followCounts, gears, boards] = await Promise.all([
     getLiveEventsByUserIdFromFirestore(profile.id),
     getReviewsByAuthorIdFromFirestore(profile.id),
     getFollowCountsFromFirestore(profile.id),
+    getGearsByUserId(profile.id),
+    getPublishedBoardsByUserUid(profile.id),
   ]);
   const reviewIds = reviews.map((r) => r.id);
   const likeCountsMap =
@@ -34,6 +40,8 @@ export default async function EmbedProfilePage({
       profile={profile}
       events={events}
       reviews={reviewsWithLikes}
+      gears={gears}
+      boards={boards}
       initialFollowersCount={followCounts.followersCount}
       initialFollowingCount={followCounts.followingCount}
     />
