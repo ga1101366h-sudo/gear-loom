@@ -22,7 +22,8 @@ const BUCKET =
  */
 export async function GET(request: Request) {
   try {
-    const u = request.nextUrl.searchParams.get("u");
+    const { searchParams } = new URL(request.url);
+    const u = searchParams.get("u");
     if (!u || typeof u !== "string") {
       return NextResponse.json({ error: "Missing u" }, { status: 400 });
     }
