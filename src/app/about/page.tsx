@@ -1,7 +1,14 @@
 import { getAboutPageCountsFromFirestore } from "@/lib/firebase/data";
 import { AboutCtaSection } from "@/components/about-cta-section";
 import { AboutStats } from "@/components/about-stats";
-import { PenSquare, BookOpen, CalendarDays, Rss, Search, Users } from "lucide-react";
+import {
+  SlidersHorizontal,
+  PenSquare,
+  Box,
+  CalendarDays,
+  Search,
+  Users,
+} from "lucide-react";
 import type { Metadata } from "next";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.gear-loom.com";
@@ -10,11 +17,11 @@ const DEFAULT_OG_IMAGE = `${SITE_URL}/images/mock/ogp-final.png`;
 export const metadata: Metadata = {
   title: "Gear-Loomとは？",
   description:
-    "機材への愛とこだわりを記録し、共有するプラットフォーム。あなたの愛機が、誰かの音作りを変える。",
+    "機材への愛とこだわりを記録し、AIを駆使したエフェクターボード構築から共有まで、音楽活動を加速させる次世代プラットフォーム。",
   openGraph: {
     title: "Gear-Loomとは？",
     description:
-      "機材への愛とこだわりを記録し、共有するプラットフォーム。あなたの愛機が、誰かの音作りを変える。",
+      "機材への愛とこだわりを記録し、AIを駆使したエフェクターボード構築から共有まで、音楽活動を加速させる次世代プラットフォーム。",
     url: `${SITE_URL}/about`,
     siteName: "Gear-Loom",
     images: [{ url: DEFAULT_OG_IMAGE }],
@@ -23,7 +30,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Gear-Loomとは？",
     description:
-      "機材への愛とこだわりを記録し、共有するプラットフォーム。あなたの愛機が、誰かの音作りを変える。",
+      "機材への愛とこだわりを記録し、AIを駆使したエフェクターボード構築から共有まで、音楽活動を加速させる次世代プラットフォーム。",
     images: [DEFAULT_OG_IMAGE],
   },
 };
@@ -33,40 +40,40 @@ const HERO_BG =
 
 const FEATURES = [
   {
-    icon: <PenSquare className="h-6 w-6 text-cyan-400" aria-hidden />,
-    title: "熱量を残す、機材レビュー",
+    icon: <SlidersHorizontal className="h-6 w-6 text-cyan-400" aria-hidden />,
+    title: "理想を形にする、エフェクターボード構築",
     description:
-      "使った機材の感想やセッティングをレビューで残す。AI補正機能で執筆サポートも。レビューを投稿すると同時に、自分のプロフィール（所有機材リスト）へワンタップで追加・記録できる。誰かの「欲しい音」の参考に。",
+      "音の流れがひと目で分かるインタラクティブな配線図で、Web上で自在にルーティングをシミュレート。AIによる背景透過機能を搭載し、機材を配置して実機写真とセットで「みんなのボード」へ公開できます。",
   },
   {
-    icon: <BookOpen className="h-6 w-6 text-cyan-400" aria-hidden />,
-    title: "自分だけの歴史、カスタム手帳",
+    icon: <PenSquare className="h-6 w-6 text-cyan-400" aria-hidden />,
+    title: "熱量を残す、機材レビュー＆ブログ",
     description:
-      "画像付きで愛機のカスタム履歴やメモを記録。あなた専用のデジタル機材手帳として、いつでも振り返れる。",
+      "機材の感触やセッティングをレビューで発信。イベント告知やレポートもブログとして自由に投稿でき、深い情報交換に繋がります。",
+  },
+  {
+    icon: <Box className="h-6 w-6 text-cyan-400" aria-hidden />,
+    title: "自分の機材を「資産」として一元管理",
+    description:
+      "マイページはあなた専用の機材庫です。所有機材の登録、お気に入りリストの作成など、デジタル機材手帳として活用できます。",
   },
   {
     icon: <CalendarDays className="h-6 w-6 text-cyan-400" aria-hidden />,
-    title: "ライブ日程の告知・管理",
+    title: "ライブ日程の告知・スケジュール管理",
     description:
-      "バンドマン・イベンター向け。ライブ予定を登録して告知。トップページのカレンダーで仲間やファンに届ける。",
-  },
-  {
-    icon: <Rss className="h-6 w-6 text-cyan-400" aria-hidden />,
-    title: "ブログで自由な発信",
-    description:
-      "イベント告知や機材レポート、活動報告をブログ記事で。思いのままに発信し、音楽仲間とつながる。",
+      "ライブ予定を登録して発信。トップページのカレンダーや公開プロフィールで、活動スケジュールをファンや仲間に届けます。",
   },
   {
     icon: <Search className="h-6 w-6 text-cyan-400" aria-hidden />,
-    title: "気になる機材をスムーズに確認",
+    title: "気になる機材をスムーズにディグる",
     description:
-      "レビューを読んで気になった1台は、そのままボタン一つでECサイトをチェック。スペックやリアルな市場価格をすぐに確認できます。",
+      "レビューやエフェクターボードで気になった機材は、ボタン一つでECサイトをチェック。リアルな使用感をすぐに確認できます。",
   },
   {
     icon: <Users className="h-6 w-6 text-cyan-400" aria-hidden />,
-    title: "音楽仲間との繋がり",
+    title: "音楽仲間との繋がり・公開プロフィール",
     description:
-      "フォロー・フォロワー機能で気になるユーザーとつながり、マイページのタイムラインで最新レビュー・ライブ予定をチェック。いいね・比較リストやプロフィールで保有機材・所属バンドを共有し、ユーザー同士のつながりを強化できます。",
+      "洗練された公開プロフィールで、あなたの愛機やボードを名刺代わりにシェア。フォロー機能でユーザー同士が繋がります。",
   },
 ];
 
@@ -104,7 +111,7 @@ export default async function AboutPage() {
             誰かの音作りを変える。
           </h1>
           <p className="mt-8 mx-auto max-w-2xl text-base leading-relaxed text-gray-300 sm:text-lg md:text-xl">
-            すべての音楽と関わる人たちへ。Gear-Loomは、機材への愛とこだわりを記録し、共有し、音楽活動を加速させるプラットフォームです。
+            すべての音楽と関わる人たちへ。Gear-Loomは、機材への愛とこだわりを記録し、AIを駆使したエフェクターボード構築から共有まで、音楽活動を加速させる次世代プラットフォームです。
           </p>
         </div>
 

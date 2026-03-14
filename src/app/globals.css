@@ -146,3 +146,8 @@ body {
   --xy-minimap-node-background-color-default: rgb(39 39 42);
   --xy-minimap-node-stroke-color-default: rgba(255, 255, 255, 0.15);
 }
+
+/* React Flow の右下ロゴ（ウォーターマーク）を強制的に非表示にする */
+.react-flow__attribution {
+  display: none !important;
+}

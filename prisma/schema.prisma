@@ -1,0 +1,127 @@
+// Prisma schema for Gear-Loom (SQLite prototype)
+// Run:
+//   npx prisma generate
+//   npx prisma db push
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// 認証は Firebase 等で行う想定。id に Firebase UID を格納する運用（@default なしで create 時に指定）
+model User {
+  id          String       @id
+  email       String?      @unique
+  displayName String?      @map("display_name")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  authoredGears Gear[]      @relation("GearAuthor")
+  userGears     UserGear[]
+  pedalboards   Pedalboard[]
+  boards        Board[]
+
+  @@map("users")
+}
+
+// 共通機材マスタ（全ユーザーが参照可能）
+model Gear {
+  id           String    @id @default(uuid())
+  name         String    // 機材名（例: "DS-1"）
+  manufacturer String?   // メーカー名（例: "BOSS"）
+  category     String    // 大カテゴリ（例: "ギターエフェクター"）
+  effectorType String?   @map("effector_type") // 種類（例: "オーバードライブ"）
+  imageUrl     String?   @map("image_url")     // 背景透過された実機画像のURL
+  defaultIcon  String?   @map("default_icon")  // 画像が無い場合の lucide-react アイコン名（例: "SlidersHorizontal"）
+  authorId     String?   @map("author_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  author    User?      @relation("GearAuthor", fields: [authorId], references: [id])
+  userGears UserGear[]
+
+  @@index([category])
+  @@index([authorId])
+  @@map("gears")
+}
+
+// ユーザーが所有する機材（User と Gear の中間テーブル）
+model UserGear {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  gearId         String   @map("gear_id")
+  customImageUrl String?  @map("custom_image_url") // ユーザー独自の機材画像（未設定時は Gear.imageUrl を表示）
+  sortOrder      Int      @default(0) @map("sort_order") // DnD 並び順（昇順）
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gear Gear @relation(fields: [gearId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gearId])
+  @@index([userId])
+  @@index([gearId])
+  @@map("user_gears")
+}
+
+// ユーザーが作成したエフェクターボードの保存データ（SQLite は Json 非対応のため String で JSON を保存）
+model Pedalboard {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String   // ボード名（例: "メインボード"）
+  nodes     String   // React Flow のノード配列（JSON.stringify で保存）
+  edges     String   // React Flow のエッジ配列（JSON.stringify で保存）
+  isPublic  Boolean  @default(false) @map("is_public")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("pedalboards")
+}
+
+// エフェクターボードの作業用データ（保存・編集の主体）
+model Board {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  name            String   @default("名称未設定ボード")
+  nodes           String   // React Flow ノード配列（JSON.stringify で保存。SQLite のため Json ではなく String）
+  edges           String   // React Flow エッジ配列（JSON.stringify で保存）
+  thumbnail       String?  // キャンバスサムネイル（Base64 data URL 等）
+  actualPhotoUrl  String?  @map("actual_photo_url") // 実機写真のURL（アップロード済み）
+  published       Boolean  @default(false) // 公開プロフィールの「機材」タブでゲストに表示するか
+  sortOrder       Int      @default(0) @map("sort_order") // DnD 並び順（昇順）
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts BoardPost[]
+
+  @@index([userId])
+  @@map("boards")
+}
+
+// ボードを元にした公開用記事（写真・解説付き）
+model BoardPost {
+  id        String   @id @default(cuid())
+  boardId   String   @map("board_id")
+  title     String
+  content   String?  // 解説文（長文用。SQLite では String で TEXT として保存）
+  photoUrl  String?  @map("photo_url")
+  /// ギャラリー用の全画像URL配列を JSON.stringify した文字列として保存（SQLite のため Json ではなく String）
+  imageUrls String? @map("extra_images")
+  isPublic  Boolean  @default(false) @map("is_public")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+  @@map("board_posts")
+}
+

@@ -9,8 +9,8 @@ const SYSTEM_PROMPT = `あなたは楽器・機材レビュー記事の編集ア
 
 補正案のみを返し、説明や前置きは不要です。`;
 
-/** 無料枠に余裕のある Flash を優先（3.1-pro は Quota exceeded になりやすいため使用しない） */
-const GEMINI_MODELS = ["gemini-3.1-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"] as const;
+/** コスト・速度を重視して現行の最安・軽量モデルに統一 */
+const GEMINI_MODELS = ["gemini-2.5-flash-lite"] as const;
 
 /** Gemini API で補正案を取得（利用可能なモデルを順に試す） */
 async function improveWithGemini(apiKey: string, text: string): Promise<string | null> {

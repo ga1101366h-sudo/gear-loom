@@ -43,29 +43,6 @@ export function TopPageUserSidebarGate({
   return <TopPageUserSidebar profile={profile} liveEvents={liveEvents} />;
 }
 
-function getOwnedGearLines(owned_gear: string | null, maxLines = 6): string[] {
-  if (!owned_gear || !owned_gear.trim()) return [];
-  const lines = owned_gear.trim().split(/\r?\n/).filter((s) => s.trim());
-  return lines.slice(0, maxLines);
-}
-
-/** PCサイドバー用：表示する行数と「他N件」用の総数 */
-function getOwnedGearSummary(
-  owned_gear: string | null,
-  displayMaxLines = 2,
-  lineMaxChars = 28
-): { lines: string[]; totalCount: number; hasMore: boolean } {
-  if (!owned_gear || !owned_gear.trim()) {
-    return { lines: [], totalCount: 0, hasMore: false };
-  }
-  const all = owned_gear.trim().split(/\r?\n/).filter((s) => s.trim());
-  const totalCount = all.length;
-  const lines = all.slice(0, displayMaxLines).map((line) =>
-    line.length <= lineMaxChars ? line : line.slice(0, lineMaxChars) + "…"
-  );
-  return { lines, totalCount, hasMore: totalCount > displayMaxLines };
-}
-
 function truncate(s: string | null, len: number): string {
   if (!s || !s.trim()) return "";
   const t = s.trim();
@@ -180,8 +157,6 @@ function TopPageUserSidebar({
       .map((ev) => ev.event_date || "")
       .filter(Boolean)
   );
-  const ownedGearLines = getOwnedGearLines(profile.owned_gear);
-  const ownedGearSummary = getOwnedGearSummary(profile.owned_gear, 2, 26);
   const bioShort = truncate(profile.bio, 80);
 
   return (
@@ -271,7 +246,7 @@ function TopPageUserSidebar({
             className="block rounded-lg border border-surface-border/50 bg-surface-dark/40 p-3 hover:border-electric-blue/30 hover:bg-electric-blue/5 transition-all group"
             title="マイページへ"
           >
-            <div className="flex gap-3 mb-2">
+            <div className="flex gap-3 mb-3">
               <div className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-surface-border flex items-center justify-center ring-1 ring-surface-border">
                 {profile.avatar_url ? (
                   <Image
@@ -288,48 +263,33 @@ function TopPageUserSidebar({
                   </span>
                 )}
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 space-y-0.5">
                 <p className="text-sm font-semibold text-gray-100 group-hover:text-electric-blue truncate">
                   {profile.display_name || `@${profile.user_id}`}
                 </p>
                 <p className="text-xs text-gray-500 truncate">@{profile.user_id}</p>
                 {profile.main_instrument && (
-                  <p className="flex items-center gap-1.5 text-xs text-electric-blue/90 mt-0.5 truncate">
+                  <p className="flex items-center gap-1.5 text-xs text-electric-blue/90 truncate">
                     <Guitar className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
                     {truncate(profile.main_instrument, 18)}
                   </p>
                 )}
                 {profile.band_name && (
-                  <p className="text-xs text-gray-400 mt-0.5 truncate">
+                  <p className="text-xs text-gray-400 truncate">
                     ／ {truncate(profile.band_name, 18)}
                   </p>
                 )}
               </div>
             </div>
             {bioShort && (
-              <div className="mb-2">
+              <div className="mb-3">
                 <p className="text-[10px] text-gray-500 mb-0.5">自己紹介</p>
                 <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
                   {bioShort}
                 </p>
               </div>
             )}
-            {ownedGearSummary.lines.length > 0 && (
-              <div className="mb-2">
-                <p className="text-[10px] text-gray-500 mb-0.5">所有機材</p>
-                <ul className="text-xs text-gray-400 space-y-0.5 leading-snug line-clamp-2">
-                  {ownedGearSummary.lines.map((line, i) => (
-                    <li key={i} className="truncate">{line}</li>
-                  ))}
-                </ul>
-                {ownedGearSummary.hasMore && (
-                  <p className="text-[10px] text-gray-500 mt-0.5">
-                    他{ownedGearSummary.totalCount - 2}件（プロフィールで全て表示）
-                  </p>
-                )}
-              </div>
-            )}
-            <div>
+            <div className="mb-3">
               <p className="text-[10px] text-gray-500 mb-0.5">ライブ日程</p>
               <MiniCalendar
                 eventDates={userEventDates}
@@ -337,11 +297,11 @@ function TopPageUserSidebar({
                 month={currentMonth}
               />
             </div>
-            <p className="text-[10px] text-electric-blue/80 mt-2 text-right group-hover:text-electric-blue">
-              プロフィールを見る →
+            <p className="text-[10px] text-electric-blue/80 text-right group-hover:text-electric-blue">
+              マイページへ →
             </p>
           </Link>
-          <div className="flex gap-2 mt-2">
+          <div className="flex gap-2 mt-3">
             <button
               type="button"
               onClick={() => setFollowListModal("following")}
@@ -357,9 +317,6 @@ function TopPageUserSidebar({
               フォロワー <span className="font-semibold text-electric-blue">{followersCount}</span>
             </button>
           </div>
-          <p className="px-2 pt-3 mt-2 text-xs text-gray-500 border-t border-surface-border/50">
-            クリックでプロフィールページへ
-          </p>
         </nav>
       </aside>
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Syne, Noto_Sans_JP } from "next/font/google";
 import Script from "next/script";
+import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SiteLayout } from "@/components/site-layout";
 import "./globals.css";
@@ -65,6 +66,7 @@ export default function RootLayout({
         <AuthProvider>
           <SiteLayout>{children}</SiteLayout>
         </AuthProvider>
+        <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
       </body>
     </html>
   );

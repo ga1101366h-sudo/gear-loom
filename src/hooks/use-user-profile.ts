@@ -20,6 +20,7 @@ async function fetchUserProfileFromApi(
   if (!token) return null;
   const res = await fetch("/api/me/profile", {
     headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
   });
   if (!res.ok) return null;
   const { profile } = (await res.json()) as { profile: UserProfile | null };
@@ -35,8 +36,10 @@ export function useUserProfile() {
     uid ? ["profiles", uid] : null,
     ([, id]) => fetchUserProfileFromApi(id, getIdToken),
     {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      revalidateOnMount: true,
+      dedupingInterval: 0,
       shouldRetryOnError: false,
     }
   );

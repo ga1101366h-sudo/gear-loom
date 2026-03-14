@@ -61,6 +61,8 @@ export type ProfileListItem = {
   band_name: string | null;
 };
 export async function getProfilesListForTopPage(limit = 20): Promise<ProfileListItem[]> {
+  const { unstable_noStore } = await import("next/cache");
+  unstable_noStore();
   const db = getAdminFirestore();
   if (!db) return [];
   try {
@@ -134,6 +136,15 @@ async function getProfilesByAuthorIds(
     });
   });
   return map;
+}
+
+/** Firebase UID（profiles の doc id）一覧からプロフィールを一括取得。一覧ページの投稿者表示用。 */
+export async function getProfilesByUids(
+  uids: string[]
+): Promise<Map<string, { display_name: string | null; user_id: string | null; avatar_url: string | null }>> {
+  const db = getAdminFirestore();
+  if (!db) return new Map();
+  return getProfilesByAuthorIds(db, uids);
 }
 
 export async function getReviewsFromFirestore(

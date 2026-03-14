@@ -26,9 +26,9 @@ export function ShareToXButton({
       (typeof window !== "undefined" && path ? `${window.location.origin}${path}` : "");
     if (!url) return;
     const fullText = `${text}\n${url}`;
-    const shareUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
-      text: fullText,
-    }).toString()}`;
+    const params = new URLSearchParams();
+    params.set("text", fullText);
+    const shareUrl = `https://twitter.com/intent/tweet?${params.toString()}`;
     window.open(shareUrl, "_blank", "noopener,noreferrer");
   };
 

@@ -78,10 +78,18 @@ export function HeaderMobileMenu({ open, onClose }: Props) {
 
   if (!open) return null;
 
-  const linkClass =
-    "block w-full rounded-lg px-4 py-3.5 text-left text-sm font-medium text-gray-200 transition-colors hover:bg-electric-blue/10 hover:text-electric-blue active:bg-electric-blue/15";
+  const getNavLinkClass = (href: string) => {
+    const isActive = pathname === href || (href !== "/" && pathname?.startsWith(href + "/"));
+    return isActive
+      ? "block w-full rounded-lg px-4 py-3.5 text-left text-sm font-medium text-cyan-400 transition-colors border-l-4 border-cyan-400 bg-cyan-500/10 shadow-[0_0_8px_rgba(6,182,212,0.25)]"
+      : "block w-full rounded-lg px-4 py-3.5 text-left text-sm font-medium text-gray-400 transition-colors duration-200 hover:bg-cyan-500/10 hover:text-cyan-400/90 active:bg-cyan-500/15";
+  };
+
+  const navLinkBaseClass =
+    "block w-full rounded-lg px-4 py-3.5 text-left text-sm font-medium text-gray-400 transition-colors duration-200 hover:bg-cyan-500/10 hover:text-cyan-400/90 active:bg-cyan-500/15";
+
   const accentLinkClass =
-    "block w-full rounded-lg px-4 py-3.5 text-left text-sm font-medium text-electric-blue transition-colors hover:bg-electric-blue/10 hover:text-cyan-300 active:bg-electric-blue/15";
+    "block w-full rounded-lg px-4 py-3.5 text-left text-sm font-medium text-cyan-400 transition-colors border border-cyan-500/50 bg-cyan-500/10 hover:bg-cyan-500/20 hover:text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.3)]";
 
   const handleOverlayClick = () => {
     if (overlayCanCloseRef.current) onClose();
@@ -97,7 +105,7 @@ export function HeaderMobileMenu({ open, onClose }: Props) {
       />
       {/* 右からスライドインするドロワー */}
       <aside
-        className={`fixed top-0 right-0 z-[70] flex h-full w-[min(280px,85vw)] flex-col border-l border-electric-blue/20 bg-surface-dark shadow-[-8px_0_32px_rgba(0,0,0,0.4)] transition-transform duration-300 ease-out ${
+        className={`fixed top-0 right-0 z-[70] flex h-full w-[min(280px,85vw)] flex-col border-l border-cyan-500/20 bg-surface-dark shadow-[-8px_0_32px_rgba(0,0,0,0.4),0_0_24px_rgba(6,182,212,0.08)] transition-transform duration-300 ease-out ${
           animateIn ? "translate-x-0" : "translate-x-full"
         }`}
         role="dialog"
@@ -111,36 +119,36 @@ export function HeaderMobileMenu({ open, onClose }: Props) {
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="h-9 w-9 shrink-0 rounded-lg text-gray-400 hover:bg-electric-blue/10 hover:text-electric-blue"
+            className="h-9 w-9 shrink-0 rounded-lg text-gray-400 hover:bg-cyan-500/10 hover:text-cyan-400"
             aria-label="メニューを閉じる"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
-        <nav className="flex-1 overflow-y-auto py-2">
-          <ul className="space-y-0.5 px-2">
+        <nav className="flex-1 overflow-y-auto py-4">
+          <ul className="space-y-1 px-3">
             {!user && (
               <>
-                <li className="mb-3">
-                  <p className="px-2 py-1 text-xs text-gray-500">ログイン / 新規登録</p>
-                  <div className="grid grid-cols-2 gap-2 mt-1">
+                <li className="pb-4">
+                  <p className="px-2 py-2 text-xs text-gray-500">ログイン / 新規登録</p>
+                  <div className="grid grid-cols-2 gap-3 mt-2">
                     <Link
                       href="/login"
-                      className="flex items-center justify-center rounded-lg bg-electric-blue px-4 py-3 text-sm font-medium text-surface-dark hover:bg-electric-blue-dim transition-all"
+                      className="flex items-center justify-center rounded-lg border border-cyan-500 px-4 py-3 text-sm font-medium text-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.4)] hover:bg-cyan-500/10 hover:shadow-[0_0_12px_rgba(6,182,212,0.5)] transition-all"
                       onClick={onClose}
                     >
                       ログイン
                     </Link>
                     <Link
                       href="/signup"
-                      className="flex items-center justify-center rounded-lg border border-electric-blue/60 bg-electric-blue/10 px-4 py-3 text-sm font-medium text-electric-blue hover:bg-electric-blue/20 transition-all"
+                      className="flex items-center justify-center rounded-lg border border-cyan-500 bg-cyan-500/10 px-4 py-3 text-sm font-medium text-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.3)] hover:bg-cyan-500/20 transition-all"
                       onClick={onClose}
                     >
                       新規登録
                     </Link>
                   </div>
                 </li>
-                <li className="my-2 border-t border-surface-border" />
+                <li className="pt-4 border-t border-surface-border" aria-hidden />
               </>
             )}
             <li>
@@ -150,22 +158,22 @@ export function HeaderMobileMenu({ open, onClose }: Props) {
             </li>
             {MAIN_NAV_ITEMS.map(({ href, label }) => (
               <li key={href + label}>
-                <Link href={href} className={linkClass} onClick={onClose}>
+                <Link href={href} className={getNavLinkClass(href)} onClick={onClose}>
                   {label}
                 </Link>
               </li>
             ))}
             {user ? (
               <>
-                <li className="my-2 border-t border-surface-border" />
+                <li className="pt-4 mt-4 border-t border-surface-border" aria-hidden />
                 <li>
-                  <Link href="/mypage" className={linkClass} onClick={onClose}>
+                  <Link href="/mypage" className={getNavLinkClass("/mypage")} onClick={onClose}>
                     マイページ
                   </Link>
                 </li>
                 {isAdmin && (
                   <li>
-                    <Link href="/admin" className={linkClass} onClick={onClose}>
+                    <Link href="/admin" className={getNavLinkClass("/admin")} onClick={onClose}>
                       管理者
                     </Link>
                   </li>
@@ -175,7 +183,7 @@ export function HeaderMobileMenu({ open, onClose }: Props) {
                     type="button"
                     onClick={handleSignOut}
                     disabled={signingOut}
-                    className={`w-full ${linkClass} text-gray-400 disabled:opacity-50`}
+                    className={`w-full ${navLinkBaseClass} disabled:opacity-50`}
                   >
                     {signingOut ? "ログアウト中…" : "ログアウト"}
                   </button>
@@ -183,14 +191,14 @@ export function HeaderMobileMenu({ open, onClose }: Props) {
               </>
             ) : (
               <>
-                <li className="my-2 border-t border-surface-border" />
+                <li className="pt-4 mt-4 border-t border-surface-border" aria-hidden />
                 <li>
                   <Link href="/signup" className={accentLinkClass} onClick={onClose}>
                     無料会員登録
                   </Link>
                 </li>
                 <li>
-                  <Link href="/login" className={linkClass} onClick={onClose}>
+                  <Link href="/login" className={getNavLinkClass("/login")} onClick={onClose}>
                     ログイン
                   </Link>
                 </li>

@@ -14,6 +14,8 @@ type Props = {
   disabled?: boolean;
   /** 本文の最大文字数（機材レビュー用。指定時は textarea に maxLength を付与） */
   maxLength?: number;
+  /** HTML5 required（必須項目） */
+  required?: boolean;
 };
 
 export function BodyTextareaWithAi({
@@ -24,6 +26,7 @@ export function BodyTextareaWithAi({
   rows = 8,
   disabled = false,
   maxLength,
+  required = false,
 }: Props) {
   const [aiLoading, setAiLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -85,6 +88,7 @@ export function BodyTextareaWithAi({
         rows={rows}
         disabled={disabled}
         maxLength={maxLength}
+        required={required}
         className="flex w-full rounded-lg border border-surface-border bg-surface-card px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-electric-blue"
       />
       <div className="flex items-center gap-2 flex-wrap">

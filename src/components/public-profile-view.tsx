@@ -1,14 +1,22 @@
+"use client";
+
+import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { getCategoryIconNameByDisplayLabel } from "@/data/post-categories";
-import { getCategoryGroupIcon } from "@/lib/category-group-icons";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { formatCategoryPath } from "@/lib/utils";
 import { CategoryIcon } from "@/components/category-icon";
 import { LiveEventCalendar } from "@/components/live-event-calendar";
-import { ProfileFollowSection } from "@/components/profile-follow-section";
+import { FollowButton } from "@/components/follow-button";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Profile } from "@/types/database";
 import type { LiveEvent } from "@/types/database";
 import type { Review } from "@/types/database";
+import type { UserGearItem } from "@/types/gear";
+import type { PublicBoardItem } from "@/lib/board-public";
 import type React from "react";
 import { Instagram, Mail, Twitch, Youtube } from "lucide-react";
 
@@ -48,6 +56,10 @@ type Props = {
   reviews: ReviewWithLikeCount[];
   followersCount?: number;
   followingCount?: number;
+  /** Prisma UserGear で取得した所有機材（渡されていればこれを優先表示） */
+  gears?: UserGearItem[] | null;
+  /** 公開済みボード一覧（紐づく BoardPost が isPublic のもののみ） */
+  boards?: PublicBoardItem[];
   /** 親から渡すリアルタイム表示用（embedプレビューでpostMessage更新時） */
   overrideFollowersCount?: number;
   overrideFollowingCount?: number;
@@ -61,10 +73,16 @@ export function PublicProfileView({
   reviews,
   followersCount = 0,
   followingCount = 0,
+  gears = null,
+  boards = [],
   overrideFollowersCount,
   overrideFollowingCount,
   disableLinks = false,
 }: Props) {
+  const pathname = usePathname();
+  const { user } = useAuth();
+  const isOwnProfile = Boolean(user?.uid && user.uid === profile.id);
+
   const xUrl = buildUrl(profile.sns_twitter, "x");
   const instagramUrl = buildUrl(profile.sns_instagram, "instagram");
   const youtubeUrl = buildUrl(profile.sns_youtube, "youtube");
@@ -72,7 +90,14 @@ export function PublicProfileView({
   const displayName = profile.display_name || profile.user_id || "ユーザー";
   const totalReviewLikes = reviews.reduce((sum, r) => sum + ((r as ReviewWithLikeCount).likeCount ?? 0), 0);
   const hasContactOrSns = Boolean(profile.contact_email || xUrl || instagramUrl || youtubeUrl || twitchUrl);
-  const hasGear = Boolean(profile.owned_gear || (profile.owned_gear_images && profile.owned_gear_images.length > 0));
+  const hasGear = Boolean(
+    (gears && gears.length > 0) ||
+      profile.owned_gear ||
+      (profile.owned_gear_images && profile.owned_gear_images.length > 0),
+  );
+  const hasBoards = boards.length > 0;
+
+  const loginUrl = `/login?next=${encodeURIComponent(pathname ?? "/")}`;
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 py-8">
@@ -98,7 +123,7 @@ export function PublicProfileView({
               </div>
             )}
           </div>
-          <div className="space-y-1 min-w-0">
+          <div className="space-y-2 min-w-0 flex-1">
             <CardTitle className="text-xl text-white truncate">{displayName}</CardTitle>
             {profile.user_id && (
               <p className="text-sm text-gray-500 truncate">@{profile.user_id}</p>
@@ -125,13 +150,26 @@ export function PublicProfileView({
                 )}
               </p>
             )}
-            <ProfileFollowSection
-              profileUid={profile.id}
-              initialFollowersCount={followersCount}
-              initialFollowingCount={followingCount}
-              overrideFollowersCount={overrideFollowersCount}
-              overrideFollowingCount={overrideFollowingCount}
-            />
+            {/* 本人: プロフィール編集 / ゲスト: フォローする or ログイン誘導（操作ボタンのみ） */}
+            {!disableLinks && (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {isOwnProfile ? (
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/profile">プロフィールを編集</Link>
+                  </Button>
+                ) : (
+                  <>
+                    {user ? (
+                      <FollowButton targetProfileUid={profile.id} className="shrink-0" />
+                    ) : (
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={loginUrl}>ログインしてフォローする</Link>
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -140,6 +178,19 @@ export function PublicProfileView({
               <p className="text-xs font-bold text-gray-500 tracking-wider uppercase mb-1 block">自己紹介</p>
               <p className="text-sm text-gray-200 whitespace-pre-wrap">{profile.bio}</p>
             </section>
+          )}
+          {/* 本人のときのみフォロー数・フォロワー数（純粋テキスト、操作ボタンと完全分離） */}
+          {isOwnProfile && !disableLinks && (
+            <div className="flex gap-4 text-sm pt-1">
+              <p className="m-0">
+                <span className="font-bold text-white">{overrideFollowingCount ?? followingCount}</span>{" "}
+                <span className="text-gray-400">フォロー中</span>
+              </p>
+              <p className="m-0">
+                <span className="font-bold text-white">{overrideFollowersCount ?? followersCount}</span>{" "}
+                <span className="text-gray-400">フォロワー</span>
+              </p>
+            </div>
           )}
           {hasContactOrSns && (
             <section className="space-y-4">
@@ -256,134 +307,230 @@ export function PublicProfileView({
             </section>
           )}
 
-          {hasGear && (profile.bio || hasContactOrSns) && <hr className="border-white/10 my-6" />}
+        </CardContent>
+      </Card>
 
-          {hasGear && (
-            <section>
-              <div className="mb-4">
-                <h3 className="text-base font-bold text-gray-200">ボード・所有機材</h3>
-              </div>
-              {profile.owned_gear && (
-                <div className="grid gap-3 sm:grid-cols-2 mb-4">
-                  {profile.owned_gear
-                    .split(/\r?\n/)
-                    .map((line) => line.trim())
-                    .filter(Boolean)
-                    .map((line, idx) => {
-                      const match = line.match(/^\[([^\]]+)\]\s*(.*)$/);
-                      const category = match ? match[1] : null;
-                      const name = match ? match[2].trim() : line;
-                      return (
-                        <div
-                          key={idx}
-                          className="bg-white/[0.03] border border-white/10 rounded-xl p-4 flex flex-col items-start gap-1.5"
-                        >
-                          {category && (
-                            <span className="flex items-center gap-1.5 text-xs shrink-0">
-                              <span className="flex h-6 w-6 items-center justify-center rounded bg-white/5 border border-white/10 text-gray-400">
-                                <CategoryIcon name={category} className="h-3.5 w-3.5" />
-                              </span>
-                              <span className="px-2 py-0.5 bg-white/10 rounded-full text-gray-200">{category}</span>
-                            </span>
-                          )}
-                          <span className="text-gray-200 whitespace-pre-wrap min-w-0 leading-tight text-sm md:text-base">{name}</span>
-                        </div>
-                      );
-                    })}
-                </div>
-              )}
-              {profile.owned_gear_images && profile.owned_gear_images.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {profile.owned_gear_images.map((url) => (
+      <Tabs defaultValue="gear" className="w-full">
+        <div className="overflow-x-auto scrollbar-hide min-w-0 -mx-1 px-1">
+          <TabsList className="w-max min-w-full inline-flex flex-nowrap justify-start gap-0 shrink-0 border-b border-surface-border bg-transparent">
+            <TabsTrigger value="gear" className="shrink-0">機材</TabsTrigger>
+            <TabsTrigger value="posts" className="shrink-0">投稿</TabsTrigger>
+            <TabsTrigger value="activity" className="shrink-0">
+              {isOwnProfile ? "アクティビティ" : "スケジュール"}
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="gear" className="mt-6 space-y-12">
+          <Suspense fallback={<div className="py-8 text-center text-gray-400 text-sm">読み込み中...</div>}>
+          {/* エフェクターボード一覧（ゲスト含め常に表示。0件のときは空メッセージ） */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-electric-blue">
+                {isOwnProfile ? "マイエフェクターボード" : "エフェクターボード"}
+              </CardTitle>
+              <CardDescription>
+                {isOwnProfile ? "公開しているエフェクターボード一覧" : "このユーザーの公開エフェクターボード一覧"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {boards.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {boards.map((b) => (
                     <div
-                      key={url}
-                      className="relative aspect-square rounded-xl overflow-hidden border border-white/10 bg-white/[0.03]"
+                      key={b.id}
+                      className="rounded-xl border border-surface-border bg-white/[0.03] overflow-hidden"
                     >
-                      <Image src={url} alt="" fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" unoptimized />
+                      <div className="relative aspect-video w-full bg-[#0a0a0a]">
+                        {b.actualPhotoUrl || b.thumbnail ? (
+                          <Image
+                            src={b.actualPhotoUrl || b.thumbnail || ""}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, 50vw"
+                            unoptimized={String(b.actualPhotoUrl || b.thumbnail).startsWith("data:") || String(b.actualPhotoUrl || "").startsWith("/")}
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">サムネイルなし</div>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <p className="font-medium text-white truncate">{b.name}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
+              ) : (
+                <p className="text-sm text-gray-400">公開しているエフェクターボードはありません。</p>
               )}
-            </section>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="border-t border-b border-electric-blue/30">
-        <CardContent className="pt-6 pb-6">
-          <h3 className="text-base font-semibold text-electric-blue mb-1">レビューにもらったイイね</h3>
-          <p className="text-sm text-gray-400 mb-2">このアカウントの投稿へのいいね合計</p>
-          <p className="text-2xl font-bold text-white">
-            {totalReviewLikes}
-            <span className="text-lg font-normal text-gray-400 ml-1">件</span>
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-electric-blue">投稿した記事</CardTitle>
-          <CardDescription>このアカウントが投稿したレビュー・記事一覧</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {reviews.length === 0 ? (
-            <p className="text-sm text-gray-400">まだ投稿がありません。</p>
-          ) : (
-            <ul className="space-y-2">
-              {reviews.map((r) => {
-                const content = (
-                  <>
-                    <span className="block font-medium line-clamp-2">{r.title}</span>
-                    {r.gear_name && (
-                      <span className="ml-2 text-gray-400"> — {r.gear_name}</span>
-                    )}
-                    <span className="ml-2 text-xs text-gray-500">
-                      {r.created_at
-                        ? new Date(r.created_at).toLocaleDateString("ja-JP")
-                        : ""}
-                    </span>
-                    {typeof (r as ReviewWithLikeCount).likeCount === "number" && (
-                      <span className="ml-2 text-xs text-gray-400" aria-label="いいね数">
-                        ❤ {(r as ReviewWithLikeCount).likeCount}
-                      </span>
-                    )}
-                  </>
-                );
-                return (
-                  <li key={r.id}>
-                    {disableLinks ? (
-                      <div className="block rounded-lg border border-surface-border bg-surface-card/40 px-3 py-2 text-sm text-gray-200">
-                        {content}
+            </CardContent>
+          </Card>
+          {hasGear && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-electric-blue">所有機材</CardTitle>
+                    <CardDescription>登録している機材・ボード構成</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {gears && gears.length > 0 ? (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {gears.map((item) => (
+                          <div
+                            key={item.userGearId}
+                            className="bg-white/[0.03] border border-white/10 rounded-xl p-4 flex flex-col items-start gap-1.5"
+                          >
+                            <span className="flex items-center gap-1.5 text-xs shrink-0">
+                              <span className="flex h-6 w-6 items-center justify-center rounded bg-white/5 border border-white/10 text-gray-400">
+                                <CategoryIcon name={item.category} className="h-3.5 w-3.5" />
+                              </span>
+                              <span className="px-2 py-0.5 bg-white/10 rounded-full text-gray-200">{formatCategoryPath(item.category)}</span>
+                            </span>
+                            <span className="text-gray-200 whitespace-pre-wrap min-w-0 leading-tight text-sm md:text-base">
+                              {[item.manufacturer, item.name].filter(Boolean).join(" / ") || item.name}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    ) : (
-                      <Link
-                        href={`/reviews/${r.id}`}
-                        className="block rounded-lg border border-surface-border bg-surface-card/40 px-3 py-2 text-sm text-gray-200 hover:border-electric-blue/50 hover:text-electric-blue transition-colors"
-                      >
-                        {content}
-                      </Link>
+                    ) : null}
+                    {profile.owned_gear && (!gears || gears.length === 0) && (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {profile.owned_gear
+                          .split(/\r?\n/)
+                          .map((line) => line.trim())
+                          .filter(Boolean)
+                          .map((line, idx) => {
+                            const match = line.match(/^\[([^\]]+)\]\s*(.*)$/);
+                            const category = match ? match[1] : null;
+                            const name = match ? match[2].trim() : line;
+                            return (
+                              <div
+                                key={idx}
+                                className="bg-white/[0.03] border border-white/10 rounded-xl p-4 flex flex-col items-start gap-1.5"
+                              >
+                                {category && (
+                                  <span className="flex items-center gap-1.5 text-xs shrink-0">
+                                    <span className="flex h-6 w-6 items-center justify-center rounded bg-white/5 border border-white/10 text-gray-400">
+                                      <CategoryIcon name={category} className="h-3.5 w-3.5" />
+                                    </span>
+                                    <span className="px-2 py-0.5 bg-white/10 rounded-full text-gray-200">{formatCategoryPath(category)}</span>
+                                  </span>
+                                )}
+                                <span className="text-gray-200 whitespace-pre-wrap min-w-0 leading-tight text-sm md:text-base">{name}</span>
+                              </div>
+                            );
+                          })}
+                      </div>
                     )}
-                  </li>
-                );
-              })}
-            </ul>
+                    {profile.owned_gear_images && profile.owned_gear_images.length > 0 && (
+                      <div className={gears?.length || profile.owned_gear ? "pt-2" : ""}>
+                        <p className="text-sm text-gray-400 mb-2">登録画像</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {profile.owned_gear_images.map((url) => (
+                            <div
+                              key={url}
+                              className="relative aspect-square rounded-xl overflow-hidden border border-white/10 bg-white/[0.03]"
+                            >
+                              <Image src={url} alt="" fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" unoptimized />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+          {!hasGear && (
+            <Card>
+              <CardContent className="py-8">
+                <p className="text-sm text-gray-400">所有機材の登録はありません。</p>
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
+          </Suspense>
+        </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-electric-blue">ライブ日程</CardTitle>
-          <CardDescription>このアカウントのライブ予定</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {events.length === 0 ? (
-            <p className="text-sm text-gray-400">ライブの予定はありません。</p>
-          ) : (
-            <LiveEventCalendar initialEvents={events} readOnly disableLinks={disableLinks} />
-          )}
-        </CardContent>
-      </Card>
+        <TabsContent value="posts" className="mt-6 space-y-12">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-electric-blue">投稿した記事</CardTitle>
+              <CardDescription>このアカウントが投稿したレビュー・記事一覧</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {reviews.length === 0 ? (
+                <p className="text-sm text-gray-400">まだ投稿がありません。</p>
+              ) : (
+                <ul className="space-y-2">
+                  {reviews.map((r) => {
+                    const content = (
+                      <>
+                        <span className="block font-medium line-clamp-2">{r.title}</span>
+                        {r.gear_name && (
+                          <span className="ml-2 text-gray-400"> — {r.gear_name}</span>
+                        )}
+                        <span className="ml-2 text-xs text-gray-500">
+                          {r.created_at
+                            ? new Date(r.created_at).toLocaleDateString("ja-JP")
+                            : ""}
+                        </span>
+                        {typeof (r as ReviewWithLikeCount).likeCount === "number" && (
+                          <span className="ml-2 text-xs text-gray-400" aria-label="いいね数">
+                            ❤ {(r as ReviewWithLikeCount).likeCount}
+                          </span>
+                        )}
+                      </>
+                    );
+                    return (
+                      <li key={r.id}>
+                        {disableLinks ? (
+                          <div className="block rounded-lg border border-surface-border bg-surface-card/40 px-3 py-2 text-sm text-gray-200">
+                            {content}
+                          </div>
+                        ) : (
+                          <Link
+                            href={`/reviews/${r.id}`}
+                            className="block rounded-lg border border-surface-border bg-surface-card/40 px-3 py-2 text-sm text-gray-200 hover:border-electric-blue/50 hover:text-electric-blue transition-colors"
+                          >
+                            {content}
+                          </Link>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="border-t border-b border-electric-blue/30">
+            <CardContent className="pt-6 pb-6">
+              <h3 className="text-base font-semibold text-electric-blue mb-1">レビューにもらったイイね</h3>
+              <p className="text-sm text-gray-400 mb-2">このアカウントの投稿へのいいね合計</p>
+              <p className="text-2xl font-bold text-white">
+                {totalReviewLikes}
+                <span className="text-lg font-normal text-gray-400 ml-1">件</span>
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="activity" className="mt-6 space-y-12">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-electric-blue">
+                {isOwnProfile ? "マイスケジュール（カレンダー）" : "カレンダー"}
+              </CardTitle>
+              <CardDescription>このアカウントのライブ・イベント予定</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {events.length === 0 ? (
+                <p className="text-sm text-gray-400">ライブの予定はありません。</p>
+              ) : (
+                <LiveEventCalendar initialEvents={events} readOnly disableLinks={disableLinks} />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
