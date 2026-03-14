@@ -17,7 +17,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import imageCompression from "browser-image-compression";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { GripVertical, X as XIcon, ImageIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -25,7 +24,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { updateBoardPost, deleteBoardPost } from "@/actions/board-post";
-import { getFirebaseStorage } from "@/lib/firebase/client";
 import toast from "react-hot-toast";
 
 type BoardPostEditFormProps = {
@@ -35,6 +33,8 @@ type BoardPostEditFormProps = {
   initialContent: string;
   /** 追加画像の初期URL一覧（BoardPost.extraImages などから供給） */
   initialImageUrls: string[];
+  /** 相対URLを解決するためのオリジン（例: https://www.gear-loom.com） */
+  siteOrigin: string;
 };
 
 export function BoardPostEditForm({
@@ -43,6 +43,7 @@ export function BoardPostEditForm({
   initialTitle,
   initialContent,
   initialImageUrls,
+  siteOrigin,
 }: BoardPostEditFormProps) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -95,13 +96,9 @@ export function BoardPostEditForm({
     e.target.value = "";
     if (files.length === 0 || !user) return;
 
-    const storage = getFirebaseStorage();
-    if (!storage) {
-      toast.error("画像アップロード機能を利用できません。Firebase Storage の設定を確認してください。");
-      return;
-    }
     setUploading(true);
     try {
+      const token = await user.getIdToken(true);
       const uploadedUrls: string[] = [];
       for (const file of files) {
         try {
@@ -111,17 +108,22 @@ export function BoardPostEditForm({
             useWebWorker: true,
             exifOrientation: 1,
           });
-          const ext = file.name.split(".").pop() ?? "jpg";
-          const storagePath = `board-posts/${user.uid}/${Date.now()}-${Math.random()
-            .toString(36)
-            .slice(2)}.${ext}`;
-          const storageRef = ref(storage, storagePath);
-          await uploadBytes(storageRef, compressed);
-          const url = await getDownloadURL(storageRef);
-          uploadedUrls.push(url);
+          const formData = new FormData();
+          formData.append("image", compressed, file.name || "image.jpg");
+          const res = await fetch("/api/board-post/upload", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(data.error || `HTTP ${res.status}`);
+          }
+          if (data.url) uploadedUrls.push(data.url);
         } catch (err) {
           console.error("[BoardPostEditForm] image upload error", err);
-          toast.error("画像のアップロードに失敗しました。");
+          const msg = err instanceof Error ? err.message : "画像のアップロードに失敗しました。";
+          toast.error(msg);
         }
       }
       if (uploadedUrls.length > 0) {
@@ -265,6 +267,7 @@ export function BoardPostEditForm({
                           key={item.id}
                           id={item.id}
                           url={item.url}
+                          siteOrigin={siteOrigin}
                           onRemove={() =>
                             setImageItems((prev) =>
                               prev.filter((p) => p.id !== item.id),
@@ -325,10 +328,12 @@ export function BoardPostEditForm({
 type SortableImageCardProps = {
   id: string;
   url: string;
+  siteOrigin: string;
   onRemove: () => void;
 };
 
-function SortableImageCard({ id, url, onRemove }: SortableImageCardProps) {
+function SortableImageCard({ id, url, siteOrigin, onRemove }: SortableImageCardProps) {
+  const displayUrl = url.startsWith("/") ? `${siteOrigin}${url}` : url;
   const {
     attributes,
     listeners,
@@ -364,9 +369,20 @@ function SortableImageCard({ id, url, onRemove }: SortableImageCardProps) {
       <div className="relative w-full h-28 sm:h-32 bg-slate-900/60">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={url}
+          src={displayUrl}
           alt=""
           className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+            const parent = e.currentTarget.closest(".relative");
+            if (parent && !parent.querySelector(".board-post-edit-img-fallback")) {
+              const fallback = document.createElement("span");
+              fallback.className = "board-post-edit-img-fallback absolute inset-0 flex items-center justify-center text-xs text-gray-500";
+              fallback.textContent = "画像を表示できません";
+              parent.appendChild(fallback);
+            }
+          }}
         />
       </div>
       <button
