@@ -4,6 +4,11 @@ import { getAdminStorage } from "@/lib/firebase/admin";
 const BUCKET =
   process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? process.env.FIREBASE_STORAGE_BUCKET ?? "";
 
+/** バケット名を正規化（.appspot.com / .firebasestorage.app を同一プロジェクトとして扱う） */
+function bucketProjectId(name: string): string {
+  return name.replace(/\.(appspot\.com|firebasestorage\.app)(\.app)?$/i, "").toLowerCase();
+}
+
 /**
  * Firebase Storage の board-posts 画像をサーバー経由で返す。
  * 編集画面で既存画像が 403 等で表示されない場合に、Admin SDK で取得してプロキシする。
@@ -12,14 +17,22 @@ const BUCKET =
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const u = searchParams.get("u");
+    let u = searchParams.get("u");
     if (!u || typeof u !== "string") {
       return NextResponse.json({ error: "Missing u" }, { status: 400 });
+    }
+    u = u.trim();
+    if (!u.startsWith("http")) {
+      try {
+        u = decodeURIComponent(u);
+      } catch {
+        // already decoded or invalid
+      }
     }
 
     let parsed: URL;
     try {
-      parsed = new URL(decodeURIComponent(u.trim()));
+      parsed = new URL(u);
     } catch {
       return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
     }
@@ -48,7 +61,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Invalid path" }, { status: 400 });
     }
 
-    if (BUCKET && bucketName !== BUCKET) {
+    if (BUCKET && bucketName !== BUCKET && bucketProjectId(bucketName) !== bucketProjectId(BUCKET)) {
       return NextResponse.json({ error: "Bucket mismatch" }, { status: 400 });
     }
 
