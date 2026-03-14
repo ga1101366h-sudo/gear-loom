@@ -332,8 +332,22 @@ type SortableImageCardProps = {
   onRemove: () => void;
 };
 
+function isFirebaseStorageUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.hostname === "firebasestorage.googleapis.com";
+  } catch {
+    return false;
+  }
+}
+
 function SortableImageCard({ id, url, siteOrigin, onRemove }: SortableImageCardProps) {
-  const displayUrl = url.startsWith("/") ? `${siteOrigin}${url}` : url;
+  const resolved =
+    url.startsWith("/") ? `${siteOrigin}${url}` : url;
+  const displayUrl =
+    isFirebaseStorageUrl(resolved)
+      ? `/api/board-post/image?u=${encodeURIComponent(resolved)}`
+      : resolved;
   const {
     attributes,
     listeners,
