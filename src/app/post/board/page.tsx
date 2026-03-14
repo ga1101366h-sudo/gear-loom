@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -90,7 +90,7 @@ function BoardPreview({
   );
 }
 
-export default function PostBoardPage() {
+function PostBoardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const boardId = searchParams.get("boardId");
@@ -300,5 +300,23 @@ export default function PostBoardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PostBoardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-3xl mx-auto py-8">
+          <Card>
+            <CardContent className="py-12 text-center text-gray-400">
+              読み込み中...
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <PostBoardContent />
+    </Suspense>
   );
 }

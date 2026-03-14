@@ -75,7 +75,9 @@ const Carousel = React.forwardRef<
       };
       onSelect();
       api.on("select", onSelect);
-      return () => api.off("select", onSelect);
+      return () => {
+        api.off("select", onSelect);
+      };
     }, [api, setApi]);
 
     const value = React.useMemo(
