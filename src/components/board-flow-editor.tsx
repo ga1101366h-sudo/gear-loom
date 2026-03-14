@@ -86,7 +86,8 @@ const GEAR_ICON_COMPONENTS: Record<GearIconKey, React.ComponentType<{ className?
 };
 
 function getGearIconComponent(key: GearIconKey | undefined) {
-  if (key === "eq") return GEAR_ICON_COMPONENTS.effects;
+  // レガシー値 "eq"（GearIconKey にない）は effects として表示
+  if (String(key) === "eq") return GEAR_ICON_COMPONENTS.effects;
   return GEAR_ICON_COMPONENTS[key ?? "effects"] ?? GEAR_ICON_COMPONENTS.effects;
 }
 
