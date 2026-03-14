@@ -101,7 +101,7 @@ export default function MypagePage() {
   const [followingCount, setFollowingCount] = useState(0);
   const [followersCount, setFollowersCount] = useState(0);
   const [mypageGears, setMypageGears] = useState<UserGearItem[]>([]);
-  const [mypageBoards, setMypageBoards] = useState<{ id: string; name: string; updatedAt: string }[]>([]);
+  const [mypageBoards, setMypageBoards] = useState<{ id: string; name: string; thumbnail: string | null; actualPhotoUrl: string | null; updatedAt: string }[]>([]);
   const [mypageBoardPosts, setMypageBoardPosts] = useState<{ id: string; title: string; content: string | null; updatedAt: string; boardId: string; boardName: string }[]>([]);
   const [followListModal, setFollowListModal] = useState<"following" | "followers" | null>(null);
   const [followingList, setFollowingList] = useState<FollowListItem[]>([]);
