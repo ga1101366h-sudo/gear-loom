@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getBoardById } from "@/actions/board";
 import { BoardFlowEditor } from "@/components/board-flow-editor";
+import type { ComponentProps } from "react";
 
 export default async function BoardEditorWithIdPage({
   params,
@@ -28,8 +29,8 @@ export default async function BoardEditorWithIdPage({
           <BoardFlowEditor
             initialBoardId={board.id}
             initialName={board.name}
-            initialNodes={board.nodes}
-            initialEdges={board.edges}
+            initialNodes={board.nodes as ComponentProps<typeof BoardFlowEditor>["initialNodes"]}
+            initialEdges={board.edges as ComponentProps<typeof BoardFlowEditor>["initialEdges"]}
             initialActualPhotoUrl={board.actualPhotoUrl ?? null}
           />
         </Suspense>
