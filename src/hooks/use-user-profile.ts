@@ -36,10 +36,10 @@ export function useUserProfile() {
     uid ? ["profiles", uid] : null,
     ([, id]) => fetchUserProfileFromApi(id, getIdToken),
     {
-      revalidateOnFocus: true,
+      revalidateOnFocus: false,
       revalidateOnReconnect: true,
       revalidateOnMount: true,
-      dedupingInterval: 0,
+      dedupingInterval: 60_000,
       shouldRetryOnError: false,
     }
   );
