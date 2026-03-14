@@ -16,13 +16,14 @@ import { HeaderMobileMenu } from "@/components/header-mobile-menu";
 import { MAIN_NAV_ITEMS } from "@/data/nav-items";
 import { useUserProfile } from "@/hooks/use-user-profile";
 
-// user_id 未設定のとき許可するパス（設定・認証まわり＋公開プロフィール）。それ以外へ遷移したら即ログアウト
+// user_id 未設定のとき許可するパス（設定・認証まわり＋公開プロフィール＋マイページ）。それ以外へ遷移したら即ログアウト
 const ALLOWED_WITHOUT_USER_ID = [
   "/onboarding",
   "/login",
   "/profile",
   "/signup",
   "/users", // 公開プロフィール（/users/[userId]）は未認証・user_id 未設定でも閲覧可能
+  "/mypage", // マイページ（公開プレビュー等）では user_id 取得のラグで誤ログアウトしないよう許可
 ];
 
 function isAllowedWithoutUserId(path: string | null): boolean {
