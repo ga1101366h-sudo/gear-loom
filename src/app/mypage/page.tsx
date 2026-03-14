@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
-import { collection, query, where, getDocs, documentId } from "firebase/firestore";
+import { collection, query, where, getDocs, documentId, type QuerySnapshot } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFirebaseFirestore } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/button";
@@ -231,7 +231,7 @@ export default function MypagePage() {
       let totalLikes = 0;
       const myReviewIdArray = reviewsSnap.docs.map((d) => d.id);
       if (myReviewIdArray.length > 0) {
-        const likeQueryPromises: Promise<ReturnType<typeof getDocs>>[] = [];
+        const likeQueryPromises: Promise<QuerySnapshot>[] = [];
         for (let i = 0; i < myReviewIdArray.length; i += 10) {
           const chunk = myReviewIdArray.slice(i, i + 10);
           likeQueryPromises.push(
@@ -249,7 +249,7 @@ export default function MypagePage() {
         .slice(0, 50);
       const likedList: Review[] = [];
       if (likedReviewIds.length > 0) {
-        const likedQueryPromises: Promise<ReturnType<typeof getDocs>>[] = [];
+        const likedQueryPromises: Promise<QuerySnapshot>[] = [];
         for (let i = 0; i < likedReviewIds.length; i += 10) {
           const chunk = likedReviewIds.slice(i, i + 10);
           likedQueryPromises.push(
