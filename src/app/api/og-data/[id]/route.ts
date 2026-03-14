@@ -15,9 +15,27 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    const board = boardPost.board;
+    let actualPhotoUrl = board.actualPhotoUrl?.trim() || null;
+    let thumbnail = board.thumbnail?.trim() || null;
+
+    // 実機写真・サムネイルがどちらもない場合は、投稿の追加画像（imageUrls）の1枚目をフォールバック
+    if (!actualPhotoUrl && !thumbnail && boardPost.imageUrls) {
+      try {
+        const parsed = JSON.parse(boardPost.imageUrls) as unknown;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const first = parsed[0];
+          const url = typeof first === "string" ? first.trim() : null;
+          if (url) actualPhotoUrl = url;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     return NextResponse.json({
-      actualPhotoUrl: boardPost.board.actualPhotoUrl ?? null,
-      thumbnail: boardPost.board.thumbnail ?? null,
+      actualPhotoUrl,
+      thumbnail,
     });
   } catch (error) {
     console.error("OG API Error:", error);
