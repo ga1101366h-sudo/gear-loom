@@ -1,16 +1,5 @@
 import { NextResponse } from "next/server";
-import type { Readable } from "stream";
 import { getAdminStorage } from "@/lib/firebase/admin";
-
-function nodeStreamToWebReadableStream(nodeStream: Readable): ReadableStream<Uint8Array> {
-  return new ReadableStream({
-    start(controller) {
-      nodeStream.on("data", (chunk: Buffer) => controller.enqueue(new Uint8Array(chunk)));
-      nodeStream.on("end", () => controller.close());
-      nodeStream.on("error", (err) => controller.error(err));
-    },
-  });
-}
 
 const BUCKET =
   process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? process.env.FIREBASE_STORAGE_BUCKET ?? "";
@@ -71,13 +60,22 @@ export async function GET(request: Request) {
     const bucket = storage.bucket(bucketName);
     const file = bucket.file(objectPath);
 
-    const [metadata] = await file.getMetadata().catch(() => [null]);
-    const contentType = metadata?.contentType ?? "image/jpeg";
+    const [downloadResult, metadataResult] = await Promise.all([
+      file.download().catch((err) => {
+        console.error("[GET /api/board-post/image] file.download failed", objectPath, err);
+        throw err;
+      }),
+      file.getMetadata().catch(() => [null]),
+    ]);
 
-    const nodeStream = file.createReadStream();
-    const body = nodeStreamToWebReadableStream(nodeStream);
+    const buffer = Array.isArray(downloadResult) ? downloadResult[0] : downloadResult;
+    const meta = Array.isArray(metadataResult) ? metadataResult[0] : metadataResult;
+    const contentType =
+      meta && typeof meta === "object" && "contentType" in meta
+        ? String((meta as { contentType: string }).contentType)
+        : "image/jpeg";
 
-    return new NextResponse(body, {
+    return new NextResponse(buffer, {
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "private, max-age=300",
