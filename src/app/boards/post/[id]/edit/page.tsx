@@ -35,6 +35,10 @@ export default async function BoardPostEditPage({ params }: PageProps) {
     }
   }
 
+  const siteOrigin =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://www.gear-loom.com");
+
   return (
     <BoardPostEditForm
       postId={post.id}
@@ -42,6 +46,7 @@ export default async function BoardPostEditPage({ params }: PageProps) {
       initialTitle={post.title}
       initialContent={post.content ?? ""}
       initialImageUrls={initialImageUrls}
+      siteOrigin={siteOrigin}
     />
   );
 }
