@@ -388,12 +388,14 @@ function SortableImageCard({ id, url, siteOrigin, onRemove }: SortableImageCardP
           className="w-full h-full object-cover"
           referrerPolicy="no-referrer"
           onError={(e) => {
-            e.currentTarget.style.display = "none";
-            const parent = e.currentTarget.closest(".relative");
+            const img = e.currentTarget;
+            img.style.display = "none";
+            const parent = img.closest(".relative");
             if (parent && !parent.querySelector(".board-post-edit-img-fallback")) {
               const fallback = document.createElement("span");
               fallback.className = "board-post-edit-img-fallback absolute inset-0 flex items-center justify-center text-xs text-gray-500";
               fallback.textContent = "画像を表示できません";
+              fallback.setAttribute("data-failed-src", img.src);
               parent.appendChild(fallback);
             }
           }}
