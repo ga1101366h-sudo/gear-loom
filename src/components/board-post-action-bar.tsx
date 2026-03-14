@@ -35,19 +35,21 @@ export function BoardPostActionBar({ postId, title, ownerId }: BoardPostActionBa
         <span>いいね</span>
         <span className="tabular-nums">0</span>
       </button>
-      {/* Xでポスト */}
+      {/* Xでポスト（スマホでアイコンが細長くならないよう aspect-square で正方形を維持） */}
       <Button
         variant="outline"
         size="sm"
         asChild
-        className="h-10 w-full flex items-center justify-center gap-1.5 rounded-md border border-white/20 bg-zinc-950 px-2 text-xs font-medium text-white whitespace-nowrap shadow-lg shadow-white/5 transition-all hover:bg-zinc-800 col-span-2 sm:col-span-1"
+        className="h-10 min-h-10 w-full flex items-center justify-center gap-1.5 rounded-md border border-white/20 bg-zinc-950 px-3 text-xs font-medium text-white whitespace-nowrap shadow-lg shadow-white/5 transition-all hover:bg-zinc-800 col-span-2 sm:col-span-1"
       >
         <ShareToXButton
           path={path}
           text={shareText}
-          className="inline-flex h-full w-full items-center justify-center gap-1.5 text-white"
+          className="inline-flex h-full w-full min-w-0 items-center justify-center gap-1.5 text-white"
         >
-          <X className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span className="inline-flex shrink-0 items-center justify-center w-6 h-6" aria-hidden>
+            <X className="w-4 h-4" aria-hidden />
+          </span>
           <span className="hidden sm:inline">でポスト</span>
         </ShareToXButton>
       </Button>
