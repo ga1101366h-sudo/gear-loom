@@ -76,14 +76,19 @@ export async function GET(request: Request) {
     const bucket = storage.bucket(bucketToUse);
     const file = bucket.file(objectPath);
 
-    const [downloadResult, metadataResult] = await Promise.all([
-      file.download().catch((err) => {
-        console.error("[GET /api/board-post/image] file.download failed", objectPath, err);
-        throw err;
-      }),
-      file.getMetadata().catch(() => [null]),
-    ]);
+    let downloadResult: Buffer[] | Buffer;
+    try {
+      downloadResult = await file.download();
+    } catch (err: unknown) {
+      const code = err && typeof err === "object" && "code" in err ? (err as { code: number }).code : 0;
+      console.error("[GET /api/board-post/image] file.download failed", objectPath, err);
+      if (code === 404 || (err && typeof err === "object" && "message" in err && String((err as { message: string }).message).includes("No such object"))) {
+        return NextResponse.json({ error: "Image not found" }, { status: 404 });
+      }
+      return NextResponse.json({ error: "Failed to load image" }, { status: 500 });
+    }
 
+    const metadataResult = await file.getMetadata().catch(() => [null]);
     const buffer = Array.isArray(downloadResult) ? downloadResult[0] : downloadResult;
     if (!Buffer.isBuffer(buffer)) {
       return NextResponse.json({ error: "Failed to download file" }, { status: 500 });
