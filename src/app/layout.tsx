@@ -24,7 +24,10 @@ const siteOrigin =
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
-  title: "Gear-Loom（ギアルーム）| 楽器・機材レビュー UGC プラットフォーム",
+  title: {
+    default: "Gear-Loom（ギアルーム）| 楽器・機材レビュー UGC プラットフォーム",
+    template: "%s | Gear-Loom",
+  },
   description:
     "ギアルーム（Gear-Loom）は楽器演奏者向けユーザー生成コンテンツプラットフォーム。機材レビューを共有し、EC検索リンクで購入までサポート。",
   icons: {

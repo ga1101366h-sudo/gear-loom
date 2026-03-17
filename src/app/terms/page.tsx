@@ -1,9 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "利用規約",
-  description: "Gear-Loom（ギアルーム）の利用規約です。",
+  description: "Gear-Loom（ギアルーム）の利用規約です。ユーザー投稿コンテンツの取り扱いや禁止事項、免責事項について定めています。",
 };
 
 export default function TermsPage() {

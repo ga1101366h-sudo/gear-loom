@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CategoryListSection } from "@/app/reviews/category-list-section";
 import type { Review } from "@/types/database";
+
+export const metadata: Metadata = {
+  title: "ブログ",
+  description: "Gear-Loom（ギアルーム）のブログ記事一覧です。機材の使いこなしやイベントレポートなどをチェックできます。",
+};
 
 async function getBlogReviews(): Promise<Review[]> {
   try {

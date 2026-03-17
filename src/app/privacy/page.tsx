@@ -1,9 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "プライバシーポリシー",
-  description: "Gear-Loom（ギアルーム）のプライバシーポリシーです。",
+  description:
+    "Gear-Loom（ギアルーム）のプライバシーポリシーです。収集する情報、利用目的、第三者提供、広告・解析ツールの利用について説明します。",
 };
 
 export default function PrivacyPage() {
