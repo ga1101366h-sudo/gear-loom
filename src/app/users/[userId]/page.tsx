@@ -5,6 +5,7 @@ import {
   getReviewsByAuthorIdFromFirestore,
   getFollowCountsFromFirestore,
   getReviewLikeCountsForIdsFromFirestore,
+  getBoardPostsWithLikesByUserUid,
 } from "@/lib/firebase/data";
 import { getGearsByUserId } from "@/lib/user-gears";
 import { getPublishedBoardsByUserUid } from "@/lib/board-public";
@@ -26,20 +27,27 @@ export default async function PublicProfilePage({
   let followCounts = { followersCount: 0, followingCount: 0 };
   let gears: Awaited<ReturnType<typeof getGearsByUserId>> = [];
   let boards: Awaited<ReturnType<typeof getPublishedBoardsByUserUid>> = [];
+  let boardPostsWithLikes: Awaited<ReturnType<typeof getBoardPostsWithLikesByUserUid>> = {
+    posts: [],
+    totalLikes: 0,
+  };
 
   try {
-    const [eventsRes, reviewsRes, followCountsRes, gearsRes, boardsRes] = await Promise.all([
-      getLiveEventsByUserIdFromFirestore(profile.id),
-      getReviewsByAuthorIdFromFirestore(profile.id),
-      getFollowCountsFromFirestore(profile.id),
-      getGearsByUserId(profile.id),
-      getPublishedBoardsByUserUid(profile.id),
-    ]);
+    const [eventsRes, reviewsRes, followCountsRes, gearsRes, boardsRes, boardPostsRes] =
+      await Promise.all([
+        getLiveEventsByUserIdFromFirestore(profile.id),
+        getReviewsByAuthorIdFromFirestore(profile.id),
+        getFollowCountsFromFirestore(profile.id),
+        getGearsByUserId(profile.id),
+        getPublishedBoardsByUserUid(profile.id),
+        getBoardPostsWithLikesByUserUid(profile.id),
+      ]);
     events = eventsRes;
     reviews = reviewsRes;
     followCounts = followCountsRes;
     gears = gearsRes;
     boards = boardsRes;
+    boardPostsWithLikes = boardPostsRes;
   } catch (err) {
     console.error("[PublicProfilePage] data fetch error (continuing as guest view):", err);
   }
@@ -67,6 +75,8 @@ export default async function PublicProfilePage({
       followingCount={followCounts.followingCount}
       gears={gears}
       boards={boards}
+      boardPosts={boardPostsWithLikes.posts}
+      totalBoardLikes={boardPostsWithLikes.totalLikes}
     />
   );
 }

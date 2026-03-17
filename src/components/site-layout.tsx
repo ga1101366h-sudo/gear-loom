@@ -168,6 +168,9 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
           <Link href="/privacy" className="hover:text-electric-blue transition-colors">
             プライバシーポリシー
           </Link>
+          <Link href="/terms" className="hover:text-electric-blue transition-colors">
+            利用規約
+          </Link>
           <Link href="/contact" className="hover:text-electric-blue transition-colors">
             お問い合わせ
           </Link>
