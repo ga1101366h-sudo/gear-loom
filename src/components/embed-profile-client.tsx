@@ -15,6 +15,15 @@ type Props = {
   reviews: ReviewWithLikeCount[];
   gears?: UserGearItem[];
   boards?: PublicBoardItem[];
+  boardPosts?: {
+    id: string;
+    title: string;
+    boardName: string;
+    updatedAt: string;
+    thumbnailUrl: string | null;
+    likeCount?: number;
+  }[];
+  initialBoardLikes?: number;
   initialFollowersCount: number;
   initialFollowingCount: number;
 };
@@ -25,6 +34,8 @@ export function EmbedProfileClient({
   reviews,
   gears = [],
   boards = [],
+  boardPosts = [],
+  initialBoardLikes = 0,
   initialFollowersCount,
   initialFollowingCount,
 }: Props) {
@@ -53,6 +64,8 @@ export function EmbedProfileClient({
       reviews={reviews}
       gears={gears}
       boards={boards}
+      boardPosts={boardPosts}
+      totalBoardLikes={initialBoardLikes}
       followersCount={initialFollowersCount}
       followingCount={initialFollowingCount}
       overrideFollowersCount={followersCount}

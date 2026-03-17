@@ -5,6 +5,7 @@ import {
   getReviewsByAuthorIdFromFirestore,
   getFollowCountsFromFirestore,
   getReviewLikeCountsForIdsFromFirestore,
+  getBoardPostsWithLikesByUserUid,
 } from "@/lib/firebase/data";
 import { getGearsByUserId } from "@/lib/user-gears";
 import { getPublishedBoardsByUserUid } from "@/lib/board-public";
@@ -21,12 +22,13 @@ export default async function EmbedProfilePage({
   const { userId } = await params;
   const profile = await getProfileByUserIdFromFirestore(decodeURIComponent(userId));
   if (!profile) notFound();
-  const [events, reviews, followCounts, gears, boards] = await Promise.all([
+  const [events, reviews, followCounts, gears, boards, boardPostsWithLikes] = await Promise.all([
     getLiveEventsByUserIdFromFirestore(profile.id),
     getReviewsByAuthorIdFromFirestore(profile.id),
     getFollowCountsFromFirestore(profile.id),
     getGearsByUserId(profile.id),
     getPublishedBoardsByUserUid(profile.id),
+    getBoardPostsWithLikesByUserUid(profile.id),
   ]);
   const reviewIds = reviews.map((r) => r.id);
   const likeCountsMap =
@@ -42,6 +44,8 @@ export default async function EmbedProfilePage({
       reviews={reviewsWithLikes}
       gears={gears}
       boards={boards}
+      boardPosts={boardPostsWithLikes.posts}
+      initialBoardLikes={boardPostsWithLikes.totalLikes}
       initialFollowersCount={followCounts.followersCount}
       initialFollowingCount={followCounts.followingCount}
     />

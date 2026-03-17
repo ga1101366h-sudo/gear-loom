@@ -1,4 +1,5 @@
 import { getAdminFirestore } from "./admin";
+import { prisma } from "@/lib/prisma";
 import { getCategoryLevel, getAllTargetSlugs, getAllTargetItems } from "@/data/category-search";
 import { getCategoryLabel, getCategoryPathSlugVariants } from "@/data/post-categories";
 import type { Review, Category, Maker, LiveEvent, Profile, Gear } from "@/types/database";
@@ -63,6 +64,98 @@ export async function getProfileByUserIdFromFirestore(userId: string): Promise<P
   } catch {
     return null;
   }
+}
+
+export type BoardPostWithLikes = {
+  id: string;
+  title: string;
+  boardName: string;
+  updatedAt: string;
+  thumbnailUrl: string | null;
+  likeCount: number;
+};
+
+export async function getBoardPostsWithLikesByUserUid(
+  userUid: string
+): Promise<{ posts: BoardPostWithLikes[]; totalLikes: number }> {
+  const trimmedUid = userUid.trim();
+  if (!trimmedUid) return { posts: [], totalLikes: 0 };
+
+  let rawPosts:
+    | {
+        id: string;
+        title: string;
+        updatedAt: Date;
+        board: { name: string; actualPhotoUrl: string | null; thumbnail: string | null };
+      }[]
+    | null = null;
+  try {
+    rawPosts = await prisma.boardPost.findMany({
+      where: { isPublic: true, board: { userId: trimmedUid } },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        updatedAt: true,
+        board: { select: { name: true, actualPhotoUrl: true, thumbnail: true } },
+      },
+    });
+  } catch (err) {
+    console.error("[getBoardPostsWithLikesByUserUid] prisma error", err);
+    return { posts: [], totalLikes: 0 };
+  }
+
+  if (!rawPosts || rawPosts.length === 0) return { posts: [], totalLikes: 0 };
+
+  const posts: BoardPostWithLikes[] = rawPosts.map((p) => {
+    const boardName = p.board?.name?.trim() || "エフェクターボード";
+    const title = p.title?.trim() || boardName;
+    const thumbnailUrl =
+      (p.board?.actualPhotoUrl?.trim() || p.board?.thumbnail?.trim()) ?? null;
+    return {
+      id: p.id,
+      title,
+      boardName,
+      updatedAt: p.updatedAt.toISOString(),
+      thumbnailUrl,
+      likeCount: 0,
+    };
+  });
+
+  const db = getAdminFirestore();
+  if (!db) return { posts, totalLikes: 0 };
+
+  const likeCountMap = new Map<string, number>();
+  let totalLikes = 0;
+  const ids = posts.map((p) => p.id);
+
+  const chunkSize = 10;
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    try {
+      const snap = await db
+        .collection("board_likes")
+        .where("post_id", "in", chunk)
+        .get();
+      snap.docs.forEach((d) => {
+        const data = d.data() as { post_id?: string };
+        const pid = data.post_id;
+        if (!pid) return;
+        const prev = likeCountMap.get(pid) ?? 0;
+        likeCountMap.set(pid, prev + 1);
+        totalLikes += 1;
+      });
+    } catch (err) {
+      console.error("[getBoardPostsWithLikesByUserUid] board_likes query error", err);
+    }
+  }
+
+  const postsWithLikes = posts.map((p) => ({
+    ...p,
+    likeCount: likeCountMap.get(p.id) ?? 0,
+  }));
+
+  return { posts: postsWithLikes, totalLikes };
 }
 
 /** トップページ右サイドバー用：user_id が設定されているプロフィールを取得（updated_at の新しい順、最大 limit 件） */

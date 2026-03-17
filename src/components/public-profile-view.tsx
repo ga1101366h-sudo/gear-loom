@@ -60,6 +60,17 @@ type Props = {
   gears?: UserGearItem[] | null;
   /** 公開済みボード一覧（紐づく BoardPost が isPublic のもののみ） */
   boards?: PublicBoardItem[];
+  /** 投稿したエフェクターボード記事一覧（BoardPost ベース） */
+  boardPosts?: {
+    id: string;
+    title: string;
+    boardName: string;
+    updatedAt: string;
+    thumbnailUrl: string | null;
+    likeCount?: number;
+  }[];
+  /** エフェクターボード記事へのいいね合計 */
+  totalBoardLikes?: number;
   /** 親から渡すリアルタイム表示用（embedプレビューでpostMessage更新時） */
   overrideFollowersCount?: number;
   overrideFollowingCount?: number;
@@ -75,6 +86,8 @@ export function PublicProfileView({
   followingCount = 0,
   gears = null,
   boards = [],
+  boardPosts = [],
+  totalBoardLikes = 0,
   overrideFollowersCount,
   overrideFollowingCount,
   disableLinks = false,
@@ -89,6 +102,7 @@ export function PublicProfileView({
   const twitchUrl = buildUrl(profile.sns_twitch, "twitch");
   const displayName = profile.display_name || profile.user_id || "ユーザー";
   const totalReviewLikes = reviews.reduce((sum, r) => sum + ((r as ReviewWithLikeCount).likeCount ?? 0), 0);
+  const totalBoardLikesSafe = totalBoardLikes ?? 0;
   const hasContactOrSns = Boolean(profile.contact_email || xUrl || instagramUrl || youtubeUrl || twitchUrl);
   const hasGear = Boolean(
     (gears && gears.length > 0) ||
@@ -457,56 +471,107 @@ export function PublicProfileView({
               <CardDescription>このアカウントが投稿したレビュー・記事一覧</CardDescription>
             </CardHeader>
             <CardContent>
-              {reviews.length === 0 ? (
+              {reviews.length === 0 && boardPosts.length === 0 ? (
                 <p className="text-sm text-gray-400">まだ投稿がありません。</p>
               ) : (
-                <ul className="space-y-2">
-                  {reviews.map((r) => {
-                    const content = (
-                      <>
-                        <span className="block font-medium line-clamp-2">{r.title}</span>
-                        {r.gear_name && (
-                          <span className="ml-2 text-gray-400"> — {r.gear_name}</span>
-                        )}
-                        <span className="ml-2 text-xs text-gray-500">
-                          {r.created_at
-                            ? new Date(r.created_at).toLocaleDateString("ja-JP")
-                            : ""}
-                        </span>
-                        {typeof (r as ReviewWithLikeCount).likeCount === "number" && (
-                          <span className="ml-2 text-xs text-gray-400" aria-label="いいね数">
-                            ❤ {(r as ReviewWithLikeCount).likeCount}
-                          </span>
-                        )}
-                      </>
-                    );
-                    return (
-                      <li key={r.id}>
-                        {disableLinks ? (
-                          <div className="block rounded-lg border border-surface-border bg-surface-card/40 px-3 py-2 text-sm text-gray-200">
-                            {content}
-                          </div>
-                        ) : (
-                          <Link
-                            href={`/reviews/${r.id}`}
-                            className="block rounded-lg border border-surface-border bg-surface-card/40 px-3 py-2 text-sm text-gray-200 hover:border-electric-blue/50 hover:text-electric-blue transition-colors"
-                          >
-                            {content}
-                          </Link>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
+                <div className="space-y-6">
+                  {reviews.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-400 mb-2">レビュー・記事</h3>
+                      <ul className="space-y-2">
+                        {reviews.map((r) => {
+                          const content = (
+                            <>
+                              <span className="block font-medium line-clamp-2">{r.title}</span>
+                              {r.gear_name && (
+                                <span className="ml-2 text-gray-400"> — {r.gear_name}</span>
+                              )}
+                              <span className="ml-2 text-xs text-gray-500">
+                                {r.created_at
+                                  ? new Date(r.created_at).toLocaleDateString("ja-JP")
+                                  : ""}
+                              </span>
+                              {typeof (r as ReviewWithLikeCount).likeCount === "number" && (
+                                <span className="ml-2 text-xs text-gray-400" aria-label="いいね数">
+                                  ❤ {(r as ReviewWithLikeCount).likeCount}
+                                </span>
+                              )}
+                            </>
+                          );
+                          return (
+                            <li key={r.id}>
+                              {disableLinks ? (
+                                <div className="block rounded-lg border border-surface-border bg-surface-card/40 px-3 py-2 text-sm text-gray-200">
+                                  {content}
+                                </div>
+                              ) : (
+                                <Link
+                                  href={`/reviews/${r.id}`}
+                                  className="block rounded-lg border border-surface-border bg-surface-card/40 px-3 py-2 text-sm text-gray-200 hover:border-electric-blue/50 hover:text-electric-blue transition-colors"
+                                >
+                                  {content}
+                                </Link>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+
+                  {boardPosts.length > 0 && (
+                    <div className={reviews.length > 0 ? "pt-4 border-t border-surface-border" : ""}>
+                      <h3 className="text-sm font-medium text-gray-400 mb-2">投稿したエフェクターボード</h3>
+                      <ul className="space-y-2">
+                        {boardPosts.map((b) => {
+                          const content = (
+                            <>
+                              <span className="block font-medium line-clamp-2">{b.title}</span>
+                              {b.boardName && (
+                                <span className="ml-2 text-gray-400"> — {b.boardName}</span>
+                              )}
+                              <span className="ml-2 text-xs text-gray-500">
+                                {b.updatedAt
+                                  ? new Date(b.updatedAt).toLocaleDateString("ja-JP")
+                                  : ""}
+                              </span>
+                              {typeof b.likeCount === "number" && (
+                                <span className="ml-2 text-xs text-gray-400" aria-label="いいね数">
+                                  ❤ {b.likeCount}
+                                </span>
+                              )}
+                            </>
+                          );
+                          return (
+                            <li key={b.id}>
+                              {disableLinks ? (
+                                <div className="block rounded-lg border border-surface-border bg-surface-card/40 px-3 py-2 text-sm text-gray-200">
+                                  {content}
+                                </div>
+                              ) : (
+                                <Link
+                                  href={`/boards/post/${b.id}`}
+                                  className="block rounded-lg border border-surface-border bg-surface-card/40 px-3 py-2 text-sm text-gray-200 hover:border-electric-blue/50 hover:text-electric-blue transition-colors"
+                                >
+                                  {content}
+                                </Link>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>
           <Card className="border-t border-b border-electric-blue/30">
             <CardContent className="pt-6 pb-6">
-              <h3 className="text-base font-semibold text-electric-blue mb-1">レビューにもらったイイね</h3>
-              <p className="text-sm text-gray-400 mb-2">このアカウントの投稿へのいいね合計</p>
+              <h3 className="text-base font-semibold text-electric-blue mb-1">投稿にもらったイイね</h3>
+              <p className="text-sm text-gray-400 mb-2">このアカウントの投稿（レビュー・ボード）へのいいね合計</p>
               <p className="text-2xl font-bold text-white">
-                {totalReviewLikes}
+                {totalReviewLikes + totalBoardLikesSafe}
                 <span className="text-lg font-normal text-gray-400 ml-1">件</span>
               </p>
             </CardContent>
