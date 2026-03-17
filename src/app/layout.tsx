@@ -30,6 +30,9 @@ export const metadata: Metadata = {
   },
   description:
     "ギアルーム（Gear-Loom）は楽器演奏者向けユーザー生成コンテンツプラットフォーム。機材レビューを共有し、EC検索リンクで購入までサポート。",
+  verification: {
+    google: "rsc3cSOPWuvFBL4izw0Q1GpCLZptOs5C8n-H2YgzAdk",
+  },
   icons: {
     icon: { url: "/icon.svg", type: "image/svg+xml" },
     shortcut: "/icon.svg",
