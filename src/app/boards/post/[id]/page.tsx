@@ -177,26 +177,57 @@ export default async function BoardPostDetailPage({ params }: Props) {
           />
           {(userId || board?.user) && (
             <div className="flex items-center gap-3 pt-2">
-              {authorAvatarUrl ? (
-                <span className="relative inline-block h-9 w-9 shrink-0 rounded-full overflow-hidden bg-surface-card border border-surface-border">
-                  <Image
-                    src={authorAvatarUrl}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="36px"
-                    unoptimized
-                  />
-                </span>
-              ) : (
-                <div
-                  className="h-9 w-9 shrink-0 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-semibold text-sm"
-                  aria-hidden
+              {userId ? (
+                <Link
+                  href={`/users/${encodeURIComponent(userId)}`}
+                  className="flex items-center gap-3 rounded-md transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
+                  aria-label={`${authorDisplayName}さんのプロフィールへ`}
                 >
-                  {authorDisplayName.charAt(0).toUpperCase() || "?"}
-                </div>
+                  {authorAvatarUrl ? (
+                    <span className="relative inline-block h-9 w-9 shrink-0 rounded-full overflow-hidden bg-surface-card border border-surface-border">
+                      <Image
+                        src={authorAvatarUrl}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="36px"
+                        unoptimized
+                      />
+                    </span>
+                  ) : (
+                    <div
+                      className="h-9 w-9 shrink-0 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-semibold text-sm"
+                      aria-hidden
+                    >
+                      {authorDisplayName.charAt(0).toUpperCase() || "?"}
+                    </div>
+                  )}
+                  <span className="text-sm text-gray-300 hover:text-cyan-400">{authorDisplayName}</span>
+                </Link>
+              ) : (
+                <>
+                  {authorAvatarUrl ? (
+                    <span className="relative inline-block h-9 w-9 shrink-0 rounded-full overflow-hidden bg-surface-card border border-surface-border">
+                      <Image
+                        src={authorAvatarUrl}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="36px"
+                        unoptimized
+                      />
+                    </span>
+                  ) : (
+                    <div
+                      className="h-9 w-9 shrink-0 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 font-semibold text-sm"
+                      aria-hidden
+                    >
+                      {authorDisplayName.charAt(0).toUpperCase() || "?"}
+                    </div>
+                  )}
+                  <span className="text-sm text-gray-300">{authorDisplayName}</span>
+                </>
               )}
-              <span className="text-sm text-gray-300">{authorDisplayName}</span>
               <span className="text-sm text-gray-500">
                 {new Date(post.updatedAt).toLocaleDateString("ja-JP", {
                   year: "numeric",

@@ -99,56 +99,69 @@ function SortableBoardCard({
           className="min-w-0 flex flex-col flex-1 hover:opacity-90"
         >
           <div className="relative aspect-video w-full bg-[#0a0a0a] shrink-0 overflow-hidden">
-            {board.actualPhotoUrl && board.thumbnail ? (
-              <div className="flex w-full h-full">
-                <div className="relative w-1/2 h-full">
-                  <Image
-                    src={board.actualPhotoUrl}
-                    alt="実機写真"
-                    fill
-                    className="object-cover"
-                    unoptimized={board.actualPhotoUrl.startsWith("data:") || board.actualPhotoUrl.startsWith("/")}
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  />
+            {(() => {
+              const hasActual = Boolean(board.actualPhotoUrl?.trim());
+              const hasThumbnail = Boolean(board.thumbnail?.trim());
+              if (hasActual && hasThumbnail) {
+                return (
+                  <div className="flex w-full h-full">
+                    <div className="relative w-1/2 h-full">
+                      <Image
+                        src={board.actualPhotoUrl!}
+                        alt="実機写真"
+                        fill
+                        className="object-cover"
+                        unoptimized={board.actualPhotoUrl!.startsWith("data:") || board.actualPhotoUrl!.startsWith("/")}
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                    </div>
+                    <div className="relative w-1/2 h-full border-l border-surface-border">
+                      <Image
+                        src={board.thumbnail!}
+                        alt="配線図"
+                        fill
+                        className="object-cover"
+                        unoptimized={board.thumbnail!.startsWith("data:")}
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                    </div>
+                  </div>
+                );
+              }
+              if (hasActual) {
+                return (
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={board.actualPhotoUrl!}
+                      alt="実機写真"
+                      fill
+                      className="object-cover"
+                      unoptimized={board.actualPhotoUrl!.startsWith("data:") || board.actualPhotoUrl!.startsWith("/")}
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    />
+                  </div>
+                );
+              }
+              if (hasThumbnail) {
+                return (
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={board.thumbnail!}
+                      alt="配線図"
+                      fill
+                      className="object-cover"
+                      unoptimized={board.thumbnail!.startsWith("data:")}
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    />
+                  </div>
+                );
+              }
+              return (
+                <div className="flex w-full h-full items-center justify-center bg-gray-800 text-gray-500 text-xs">
+                  サムネイルなし
                 </div>
-                <div className="relative w-1/2 h-full border-l border-surface-border">
-                  <Image
-                    src={board.thumbnail}
-                    alt="配線図"
-                    fill
-                    className="object-cover"
-                    unoptimized={board.thumbnail.startsWith("data:")}
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  />
-                </div>
-              </div>
-            ) : board.actualPhotoUrl ? (
-              <div className="relative w-full h-full">
-                <Image
-                  src={board.actualPhotoUrl}
-                  alt="実機写真"
-                  fill
-                  className="object-cover"
-                  unoptimized={board.actualPhotoUrl.startsWith("data:") || board.actualPhotoUrl.startsWith("/")}
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                />
-              </div>
-            ) : board.thumbnail ? (
-              <div className="relative w-full h-full">
-                <Image
-                  src={board.thumbnail}
-                  alt="配線図"
-                  fill
-                  className="object-cover"
-                  unoptimized={board.thumbnail.startsWith("data:")}
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                />
-              </div>
-            ) : (
-              <div className="flex w-full h-full items-center justify-center bg-gray-800 text-gray-500 text-xs">
-                サムネイルなし
-              </div>
-            )}
+              );
+            })()}
           </div>
           <div className="p-4 flex flex-col gap-1">
             <span className="font-medium text-white truncate">{board.name}</span>

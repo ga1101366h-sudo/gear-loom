@@ -152,7 +152,8 @@ export default function MypagePage() {
     async (): Promise<MypageData> => {
       const uid = user!.uid;
       const token = await user!.getIdToken(true);
-      const [profileRes, followCountsRes, gearsRes, boardsRes, boardPostsRes, reviewsSnap, likesSnap, boardLikesSnap, eventsSnap] = await Promise.all([
+      // 一部の取得（例: board_likes の permission-denied）が失敗しても他は表示するため Promise.allSettled を使用
+      const settled = await Promise.allSettled([
         fetch("/api/me/profile", { headers: { Authorization: `Bearer ${token}` } }),
         fetch("/api/me/follow-counts", { headers: { Authorization: `Bearer ${token}` } }),
         fetch("/api/user/gears", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
@@ -164,8 +165,41 @@ export default function MypagePage() {
         getDocs(query(collection(db!, "live_events"), where("user_id", "==", uid))),
       ]);
 
+      const getResponse = (i: number) => (settled[i].status === "fulfilled" ? settled[i].value : null);
+      const profileRes = getResponse(0) as Response | null;
+      const followCountsRes = getResponse(1) as Response | null;
+      const gearsRes = getResponse(2) as Response | null;
+      const boardsRes = getResponse(3) as Response | null;
+      const boardPostsRes = getResponse(4) as Response | null;
+      const reviewsSnap = (settled[5].status === "fulfilled" ? settled[5].value : { docs: [] }) as { docs: { id: string; data: () => Record<string, unknown> }[] };
+      const likesSnap = (settled[6].status === "fulfilled" ? settled[6].value : { docs: [] }) as { docs: { id: string; data: () => Record<string, unknown> }[] };
+      const boardLikesSnap = (settled[7].status === "fulfilled" ? settled[7].value : { docs: [] }) as { docs: { id: string; data: () => Record<string, unknown> }[] };
+      const eventsSnap = (settled[8].status === "fulfilled" ? settled[8].value : { docs: [] }) as { docs: { id: string; data: () => Record<string, unknown> }[] };
+
+      let profile: Profile | null = null;
+      if (profileRes?.ok) {
+        try {
+          const json = (await profileRes.json()) as { profile: Profile | null };
+          profile = json.profile ?? null;
+        } catch {
+          // ignore
+        }
+      }
+
+      let followingCount = 0;
+      let followersCount = 0;
+      if (followCountsRes?.ok) {
+        try {
+          const countsData = (await followCountsRes.json()) as { followingCount?: number; followersCount?: number };
+          followingCount = countsData.followingCount ?? 0;
+          followersCount = countsData.followersCount ?? 0;
+        } catch {
+          // ignore
+        }
+      }
+
       let gears: UserGearItem[] = [];
-      if (gearsRes.ok) {
+      if (gearsRes?.ok) {
         try {
           const parsed = (await gearsRes.json()) as UserGearItem[];
           gears = Array.isArray(parsed) ? parsed : [];
@@ -175,7 +209,7 @@ export default function MypagePage() {
       }
 
       let boards: MypageBoardItem[] = [];
-      if (boardsRes.ok) {
+      if (boardsRes?.ok) {
         try {
           const json = (await boardsRes.json()) as { boards?: MypageBoardItem[] };
           boards = Array.isArray(json.boards) ? json.boards : [];
@@ -185,26 +219,13 @@ export default function MypagePage() {
       }
 
       let boardPosts: MypageBoardPostItem[] = [];
-      if (boardPostsRes.ok) {
+      if (boardPostsRes?.ok) {
         try {
           const json = (await boardPostsRes.json()) as { boardPosts?: MypageBoardPostItem[] };
           boardPosts = Array.isArray(json.boardPosts) ? json.boardPosts : [];
         } catch {
           // ignore
         }
-      }
-
-      let profile: Profile | null = null;
-      if (profileRes.ok) {
-        const json = (await profileRes.json()) as { profile: Profile | null };
-        profile = json.profile ?? null;
-      }
-      let followingCount = 0;
-      let followersCount = 0;
-      if (followCountsRes.ok) {
-        const countsData = (await followCountsRes.json()) as { followingCount?: number; followersCount?: number };
-        followingCount = countsData.followingCount ?? 0;
-        followersCount = countsData.followersCount ?? 0;
       }
 
       const reviews: Review[] = reviewsSnap.docs
@@ -233,66 +254,78 @@ export default function MypagePage() {
 
       // 自分のレビューに対する「いいね」数集計（Firestore への問い合わせをチャンクごとに並列実行）
       let totalLikes = 0;
-      const myReviewIdArray = reviewsSnap.docs.map((d) => d.id);
-      if (myReviewIdArray.length > 0) {
-        const likeQueryPromises: Promise<QuerySnapshot>[] = [];
-        for (let i = 0; i < myReviewIdArray.length; i += 10) {
-          const chunk = myReviewIdArray.slice(i, i + 10);
-          likeQueryPromises.push(
-            getDocs(query(collection(db!, "review_likes"), where("review_id", "in", chunk))),
+      try {
+        const myReviewIdArray = reviewsSnap.docs.map((d) => d.id);
+        if (myReviewIdArray.length > 0) {
+          const likeQueryPromises: Promise<QuerySnapshot>[] = [];
+          for (let i = 0; i < myReviewIdArray.length; i += 10) {
+            const chunk = myReviewIdArray.slice(i, i + 10);
+            likeQueryPromises.push(
+              getDocs(query(collection(db!, "review_likes"), where("review_id", "in", chunk))),
+            );
+          }
+          const likeSnaps = await Promise.allSettled(likeQueryPromises);
+          totalLikes = likeSnaps.reduce(
+            (sum, result) => sum + (result.status === "fulfilled" ? result.value.size : 0),
+            0,
           );
         }
-        const likeSnaps = await Promise.all(likeQueryPromises);
-        totalLikes = likeSnaps.reduce((sum, snap) => sum + snap.size, 0);
+      } catch {
+        // 集計失敗時は 0 のまま
       }
 
       // 自分が「いいね」したレビュー一覧（こちらもチャンクごとに並列取得）
-      const likedReviewIds = likesSnap.docs
-        .map((d) => d.data().review_id as string)
-        .filter(Boolean)
-        .slice(0, 50);
       const likedList: Review[] = [];
-      if (likedReviewIds.length > 0) {
-        const likedQueryPromises: Promise<QuerySnapshot>[] = [];
-        for (let i = 0; i < likedReviewIds.length; i += 10) {
-          const chunk = likedReviewIds.slice(i, i + 10);
-          likedQueryPromises.push(
-            getDocs(query(collection(db!, "reviews"), where(documentId(), "in", chunk))),
-          );
-        }
-        const likedSnaps = await Promise.all(likedQueryPromises);
-        likedSnaps.forEach((revSnap) => {
-          revSnap.docs.forEach((d) => {
-            const data = d.data();
-            likedList.push({
-              id: d.id,
-              author_id: data.author_id ?? "",
-              category_id: data.category_id ?? "",
-              maker_id: data.maker_id ?? null,
-              maker_name: (data.maker_name as string | null) ?? null,
-              title: data.title ?? "",
-              gear_name: data.gear_name ?? "",
-              rating: data.rating ?? 0,
-              body_md: data.body_md ?? null,
-              body_html: data.body_html ?? null,
-              created_at: data.created_at ?? "",
-              updated_at: data.updated_at ?? "",
-              categories: data.category_name_ja
-                ? {
-                    id: "",
-                    slug: (data.category_slug as string) ?? "",
-                    name_ja: data.category_name_ja,
-                    name_en: null,
-                    sort_order: 0,
-                    created_at: "",
-                  }
-                : undefined,
-              review_images:
-                (data.review_images as { storage_path: string; sort_order: number }[] | undefined) ??
-                [],
-            } as Review);
+      try {
+        const likedReviewIds = likesSnap.docs
+          .map((d) => d.data().review_id as string)
+          .filter(Boolean)
+          .slice(0, 50);
+        if (likedReviewIds.length > 0) {
+          const likedQueryPromises: Promise<QuerySnapshot>[] = [];
+          for (let i = 0; i < likedReviewIds.length; i += 10) {
+            const chunk = likedReviewIds.slice(i, i + 10);
+            likedQueryPromises.push(
+              getDocs(query(collection(db!, "reviews"), where(documentId(), "in", chunk))),
+            );
+          }
+          const likedSnaps = await Promise.allSettled(likedQueryPromises);
+          likedSnaps.forEach((result) => {
+            if (result.status !== "fulfilled") return;
+            result.value.docs.forEach((d) => {
+              const data = d.data();
+              likedList.push({
+                id: d.id,
+                author_id: data.author_id ?? "",
+                category_id: data.category_id ?? "",
+                maker_id: data.maker_id ?? null,
+                maker_name: (data.maker_name as string | null) ?? null,
+                title: data.title ?? "",
+                gear_name: data.gear_name ?? "",
+                rating: data.rating ?? 0,
+                body_md: data.body_md ?? null,
+                body_html: data.body_html ?? null,
+                created_at: data.created_at ?? "",
+                updated_at: data.updated_at ?? "",
+                categories: data.category_name_ja
+                  ? {
+                      id: "",
+                      slug: (data.category_slug as string) ?? "",
+                      name_ja: data.category_name_ja,
+                      name_en: null,
+                      sort_order: 0,
+                      created_at: "",
+                    }
+                  : undefined,
+                review_images:
+                  (data.review_images as { storage_path: string; sort_order: number }[] | undefined) ??
+                  [],
+              } as Review);
+            });
           });
-        });
+        }
+      } catch {
+        // 取得失敗時は空のまま
       }
 
       const likedBoardPosts: LikedBoardPostItem[] = boardLikesSnap.docs

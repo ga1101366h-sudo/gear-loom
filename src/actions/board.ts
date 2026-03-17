@@ -106,7 +106,8 @@ export async function saveBoard(
           name: boardName,
           nodes: nodesJson,
           edges: edgesJson,
-          thumbnail: thumbnail !== undefined ? thumbnail : undefined,
+          // 配線図サムネイル: 新しい値があるときだけ更新。null のときは既存を維持（キャプチャ失敗時も配線図サムネイルを消さない）
+          thumbnail: thumbnail != null && thumbnail.trim() !== "" ? thumbnail : undefined,
           actualPhotoUrl: actualPhotoUrl !== undefined ? actualPhotoUrl : undefined,
         },
       });
