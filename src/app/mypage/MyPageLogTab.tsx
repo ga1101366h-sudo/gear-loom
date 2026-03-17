@@ -22,6 +22,8 @@ import {
 import type { Review } from "@/types/database";
 import type { LiveEvent } from "@/types/database";
 
+export type LikedBoardPostItem = { postId: string; title: string; thumbnailUrl: string | null };
+
 function getTimelineReviewImageUrlFromItem(item: TimelineItem): string | null {
   if (item.type !== "review") return null;
   return getTimelineReviewImageUrlFromApi(item);
@@ -29,6 +31,7 @@ function getTimelineReviewImageUrlFromItem(item: TimelineItem): string | null {
 
 type Props = {
   likedReviews: Review[];
+  likedBoardPosts: LikedBoardPostItem[];
   liveEvents: LiveEvent[];
   sortedCalendarEvents: LiveEvent[];
   timelineItems: TimelineItem[];
@@ -36,11 +39,13 @@ type Props = {
 
 export function MyPageLogTab({
   likedReviews,
+  likedBoardPosts,
   liveEvents,
   sortedCalendarEvents,
   timelineItems,
 }: Props) {
   const [likedPage, setLikedPage] = useState(0);
+  const [likedBoardPage, setLikedBoardPage] = useState(0);
   const [calendarPage, setCalendarPage] = useState(0);
   const [timelinePage, setTimelinePage] = useState(0);
 
@@ -230,12 +235,15 @@ export function MyPageLogTab({
       <Card>
         <CardHeader>
           <CardTitle className="text-electric-blue">お気に入りした記事</CardTitle>
-          <CardDescription>いいねしたレビュー一覧</CardDescription>
+          <CardDescription>いいねしたレビュー・エフェクターボード一覧</CardDescription>
         </CardHeader>
-        <CardContent>
-          {likedReviews.length === 0 ? (
+        <CardContent className="space-y-8">
+          {/* いいねしたレビュー */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-400 mb-2">いいねしたレビュー</h3>
+            {likedReviews.length === 0 ? (
             <div className={EMPTY_SECTION_CLASS}>
-              <p className="text-gray-500 text-sm">まだいいねした記事がありません。</p>
+              <p className="text-gray-500 text-sm">まだいいねしたレビューがありません。</p>
             </div>
           ) : (
             <>
@@ -277,6 +285,77 @@ export function MyPageLogTab({
               />
             </>
           )}
+          </div>
+
+          {/* いいねしたエフェクターボード */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-400 mb-2">いいねしたエフェクターボード</h3>
+            {likedBoardPosts.length === 0 ? (
+              <div className={EMPTY_SECTION_CLASS}>
+                <p className="text-gray-500 text-sm">まだいいねしたエフェクターボードがありません。</p>
+              </div>
+            ) : (
+              <>
+                <ul className="space-y-3">
+                  {likedBoardPosts
+                    .slice(
+                      likedBoardPage * CAROUSEL_PAGE_SIZE,
+                      likedBoardPage * CAROUSEL_PAGE_SIZE + CAROUSEL_PAGE_SIZE
+                    )
+                    .map((b) => (
+                      <li key={b.postId}>
+                        <Link
+                          href={`/boards/post/${b.postId}`}
+                          className="flex gap-3 rounded-lg border border-surface-border bg-surface-card/50 overflow-hidden hover:border-cyan-500/50 transition-colors"
+                        >
+                          <div className="relative w-24 shrink-0 aspect-[4/3] bg-surface-card">
+                            {b.thumbnailUrl ? (
+                              <Image
+                                src={b.thumbnailUrl}
+                                alt=""
+                                fill
+                                className="object-cover"
+                                sizes="96px"
+                                unoptimized
+                              />
+                            ) : (
+                              <Image
+                                src={PLACEHOLDER_IMG}
+                                alt=""
+                                fill
+                                className="object-cover"
+                                sizes="96px"
+                                unoptimized
+                              />
+                            )}
+                          </div>
+                          <div className="min-w-0 py-3 pr-3 flex-1">
+                            <p className="font-medium text-white line-clamp-1">{b.title}</p>
+                            <p className="text-xs text-gray-500 mt-1">エフェクターボード</p>
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                </ul>
+                <CarouselNav
+                  currentPage={likedBoardPage}
+                  totalPages={Math.max(
+                    1,
+                    Math.ceil(likedBoardPosts.length / CAROUSEL_PAGE_SIZE)
+                  )}
+                  onPrev={() => setLikedBoardPage((p) => Math.max(0, p - 1))}
+                  onNext={() =>
+                    setLikedBoardPage((p) =>
+                      Math.min(
+                        Math.ceil(likedBoardPosts.length / CAROUSEL_PAGE_SIZE) - 1,
+                        p + 1
+                      )
+                    )
+                  }
+                />
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

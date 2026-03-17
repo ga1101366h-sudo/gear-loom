@@ -103,6 +103,7 @@ export default function MypagePage() {
   const [mypageGears, setMypageGears] = useState<UserGearItem[]>([]);
   const [mypageBoards, setMypageBoards] = useState<{ id: string; name: string; thumbnail: string | null; actualPhotoUrl: string | null; updatedAt: string }[]>([]);
   const [mypageBoardPosts, setMypageBoardPosts] = useState<{ id: string; title: string; content: string | null; updatedAt: string; boardId: string; boardName: string }[]>([]);
+  const [likedBoardPosts, setLikedBoardPosts] = useState<{ postId: string; title: string; thumbnailUrl: string | null }[]>([]);
   const [followListModal, setFollowListModal] = useState<"following" | "followers" | null>(null);
   const [followingList, setFollowingList] = useState<FollowListItem[]>([]);
   const [followersList, setFollowersList] = useState<FollowListItem[]>([]);
@@ -130,6 +131,7 @@ export default function MypagePage() {
     boardName: string;
     thumbnailUrl?: string | null;
   };
+  type LikedBoardPostItem = { postId: string; title: string; thumbnailUrl: string | null };
   type MypageData = {
     profile: Profile | null;
     followingCount: number;
@@ -137,6 +139,7 @@ export default function MypagePage() {
     myReviews: Review[];
     totalLikes: number;
     likedReviews: Review[];
+    likedBoardPosts: LikedBoardPostItem[];
     liveEvents: LiveEvent[];
     timelineItems: TimelineItem[];
     gears: UserGearItem[];
@@ -149,7 +152,7 @@ export default function MypagePage() {
     async (): Promise<MypageData> => {
       const uid = user!.uid;
       const token = await user!.getIdToken(true);
-      const [profileRes, followCountsRes, gearsRes, boardsRes, boardPostsRes, reviewsSnap, likesSnap, eventsSnap] = await Promise.all([
+      const [profileRes, followCountsRes, gearsRes, boardsRes, boardPostsRes, reviewsSnap, likesSnap, boardLikesSnap, eventsSnap] = await Promise.all([
         fetch("/api/me/profile", { headers: { Authorization: `Bearer ${token}` } }),
         fetch("/api/me/follow-counts", { headers: { Authorization: `Bearer ${token}` } }),
         fetch("/api/user/gears", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
@@ -157,6 +160,7 @@ export default function MypagePage() {
         fetch("/api/me/board-posts", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
         getDocs(query(collection(db!, "reviews"), where("author_id", "==", uid))),
         getDocs(query(collection(db!, "review_likes"), where("user_id", "==", uid))),
+        getDocs(query(collection(db!, "board_likes"), where("user_id", "==", uid))),
         getDocs(query(collection(db!, "live_events"), where("user_id", "==", uid))),
       ]);
 
@@ -291,6 +295,17 @@ export default function MypagePage() {
         });
       }
 
+      const likedBoardPosts: LikedBoardPostItem[] = boardLikesSnap.docs
+        .map((d) => {
+          const data = d.data();
+          return {
+            postId: (data.post_id as string) ?? "",
+            title: (data.title as string) ?? "エフェクターボード",
+            thumbnailUrl: (data.thumbnail_url as string | null) ?? null,
+          };
+        })
+        .filter((b) => b.postId);
+
       const events: LiveEvent[] = eventsSnap.docs
         .map((d) => {
           const data = d.data();
@@ -322,6 +337,7 @@ export default function MypagePage() {
         myReviews: reviews,
         totalLikes,
         likedReviews: likedList,
+        likedBoardPosts,
         liveEvents: events,
         timelineItems: timeline,
         gears,
@@ -352,6 +368,7 @@ export default function MypagePage() {
       setMyReviews(mypageData.myReviews);
       setTotalLikes(mypageData.totalLikes);
       setLikedReviews(mypageData.likedReviews);
+      setLikedBoardPosts(mypageData.likedBoardPosts ?? []);
       setLiveEvents(mypageData.liveEvents);
       setTimelineItems(mypageData.timelineItems);
       setMypageGears(mypageData.gears ?? []);
@@ -639,6 +656,7 @@ export default function MypagePage() {
           <Suspense fallback={<div className="py-8 text-center text-gray-400 text-sm">読み込み中...</div>}>
             <MyPageLogTab
               likedReviews={likedReviews}
+              likedBoardPosts={likedBoardPosts}
               liveEvents={liveEvents}
               sortedCalendarEvents={sortedCalendarEvents}
               timelineItems={timelineItems}

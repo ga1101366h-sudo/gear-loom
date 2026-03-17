@@ -1,6 +1,7 @@
 "use client";
 
-import { Heart, X } from "lucide-react";
+import { X } from "lucide-react";
+import { BoardLikeButton } from "@/components/board-like-button";
 import { ShareToXButton } from "@/components/share-to-x-button";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,12 +9,19 @@ import { useAuth } from "@/contexts/AuthContext";
 interface BoardPostActionBarProps {
   postId: string;
   title: string;
+  /** マイページお気に入り表示用。実機写真 or キャンバスサムネイルのURL */
+  thumbnailUrl?: string | null;
   /** 記事のオーナー（Board.userId = Firebase UID）。シェアテキスト分岐用 */
   ownerId: string | null;
 }
 
-/** ボード詳細のアクションバー（いいねはUIのみ・Xシェアは有効） */
-export function BoardPostActionBar({ postId, title, ownerId }: BoardPostActionBarProps) {
+/** ボード詳細のアクションバー（いいね・Xシェア） */
+export function BoardPostActionBar({
+  postId,
+  title,
+  thumbnailUrl = null,
+  ownerId,
+}: BoardPostActionBarProps) {
   const { user } = useAuth();
   const isOwner = !!user && !!ownerId && user.uid === ownerId;
 
@@ -24,17 +32,11 @@ export function BoardPostActionBar({ postId, title, ownerId }: BoardPostActionBa
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-3">
-      {/* いいね：UIのみ（バックエンド未実装時は非活性表示） */}
-      <button
-        type="button"
-        disabled
-        className="h-10 w-full flex items-center justify-center gap-1.5 rounded-md border border-white/20 bg-white/5 px-2 text-xs font-medium text-gray-400 whitespace-nowrap cursor-not-allowed"
-        aria-label="いいね（準備中）"
-      >
-        <Heart className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        <span>いいね</span>
-        <span className="tabular-nums">0</span>
-      </button>
+      <BoardLikeButton
+        postId={postId}
+        title={title}
+        thumbnailUrl={thumbnailUrl ?? null}
+      />
       {/* Xでポスト（スマホでアイコンが細長くならないよう aspect-square で正方形を維持） */}
       <Button
         variant="outline"

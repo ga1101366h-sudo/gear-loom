@@ -1,4 +1,5 @@
 import { getAboutPageCountsFromFirestore } from "@/lib/firebase/data";
+import { prisma } from "@/lib/prisma";
 import { AboutCtaSection } from "@/components/about-cta-section";
 import { AboutStats } from "@/components/about-stats";
 import {
@@ -78,7 +79,11 @@ const FEATURES = [
 ];
 
 export default async function AboutPage() {
-  const counts = await getAboutPageCountsFromFirestore();
+  const [firestoreCounts, boardPostCount] = await Promise.all([
+    getAboutPageCountsFromFirestore(),
+    prisma.boardPost.count({ where: { isPublic: true } }),
+  ]);
+  const counts = { ...firestoreCounts, boardPosts: boardPostCount };
 
   return (
     <div className="min-h-screen">

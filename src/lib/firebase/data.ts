@@ -760,6 +760,8 @@ export type AboutPageCounts = {
   profiles: number;
   notebookEntries: number;
   liveEvents: number;
+  /** 公開されているエフェクターボード投稿数（Prisma） */
+  boardPosts: number;
 };
 
 export async function getAboutPageCountsFromFirestore(): Promise<AboutPageCounts> {

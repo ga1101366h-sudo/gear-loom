@@ -6,7 +6,7 @@ import type { AboutPageCounts } from "@/lib/firebase/data";
 const NUMBER_ITEMS = [
   { key: "reviews" as const, unit: "件", label: "投稿されたレビュー" },
   { key: "profiles" as const, unit: "人", label: "登録ユーザー" },
-  { key: "notebookEntries" as const, unit: "件", label: "カスタム手帳の記録" },
+  { key: "boardPosts" as const, unit: "件", label: "投稿されたエフェクターボード" },
   { key: "liveEvents" as const, unit: "件", label: "登録されたライブ日程" },
 ] as const;
 

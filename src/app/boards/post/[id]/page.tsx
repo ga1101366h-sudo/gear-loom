@@ -148,6 +148,8 @@ export default async function BoardPostDetailPage({ params }: Props) {
   }
 
   const title = post.title?.trim() || board?.name?.trim() || "エフェクターボード";
+  const thumbnailUrl =
+    (board?.actualPhotoUrl?.trim() || board?.thumbnail?.trim()) ?? null;
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto px-4 py-8 sm:py-12">
@@ -167,7 +169,12 @@ export default async function BoardPostDetailPage({ params }: Props) {
             {title}
           </h1>
           {/* アクションバー（いいね・Xでポスト） */}
-          <BoardPostActionBar postId={post.id} title={title} ownerId={userId ?? null} />
+          <BoardPostActionBar
+            postId={post.id}
+            title={title}
+            thumbnailUrl={thumbnailUrl}
+            ownerId={userId ?? null}
+          />
           {(userId || board?.user) && (
             <div className="flex items-center gap-3 pt-2">
               {authorAvatarUrl ? (
