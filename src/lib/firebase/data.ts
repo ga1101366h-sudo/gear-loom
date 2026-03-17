@@ -10,41 +10,56 @@ export type ReviewDetail = Review & {
   review_spec_tags?: { spec_tags: { id: string; name_ja: string } }[];
 };
 
+function profileFromDoc(
+  docSnap: FirebaseFirestore.DocumentSnapshot<FirebaseFirestore.DocumentData>
+): Profile {
+  const data = docSnap.data() ?? {};
+  return {
+    id: docSnap.id,
+    display_name: (data.display_name as string) ?? null,
+    avatar_url: (data.avatar_url as string) ?? null,
+    user_id: (data.user_id as string) ?? null,
+    phone: (data.phone as string) ?? null,
+    bio: (data.bio as string) ?? null,
+    main_instrument: (data.main_instrument as string) ?? null,
+    owned_gear: (data.owned_gear as string) ?? null,
+    owned_gear_images: (data.owned_gear_images as string[] | null) ?? null,
+    band_name: (data.band_name as string) ?? null,
+    band_url: (data.band_url as string) ?? null,
+    sns_twitter: (data.sns_twitter as string) ?? null,
+    sns_instagram: (data.sns_instagram as string) ?? null,
+    sns_youtube: (data.sns_youtube as string) ?? null,
+    sns_twitch: (data.sns_twitch as string) ?? null,
+    contact_email: (data.contact_email as string) ?? null,
+    created_at: (data.created_at as string) ?? "",
+    updated_at: (data.updated_at as string) ?? "",
+  } as Profile;
+}
+
+/**
+ * user_id フィールドまたはドキュメントIDでプロフィールを取得。
+ * レビュー記事は user_id（ハンドル）でリンク、ボード記事は Firebase UID でリンクするため、
+ * 両方でヒットするよう doc(id) をフォールバックに使う。
+ */
 export async function getProfileByUserIdFromFirestore(userId: string): Promise<Profile | null> {
   const db = getAdminFirestore();
   if (!db) return null;
   const trimmed = userId.trim();
   if (!trimmed) return null;
-  // Firebase UID は大文字小文字を区別するため、toLowerCase せずに照合する
   try {
     const snap = await db
       .collection("profiles")
       .where("user_id", "==", trimmed)
       .limit(1)
       .get();
-    if (snap.empty) return null;
-    const docSnap = snap.docs[0];
-    const data = docSnap.data();
-    return {
-      id: docSnap.id,
-      display_name: (data.display_name as string) ?? null,
-      avatar_url: (data.avatar_url as string) ?? null,
-      user_id: (data.user_id as string) ?? null,
-      phone: (data.phone as string) ?? null,
-      bio: (data.bio as string) ?? null,
-      main_instrument: (data.main_instrument as string) ?? null,
-      owned_gear: (data.owned_gear as string) ?? null,
-      owned_gear_images: (data.owned_gear_images as string[] | null) ?? null,
-      band_name: (data.band_name as string) ?? null,
-      band_url: (data.band_url as string) ?? null,
-      sns_twitter: (data.sns_twitter as string) ?? null,
-      sns_instagram: (data.sns_instagram as string) ?? null,
-      sns_youtube: (data.sns_youtube as string) ?? null,
-      sns_twitch: (data.sns_twitch as string) ?? null,
-      contact_email: (data.contact_email as string) ?? null,
-      created_at: (data.created_at as string) ?? "",
-      updated_at: (data.updated_at as string) ?? "",
-    } as Profile;
+    if (!snap.empty) {
+      return profileFromDoc(snap.docs[0]);
+    }
+    const docSnap = await db.collection("profiles").doc(trimmed).get();
+    if (docSnap.exists) {
+      return profileFromDoc(docSnap);
+    }
+    return null;
   } catch {
     return null;
   }
