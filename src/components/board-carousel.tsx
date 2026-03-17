@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { shouldUnoptimizeImage } from "@/lib/image-optimization";
 import {
   Carousel,
   CarouselContent,
@@ -57,10 +58,7 @@ export function BoardCarousel({ cards }: { cards: BoardCarouselCard[] }) {
                             alt="実機写真"
                             fill
                             className="object-cover group-hover:opacity-90 transition-opacity"
-                            unoptimized={
-                              card.actualPhotoUrl.startsWith("data:") ||
-                              card.actualPhotoUrl.startsWith("/")
-                            }
+                            unoptimized={shouldUnoptimizeImage(card.actualPhotoUrl)}
                             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                           />
                         </div>
@@ -70,7 +68,7 @@ export function BoardCarousel({ cards }: { cards: BoardCarouselCard[] }) {
                             alt="配線図"
                             fill
                             className="object-cover group-hover:opacity-90 transition-opacity"
-                            unoptimized={card.thumbnail.startsWith("data:")}
+                            unoptimized={shouldUnoptimizeImage(card.thumbnail)}
                             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                           />
                         </div>
@@ -82,10 +80,7 @@ export function BoardCarousel({ cards }: { cards: BoardCarouselCard[] }) {
                           alt="実機写真"
                           fill
                           className="object-cover group-hover:opacity-90 transition-opacity"
-                          unoptimized={
-                            card.actualPhotoUrl.startsWith("data:") ||
-                            card.actualPhotoUrl.startsWith("/")
-                          }
+                          unoptimized={shouldUnoptimizeImage(card.actualPhotoUrl)}
                           sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         />
                       </div>
@@ -96,7 +91,7 @@ export function BoardCarousel({ cards }: { cards: BoardCarouselCard[] }) {
                           alt="配線図"
                           fill
                           className="object-cover group-hover:opacity-90 transition-opacity"
-                          unoptimized={card.thumbnail.startsWith("data:")}
+                          unoptimized={shouldUnoptimizeImage(card.thumbnail)}
                           sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         />
                       </div>

@@ -12,6 +12,8 @@ import { getPublishedBoardsByUserUid } from "@/lib/board-public";
 import { PublicProfileView } from "@/components/public-profile-view";
 import type { ReviewWithLikeCount } from "@/components/public-profile-view";
 
+export const revalidate = 120;
+
 export default async function PublicProfilePage({
   params,
 }: {

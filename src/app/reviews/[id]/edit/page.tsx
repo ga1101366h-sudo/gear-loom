@@ -260,7 +260,10 @@ export default function EditReviewPage() {
           const ext = file.name.split(".").pop() ?? "jpg";
           const storagePath = `review-images/${reviewId}/${Date.now()}-${i}.${ext}`;
           const storageRef = ref(storage, storagePath);
-          await uploadBytes(storageRef, file);
+          await uploadBytes(storageRef, file, {
+            cacheControl: "public, max-age=31536000, immutable",
+            contentType: file.type || undefined,
+          });
           updatedImages.push({ storage_path: storagePath, sort_order: sortBase + i });
         }
       }

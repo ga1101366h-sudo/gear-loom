@@ -2,10 +2,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { getProfilesByUids } from "@/lib/firebase/data";
+import { shouldUnoptimizeImage } from "@/lib/image-optimization";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function BoardsPage() {
   const posts = await prisma.boardPost.findMany({
@@ -71,10 +72,7 @@ export default async function BoardsPage() {
                           alt="実機写真"
                           fill
                           className="object-cover group-hover:opacity-90 transition-opacity"
-                          unoptimized={
-                            board!.actualPhotoUrl!.startsWith("data:") ||
-                            board!.actualPhotoUrl!.startsWith("/")
-                          }
+                          unoptimized={shouldUnoptimizeImage(board!.actualPhotoUrl!)}
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
                       </div>
@@ -84,7 +82,7 @@ export default async function BoardsPage() {
                           alt="配線図"
                           fill
                           className="object-cover group-hover:opacity-90 transition-opacity"
-                          unoptimized={board!.thumbnail!.startsWith("data:")}
+                          unoptimized={shouldUnoptimizeImage(board!.thumbnail!)}
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
                       </div>
@@ -96,10 +94,7 @@ export default async function BoardsPage() {
                         alt="実機写真"
                         fill
                         className="object-cover group-hover:opacity-90 transition-opacity"
-                        unoptimized={
-                          board!.actualPhotoUrl!.startsWith("data:") ||
-                          board!.actualPhotoUrl!.startsWith("/")
-                        }
+                        unoptimized={shouldUnoptimizeImage(board!.actualPhotoUrl!)}
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     </div>
@@ -110,7 +105,7 @@ export default async function BoardsPage() {
                         alt="配線図"
                         fill
                         className="object-cover group-hover:opacity-90 transition-opacity"
-                        unoptimized={board!.thumbnail!.startsWith("data:")}
+                        unoptimized={shouldUnoptimizeImage(board!.thumbnail!)}
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     </div>

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getProfilesByUids } from "@/lib/firebase/data";
@@ -17,14 +16,9 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 120;
 
-/** リクエストの Host から origin を取得（Xクローラーが取得するHTMLと同一ドメインにしプレビューを確実に） */
-async function getRequestOrigin(): Promise<string> {
-  const h = await headers();
-  const host = h.get("host") || h.get("x-forwarded-host");
-  const proto = h.get("x-forwarded-proto") || "https";
-  if (host) return `${proto === "https" ? "https" : "http"}://${host}`;
+function getRequestOrigin(): string {
   return (
     process.env.NEXT_PUBLIC_SITE_URL ??
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://www.gear-loom.com")
@@ -46,7 +40,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description =
     post.content?.slice(0, 120) ||
     "Gear-Loomで共有されたエフェクターボードの投稿です。";
-  const origin = await getRequestOrigin();
+  const origin = getRequestOrigin();
   const url = `${origin}/boards/post/${id}`;
   const ogImageUrl = `${origin}/boards/post/${id}/opengraph-image`;
 

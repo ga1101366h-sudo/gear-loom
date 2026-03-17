@@ -153,7 +153,10 @@ export default function NotebookPage() {
           const ext = imageFile.name.split(".").pop() ?? "jpg";
           const storagePath = `notebook-images/${user.uid}/${editingId}/${Date.now()}.${ext}`;
           const storageRef = ref(storage, storagePath);
-          await uploadBytes(storageRef, imageFile);
+          await uploadBytes(storageRef, imageFile, {
+            cacheControl: "public, max-age=31536000, immutable",
+            contentType: imageFile.type || undefined,
+          });
           imageUrl = await getDownloadURL(storageRef);
         }
         const payload: Record<string, unknown> = {
@@ -199,7 +202,10 @@ export default function NotebookPage() {
             const ext = imageFile.name.split(".").pop() ?? "jpg";
             const storagePath = `notebook-images/${user.uid}/${docRef.id}/${Date.now()}.${ext}`;
             const storageRef = ref(storage, storagePath);
-            await uploadBytes(storageRef, imageFile);
+            await uploadBytes(storageRef, imageFile, {
+              cacheControl: "public, max-age=31536000, immutable",
+              contentType: imageFile.type || undefined,
+            });
             imageUrl = await getDownloadURL(storageRef);
             const updatePayload = { image_url: imageUrl, updated_at: new Date().toISOString() };
             try {

@@ -16,6 +16,8 @@ import type { Review } from "@/types/database";
 import type { RakutenItem } from "@/types/rakuten";
 import { SearchCatalogSection, type CatalogItem } from "./SearchCatalogSection";
 
+export const revalidate = 60;
+
 async function getReviews(categorySlug?: string): Promise<Review[]> {
   try {
     const { getReviewsFromFirestore } = await import("@/lib/firebase/data");

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { shouldUnoptimizeImage } from "@/lib/image-optimization";
 import {
   DndContext,
   DragEndEvent,
@@ -111,7 +112,7 @@ function SortableBoardCard({
                         alt="実機写真"
                         fill
                         className="object-cover"
-                        unoptimized={board.actualPhotoUrl!.startsWith("data:") || board.actualPhotoUrl!.startsWith("/")}
+                        unoptimized={shouldUnoptimizeImage(board.actualPhotoUrl!)}
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     </div>
@@ -121,7 +122,7 @@ function SortableBoardCard({
                         alt="配線図"
                         fill
                         className="object-cover"
-                        unoptimized={board.thumbnail!.startsWith("data:")}
+                        unoptimized={shouldUnoptimizeImage(board.thumbnail!)}
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     </div>
@@ -136,7 +137,7 @@ function SortableBoardCard({
                       alt="実機写真"
                       fill
                       className="object-cover"
-                      unoptimized={board.actualPhotoUrl!.startsWith("data:") || board.actualPhotoUrl!.startsWith("/")}
+                      unoptimized={shouldUnoptimizeImage(board.actualPhotoUrl!)}
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                   </div>
@@ -150,7 +151,7 @@ function SortableBoardCard({
                       alt="配線図"
                       fill
                       className="object-cover"
-                      unoptimized={board.thumbnail!.startsWith("data:")}
+                      unoptimized={shouldUnoptimizeImage(board.thumbnail!)}
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                   </div>

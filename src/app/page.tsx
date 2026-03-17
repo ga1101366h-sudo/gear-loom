@@ -36,8 +36,8 @@ import { BoardCarousel } from "@/components/board-carousel";
 import { getCategoryPathDisplay } from "@/data/post-categories";
 import type { Review, LiveEvent } from "@/types/database";
 
-/** トップページ：右サイドバーのマイプロフィール・所持機材等を常に最新にするためキャッシュ無効化 */
-export const dynamic = "force-dynamic";
+/** 公開トップはISRで短時間キャッシュ（体感速度改善） */
+export const revalidate = 60;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.gear-loom.com";
 const DEFAULT_OG_IMAGE = `${SITE_URL}/images/mock/ogp-final.png`;

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { shouldUnoptimizeImage } from "@/lib/image-optimization";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -363,7 +364,7 @@ export function PublicProfileView({
                             fill
                             className="object-cover"
                             sizes="(max-width: 768px) 100vw, 50vw"
-                            unoptimized={String(b.actualPhotoUrl || b.thumbnail).startsWith("data:") || String(b.actualPhotoUrl || "").startsWith("/")}
+                            unoptimized={shouldUnoptimizeImage(String(b.actualPhotoUrl || b.thumbnail || ""))}
                           />
                         ) : (
                           <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">サムネイルなし</div>

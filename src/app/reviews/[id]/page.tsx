@@ -29,6 +29,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+export const revalidate = 120;
+
 function StarRating({ rating }: { rating: number }) {
   return (
     <span className="flex gap-0.5 text-electric-blue text-lg" aria-label={`${rating}点`}>

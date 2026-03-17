@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { shouldUnoptimizeImage } from "@/lib/image-optimization";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getFirebaseStorageUrl } from "@/lib/utils";
 
@@ -112,7 +113,7 @@ export function ReviewFormPreview({ data, onClose }: Props) {
                         fill
                         className="object-cover"
                         sizes="128px"
-                        unoptimized={url.startsWith("blob:")}
+                        unoptimized={shouldUnoptimizeImage(url)}
                       />
                     </div>
                   ))}

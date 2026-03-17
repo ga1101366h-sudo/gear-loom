@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Camera, CameraOff, GitMerge, Network } from "lucide-react";
 import toast from "react-hot-toast";
+import { shouldUnoptimizeImage } from "@/lib/image-optimization";
 
 function BoardPreview({
   board,
@@ -43,7 +44,7 @@ function BoardPreview({
               alt="実機写真"
               fill
               className="object-cover"
-              unoptimized={actualPhotoUrl.startsWith("data:") || actualPhotoUrl.startsWith("/")}
+              unoptimized={shouldUnoptimizeImage(actualPhotoUrl)}
               sizes="100vw"
             />
           </div>
@@ -74,7 +75,7 @@ function BoardPreview({
               alt="配線図"
               fill
               className="object-cover"
-              unoptimized={thumbnail.startsWith("data:")}
+              unoptimized={shouldUnoptimizeImage(thumbnail)}
               sizes="100vw"
             />
           </div>

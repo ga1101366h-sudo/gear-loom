@@ -158,7 +158,10 @@ function ProfilePageContent() {
       const ext = file.name.split(".").pop() ?? "jpg";
       const storagePath = `avatars/${user.uid}/${Date.now()}.${ext}`;
       const storageRef = ref(storage, storagePath);
-      await uploadBytes(storageRef, file);
+      await uploadBytes(storageRef, file, {
+        cacheControl: "public, max-age=31536000, immutable",
+        contentType: file.type || undefined,
+      });
       const url = await getDownloadURL(storageRef);
       await updateDoc(doc(db, "profiles", user.uid), {
         avatar_url: url,

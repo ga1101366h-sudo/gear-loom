@@ -131,7 +131,10 @@ export default function MypageGearEditPage() {
           .toString(36)
           .slice(2)}.${ext}`;
         const storageRef = ref(storage, storagePath);
-        await uploadBytes(storageRef, file);
+        await uploadBytes(storageRef, file, {
+          cacheControl: "public, max-age=31536000, immutable",
+          contentType: file.type || undefined,
+        });
         const url = await getDownloadURL(storageRef);
         urls.push(url);
       }
