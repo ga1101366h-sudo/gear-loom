@@ -348,7 +348,8 @@ export default async function ReviewDetailPage({
             {profile && profile.user_id ? (
               <Link
                 href={`/users/${encodeURIComponent(profile.user_id)}`}
-                className="text-electric-blue hover:underline"
+                className="text-electric-blue hover:underline transition-colors"
+                style={{ textShadow: "0 0 8px rgba(0, 212, 255, 0.5)" }}
               >
                 {profile.display_name
                   ? `${profile.display_name} @${profile.user_id}`

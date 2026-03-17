@@ -81,6 +81,7 @@ export default async function BoardPostDetailPage({ params }: Props) {
   const board = post.board;
   const userId = board?.userId;
   let authorDisplayName = "名無しユーザー";
+  let authorUserId: string | null = null;
   let authorAvatarUrl: string | null = null;
   if (userId) {
     try {
@@ -92,12 +93,14 @@ export default async function BoardPostDetailPage({ params }: Props) {
         board?.user?.displayName?.trim() ||
         board?.user?.email?.trim() ||
         "名無しユーザー";
+      authorUserId = profile?.user_id?.trim() ?? userId;
       authorAvatarUrl = profile?.avatar_url?.trim() ?? null;
     } catch {
       authorDisplayName =
         board?.user?.displayName?.trim() ||
         board?.user?.email?.trim() ||
         "名無しユーザー";
+      authorUserId = userId;
     }
   } else if (board?.user) {
     authorDisplayName =
@@ -202,7 +205,14 @@ export default async function BoardPostDetailPage({ params }: Props) {
                       {authorDisplayName.charAt(0).toUpperCase() || "?"}
                     </div>
                   )}
-                  <span className="text-sm text-gray-300 hover:text-cyan-400">{authorDisplayName}</span>
+                  <span
+                    className="text-sm text-electric-blue hover:underline transition-colors"
+                    style={{ textShadow: "0 0 8px rgba(0, 212, 255, 0.5)" }}
+                  >
+                    {authorUserId
+                      ? `${authorDisplayName} @${authorUserId}`
+                      : authorDisplayName}
+                  </span>
                 </Link>
               ) : (
                 <>

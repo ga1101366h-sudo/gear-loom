@@ -13,12 +13,13 @@ export type ReviewDetail = Review & {
 export async function getProfileByUserIdFromFirestore(userId: string): Promise<Profile | null> {
   const db = getAdminFirestore();
   if (!db) return null;
-  const normalized = userId.trim().toLowerCase();
-  if (!normalized) return null;
+  const trimmed = userId.trim();
+  if (!trimmed) return null;
+  // Firebase UID は大文字小文字を区別するため、toLowerCase せずに照合する
   try {
     const snap = await db
       .collection("profiles")
-      .where("user_id", "==", normalized)
+      .where("user_id", "==", trimmed)
       .limit(1)
       .get();
     if (snap.empty) return null;
