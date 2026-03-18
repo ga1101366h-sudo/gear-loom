@@ -15,8 +15,7 @@ interface ECSearchLinksProps {
 const BUTTON_STYLES: Record<string, string> = {
   Amazon: "bg-[#ff9900] hover:bg-[#e68a00]",
   楽天市場: "bg-[#bf0000] hover:bg-[#a00000]",
-  サウンドハウス:
-    "flex items-center justify-center gap-2 px-4 py-2 w-full text-sm font-medium transition-colors border rounded-md border-blue-500/50 text-blue-400 hover:bg-blue-500/10",
+  サウンドハウス: "bg-[#5f3c8a] hover:bg-[#4b2f6d]",
   デジマート: "bg-[#0080c6] hover:bg-[#0069a1]",
 };
 
@@ -75,11 +74,7 @@ export function ECSearchLinks({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={
-                    name === "サウンドハウス"
-                      ? color
-                      : `w-full rounded-md px-4 py-3 text-sm font-semibold text-white text-center shadow-md transition-transform duration-150 hover:-translate-y-0.5 ${color}`
-                  }
+                  className={`w-full rounded-md px-4 py-3 text-sm font-semibold text-white text-center shadow-md transition-transform duration-150 hover:-translate-y-0.5 ${color}`}
                 >
                   {label}
                 </Link>
