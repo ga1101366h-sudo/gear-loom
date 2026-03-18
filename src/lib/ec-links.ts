@@ -34,12 +34,29 @@ export function getRakutenSearchUrl(gearName: string): string {
 }
 
 /**
- * サウンドハウス 検索URL（サイト内検索と同様のパラメータで遷移）
- * 検索ボックス送信時に使われるパラメータに合わせています。
+ * サウンドハウス 検索URL
+ *
+ * - ベースURL: https://www.soundhouse.co.jp/search/index
+ * - クエリパラメータ: search_all
+ * - キーワードサニタイズ:
+ *   - 記号類（カッコやスラッシュ等）をスペースに置換（※ハイフンは残す）
+ *   - 連続スペースを1つに圧縮
+ *   - 先頭から2単語だけを使用（例: "BOSS BD-2 Blues Driver" -> "BOSS BD-2"）
  */
 export function getSoundHouseSearchUrl(gearName: string): string {
-  const base = "https://www.soundhouse.co.jp/search/search_result.php";
-  return `${base}?q=${encodeQuery(gearName)}`;
+  const base = "https://www.soundhouse.co.jp/search/index";
+
+  // 記号をスペースに置換（ハイフンは残す）
+  const replaced = gearName
+    .replace(/[()［］【】〔〕｛｝{}“”"'/\\]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const parts = replaced.split(" ").filter(Boolean);
+  const shortQuery = parts.slice(0, 2).join(" ") || replaced || gearName.trim();
+
+  const params = new URLSearchParams({ search_all: shortQuery });
+  return `${base}?${params.toString()}`;
 }
 
 /**
