@@ -1178,7 +1178,7 @@ function BoardFlowEditorInner({
       setGeneratorContext(null);
 
       // 保存成功時は、起動元コンテキストに基づいて必ず「カスタム画像」タブで設定モーダルを再開する
-      if (updatedGear && ctx?.kind === "sidebar" && ctx.gearId === updatedGear.id) {
+      if (updatedGear && ctx?.kind === "sidebar") {
         const mapped = mapGearDataToSidebarGear(updatedGear);
         setSidebarGears((gears) => gears.map((g) => (g.id === updatedGear.id ? mapped : g)));
         setNodes((nds) =>
