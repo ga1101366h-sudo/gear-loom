@@ -1120,9 +1120,12 @@ function BoardFlowEditorInner({
         setNodes((nds) =>
           nds.map((n) => {
             const d = (n.data ?? {}) as PedalNodeData;
-            // サイドバー側の機材画像を更新したとき、該当ノード（sourceGearId一致）にも反映する
-            if (d.sourceGearId === mapped.id) {
-              return { ...n, data: { ...d, imageUrl: mapped.imageUrl ?? d.imageUrl } };
+            // サイドバー側の機材画像を更新したとき、該当ノードにも反映する
+            // 旧データで `sourceGearId` が無い場合があるので `label` でフォールバックする
+            const matchesBySource = d.sourceGearId === mapped.id;
+            const matchesByLabel = !d.sourceGearId && d.label?.trim() === mapped.name?.trim();
+            if (matchesBySource || matchesByLabel) {
+              return { ...n, data: { ...d, imageUrl: mapped.imageUrl ?? d.imageUrl, useImage: true } };
             }
             return n;
           }),
@@ -1153,15 +1156,19 @@ function BoardFlowEditorInner({
             };
           }),
         );
+        // 画像保存直後に、設定モーダル側が必ず「カスタム画像」タブ + 画像プレビューを表示できるようにする。
+        // 旧データでは `sourceGearId` が無い場合があるため、ここで `settingsLoadFromGearId` にも反映して参照を安定させる。
         const node = nodes.find((n) => n.id === pending.id);
         const data = (node?.data ?? {}) as PedalNodeData;
         setSettingsTarget({ kind: "node", id: pending.id, name: data.label ?? "" });
         setSettingsName(data.label ?? "");
-        setSettingsIconKey(data.iconKey ?? "effects");
-        setSettingsEffectType(data.effectType ?? "");
+        setSettingsIconKey(effectTypeToIconKey(mapped.effectType ?? "") ?? data.iconKey ?? "effects");
+        setSettingsEffectType(mapped.effectType ?? data.effectType ?? "");
         setSettingsEffectTypeOther("");
         setSettingsUseImage(true);
         setSettingsHasImage(true);
+        setSettingsLoadFromGearId(mapped.id);
+        setSettingsGearOverride(updatedGear);
         return;
       }
 
@@ -2013,12 +2020,34 @@ function BoardFlowEditorInner({
                           <button
                             type="button"
                             onClick={() => {
-                              const gearId =
-                                settingsTarget?.kind === "sidebar"
-                                  ? settingsTarget.id
-                                  : settingsTarget?.kind === "node"
-                                    ? (nodes.find((n) => n.id === settingsTarget.id)?.data as PedalNodeData | undefined)?.sourceGearId ?? null
-                                    : null;
+                              let gearId: string | null = null;
+                              if (settingsTarget?.kind === "sidebar") {
+                                gearId = settingsTarget.id;
+                              } else if (settingsTarget?.kind === "node") {
+                                const nodeData = nodes.find((n) => n.id === settingsTarget.id)?.data as PedalNodeData | undefined;
+                                gearId = nodeData?.sourceGearId ?? null;
+
+                                // 旧データで `sourceGearId` が無い場合があるので、見た目/属性から推定
+                                if (!gearId && nodeData) {
+                                  const imageUrl = nodeData.imageUrl?.trim() ?? "";
+                                  if (imageUrl) {
+                                    const byImage = sidebarGears.find((g) => g.imageUrl?.trim() === imageUrl);
+                                    if (byImage) gearId = byImage.id;
+                                  }
+                                  if (!gearId) {
+                                    const name = nodeData.label?.trim() ?? "";
+                                    const byName = sidebarGears.find((g) => g.name?.trim() === name);
+                                    if (byName) gearId = byName.id;
+                                  }
+                                  if (!gearId && nodeData.iconKey) {
+                                    const byIcon = sidebarGears.find(
+                                      (g) => g.iconKey === nodeData.iconKey && (g.effectType ?? "") === (nodeData.effectType ?? ""),
+                                    );
+                                    if (byIcon) gearId = byIcon.id;
+                                  }
+                                }
+                              }
+
                               setGeneratorInitialGearId(gearId);
                               if (settingsTarget) {
                                 setPendingSettingsTarget(settingsTarget);
@@ -2114,13 +2143,33 @@ function BoardFlowEditorInner({
                               return;
                             }
 
-                            const gearId =
-                              settingsTarget.kind === "sidebar"
-                                ? settingsTarget.id
-                                : settingsTarget.kind === "node"
-                                  ? (nodes.find((n) => n.id === settingsTarget.id)?.data as PedalNodeData | undefined)?.sourceGearId ??
-                                    null
-                                  : null;
+                            let gearId: string | null = null;
+                            if (settingsTarget.kind === "sidebar") {
+                              gearId = settingsTarget.id;
+                            } else if (settingsTarget.kind === "node") {
+                              const nodeData = nodes.find((n) => n.id === settingsTarget.id)?.data as PedalNodeData | undefined;
+                              gearId = nodeData?.sourceGearId ?? null;
+
+                              // 旧データで `sourceGearId` が無い場合があるので、見た目/属性から推定
+                              if (!gearId && nodeData) {
+                                const imageUrl = nodeData.imageUrl?.trim() ?? "";
+                                if (imageUrl) {
+                                  const byImage = sidebarGears.find((g) => g.imageUrl?.trim() === imageUrl);
+                                  if (byImage) gearId = byImage.id;
+                                }
+                                if (!gearId) {
+                                  const name = nodeData.label?.trim() ?? "";
+                                  const byName = sidebarGears.find((g) => g.name?.trim() === name);
+                                  if (byName) gearId = byName.id;
+                                }
+                                if (!gearId && nodeData.iconKey) {
+                                  const byIcon = sidebarGears.find(
+                                    (g) => g.iconKey === nodeData.iconKey && (g.effectType ?? "") === (nodeData.effectType ?? ""),
+                                  );
+                                  if (byIcon) gearId = byIcon.id;
+                                }
+                              }
+                            }
 
                             setGeneratorInitialGearId(gearId);
                             setPendingSettingsTarget(settingsTarget);
