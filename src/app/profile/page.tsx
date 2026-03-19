@@ -74,10 +74,22 @@ function ProfilePageContent() {
     })();
   }, [showProfilePreview, user]);
 
+  // iframe表示中などに `user` が一瞬 null になっても即ログアウトしない
+  useEffect(() => {
+    if (authLoading) return;
+    if (user) return;
+    if (showProfilePreview) return;
+    const t = setTimeout(() => {
+      router.push("/login");
+    }, 400);
+    return () => clearTimeout(t);
+  }, [authLoading, user, showProfilePreview, router]);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      router.push("/login");
+      // 遅延リダイレクトを行うため、この effect では即 push しない
+      setLoading(false);
       return;
     }
     if (!db) {

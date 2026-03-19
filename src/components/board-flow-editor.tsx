@@ -1120,8 +1120,10 @@ function BoardFlowEditorInner({
         setNodes((nds) =>
           nds.map((n) => {
             const d = (n.data ?? {}) as PedalNodeData;
-            if (d.label === mapped.name)
+            // サイドバー側の機材画像を更新したとき、該当ノード（sourceGearId一致）にも反映する
+            if (d.sourceGearId === mapped.id) {
               return { ...n, data: { ...d, imageUrl: mapped.imageUrl ?? d.imageUrl } };
+            }
             return n;
           }),
         );
@@ -2057,20 +2059,74 @@ function BoardFlowEditorInner({
                       <button
                         type="button"
                         onClick={() => {
-                          const gearId =
-                            settingsTarget?.kind === "sidebar"
-                              ? settingsTarget.id
-                              : settingsTarget?.kind === "node"
-                                ? (nodes.find((n) => n.id === settingsTarget.id)?.data as PedalNodeData | undefined)?.sourceGearId ?? null
-                                : null;
-                          setGeneratorInitialGearId(gearId);
-                          if (settingsTarget) {
+                          void (async () => {
+                            if (!settingsTarget) {
+                              setShowGenerator(true);
+                              return;
+                            }
+
+                            // 新規機材（kind:new）の場合は、先に機材を作成してから画像ジェネレーターを開く
+                            if (settingsTarget.kind === "new") {
+                              if (!user) {
+                                alert("ログイン後に機材を追加できます。");
+                                return;
+                              }
+
+                              const token = await user.getIdToken();
+                              if (typeof token !== "string" || !token || token === "undefined" || token === "null") {
+                                alert("認証トークンを取得できませんでした。再ログインしてください。");
+                                return;
+                              }
+
+                              const finalEffectType =
+                                settingsEffectType === "other" ? settingsEffectTypeOther.trim() : settingsEffectType;
+
+                              const res = await fetch("/api/user/gears", {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({
+                                  name: settingsName.trim() || "無題の機材",
+                                  category: "ギターエフェクター",
+                                  effectorType: finalEffectType || null,
+                                  imageUrl: null,
+                                  defaultIcon: settingsIconKey ?? "effects",
+                                }),
+                              });
+
+                              if (!res.ok) {
+                                const data = await res.json().catch(() => ({}));
+                                toast.error((data as { error?: string }).error ?? "機材の作成に失敗しました");
+                                return;
+                              }
+
+                              const item = (await res.json()) as UserGearItem;
+                              const mapped = mapGearDataToSidebarGear(item);
+
+                              setSidebarGears((gears) => gears.concat(mapped));
+
+                              setGeneratorInitialGearId(mapped.id);
+                              setPendingSettingsTarget({ kind: "sidebar", id: mapped.id, name: mapped.name });
+                              setSettingsTarget(null);
+                              setTimeout(() => setShowGenerator(true), 0);
+                              return;
+                            }
+
+                            const gearId =
+                              settingsTarget.kind === "sidebar"
+                                ? settingsTarget.id
+                                : settingsTarget.kind === "node"
+                                  ? (nodes.find((n) => n.id === settingsTarget.id)?.data as PedalNodeData | undefined)?.sourceGearId ??
+                                    null
+                                  : null;
+
+                            setGeneratorInitialGearId(gearId);
                             setPendingSettingsTarget(settingsTarget);
                             setSettingsTarget(null);
                             setTimeout(() => setShowGenerator(true), 0);
-                          } else {
-                            setShowGenerator(true);
-                          }
+                          })();
                         }}
                         className="w-full py-2.5 text-center text-xs font-medium rounded-md bg-cyan-500/10 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20 transition-colors flex items-center justify-center gap-2"
                       >
