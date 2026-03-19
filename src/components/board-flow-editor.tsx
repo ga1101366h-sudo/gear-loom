@@ -705,6 +705,64 @@ function BoardFlowEditorInner({
     if (!settingsTarget) setSettingsGearOverride(null);
   }, [settingsTarget]);
 
+  // 画像ジェネレーター保存直後など、state の反映順で一瞬ズレても
+  // 設定モーダルが「アイコン」タブに戻ったり、画像プレビューが空にならないようにガードする。
+  useEffect(() => {
+    if (!settingsTarget) return;
+    if (!settingsUseImage) return;
+    if (settingsHasImage) return;
+    const overrideHasImage = Boolean(settingsGearOverride?.imageUrl?.trim());
+    if (overrideHasImage) setSettingsHasImage(true);
+  }, [settingsTarget, settingsUseImage, settingsHasImage, settingsGearOverride]);
+
+  const handleDeleteCustomImage = useCallback(
+    async (gearId: string, options?: { nodeId?: string }) => {
+      const trimmed = (gearId ?? "").trim();
+      if (!trimmed) return;
+      const token = user ? await user.getIdToken() : null;
+      if (!token) {
+        alert("ログイン後に画像を削除できます。");
+        return;
+      }
+      setIsDeletingImage(true);
+      try {
+        const res = await fetch(`/api/gears/${encodeURIComponent(trimmed)}/image`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error((data as { error?: string }).error ?? "画像の削除に失敗しました");
+        }
+
+        setSidebarGears((gears) => gears.map((g) => (g.id === trimmed ? { ...g, imageUrl: undefined } : g)));
+        setNodes((nds) =>
+          nds.map((n) => {
+            const d = (n.data ?? {}) as PedalNodeData;
+            const matchesByNode = options?.nodeId ? n.id === options.nodeId : false;
+            const matchesBySource = d.sourceGearId === trimmed;
+            const matchesByLabel = !d.sourceGearId && d.label?.trim() && settingsTarget?.kind === "sidebar"
+              ? d.label?.trim() === settingsTarget.name?.trim()
+              : false;
+            if (matchesByNode || matchesBySource || matchesByLabel) {
+              return { ...n, data: { ...d, imageUrl: undefined } };
+            }
+            return n;
+          }),
+        );
+
+        setSettingsHasImage(false);
+        setSettingsGearOverride(null);
+      } catch (err) {
+        console.error("[handleDeleteCustomImage]", err);
+        alert(err instanceof Error ? err.message : "画像の削除に失敗しました");
+      } finally {
+        setIsDeletingImage(false);
+      }
+    },
+    [user, setNodes, settingsTarget],
+  );
+
   useEffect(() => {
     if (isEditingBoardName) {
       setEditingBoardNameValue(boardName);
@@ -1998,9 +2056,13 @@ function BoardFlowEditorInner({
                             : undefined) ??
                           sidebarGears.find((g) => g.id === settingsTarget.id)?.imageUrl
                         : settingsTarget?.kind === "node"
-                          ? (settingsLoadFromGearId
+                          ? (settingsGearOverride?.id && settingsGearOverride?.id === settingsLoadFromGearId
+                              ? settingsGearOverride.imageUrl ?? undefined
+                              : undefined) ??
+                            (settingsLoadFromGearId
                               ? sidebarGears.find((g) => g.id === settingsLoadFromGearId)?.imageUrl
-                              : undefined) ?? nodes.find((n) => n.id === settingsTarget.id)?.data?.imageUrl
+                              : undefined) ??
+                            (nodes.find((n) => n.id === settingsTarget.id)?.data as PedalNodeData | undefined)?.imageUrl
                           : undefined;
                     return (
                       <div className="mt-3 space-y-2">
@@ -2063,7 +2125,26 @@ function BoardFlowEditorInner({
                           {settingsTarget?.kind === "sidebar" && (
                             <button
                               type="button"
-                              onClick={() => handleDeleteGearImage(settingsTarget.id)}
+                              onClick={() => handleDeleteCustomImage(settingsTarget.id)}
+                              disabled={isDeletingImage}
+                              className="w-full py-2 text-center text-xs font-medium rounded-md bg-transparent border border-red-500/70 text-red-400 hover:bg-red-500/10 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                            >
+                              {isDeletingImage ? (
+                                <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+                              ) : (
+                                <Trash2 className="w-4 h-4" aria-hidden />
+                              )}
+                              <span>このカスタム画像を削除する（標準アイコンに戻す）</span>
+                            </button>
+                          )}
+                          {settingsTarget?.kind === "node" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const nodeData = nodes.find((n) => n.id === settingsTarget.id)?.data as PedalNodeData | undefined;
+                                const gearId = settingsLoadFromGearId || nodeData?.sourceGearId || "";
+                                void handleDeleteCustomImage(gearId, { nodeId: settingsTarget.id });
+                              }}
                               disabled={isDeletingImage}
                               className="w-full py-2 text-center text-xs font-medium rounded-md bg-transparent border border-red-500/70 text-red-400 hover:bg-red-500/10 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                             >
