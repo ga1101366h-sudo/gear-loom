@@ -714,6 +714,10 @@ function BoardFlowEditorInner({
   // 設定モーダルが「アイコン」タブに戻ったり、画像プレビューが空にならないようにガードする。
   useEffect(() => {
     if (!settingsTarget) return;
+    // 保存直後のズレで一瞬 `settingsUseImage=false` になるのを抑止（常にカスタム画像タブを優先）
+    if (!settingsUseImage && settingsGearOverride?.imageUrl?.trim()) {
+      setSettingsUseImage(true);
+    }
     if (!settingsUseImage) return;
     if (settingsHasImage) return;
     const overrideHasImage = Boolean(settingsGearOverride?.imageUrl?.trim());
@@ -2106,16 +2110,14 @@ function BoardFlowEditorInner({
                   </p>
 
                   {settingsUseImage && settingsHasImage && (() => {
+                    // 保存直後は state 反映順の揺れがあるため、最新の `settingsGearOverride.imageUrl` を最優先で表示する
+                    // （一致判定に依存すると「画像未設定」表示になりやすい）
+                    const overrideUrl = settingsGearOverride?.imageUrl?.trim() || undefined;
                     const currentImageUrl =
                       settingsTarget?.kind === "sidebar"
-                        ? (settingsGearOverride?.id === settingsTarget.id
-                            ? settingsGearOverride.imageUrl ?? undefined
-                            : undefined) ??
-                          sidebarGears.find((g) => g.id === settingsTarget.id)?.imageUrl
+                        ? overrideUrl ?? sidebarGears.find((g) => g.id === settingsTarget.id)?.imageUrl
                         : settingsTarget?.kind === "node"
-                          ? (settingsGearOverride?.id && settingsGearOverride?.id === settingsLoadFromGearId
-                              ? settingsGearOverride.imageUrl ?? undefined
-                              : undefined) ??
+                          ? overrideUrl ??
                             (settingsLoadFromGearId
                               ? sidebarGears.find((g) => g.id === settingsLoadFromGearId)?.imageUrl
                               : undefined) ??
