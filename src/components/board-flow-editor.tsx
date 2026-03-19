@@ -664,6 +664,11 @@ function BoardFlowEditorInner({
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   /** ジェネレーターを「既存機材の画像上書き」で開いた場合の Gear ID */
   const [generatorInitialGearId, setGeneratorInitialGearId] = useState<string | null>(null);
+  const [generatorContext, setGeneratorContext] = useState<
+    | { kind: "sidebar"; gearId: string }
+    | { kind: "node"; nodeId: string; gearId: string | null }
+    | null
+  >(null);
   const [settingsTarget, setSettingsTarget] = useState<SettingsTarget | null>(null);
   /** ジェネレーターを「設定モーダル内」から開いたときに、閉じたあとで設定モーダルを再開するための退避先 */
   const [pendingSettingsTarget, setPendingSettingsTarget] = useState<SettingsTarget | null>(null);
@@ -1169,6 +1174,58 @@ function BoardFlowEditorInner({
       setGeneratorInitialGearId(null);
       const pending = pendingSettingsTarget;
       setPendingSettingsTarget(null);
+      const ctx = generatorContext;
+      setGeneratorContext(null);
+
+      // 保存成功時は、起動元コンテキストに基づいて必ず「カスタム画像」タブで設定モーダルを再開する
+      if (updatedGear && ctx?.kind === "sidebar" && ctx.gearId === updatedGear.id) {
+        const mapped = mapGearDataToSidebarGear(updatedGear);
+        setSidebarGears((gears) => gears.map((g) => (g.id === updatedGear.id ? mapped : g)));
+        setNodes((nds) =>
+          nds.map((n) => {
+            const d = (n.data ?? {}) as PedalNodeData;
+            const matchesBySource = d.sourceGearId === mapped.id;
+            const matchesByLabel = !d.sourceGearId && d.label?.trim() === mapped.name?.trim();
+            if (matchesBySource || matchesByLabel) {
+              return { ...n, data: { ...d, imageUrl: mapped.imageUrl ?? d.imageUrl, useImage: true } };
+            }
+            return n;
+          }),
+        );
+        setSettingsTarget({ kind: "sidebar", id: updatedGear.id, name: mapped.name });
+        setSettingsName(mapped.name);
+        setSettingsIconKey(mapped.iconKey);
+        setSettingsEffectType(mapped.effectType ?? "");
+        setSettingsEffectTypeOther("");
+        setSettingsUseImage(true);
+        setSettingsHasImage(true);
+        setSettingsGearOverride(updatedGear);
+        return;
+      }
+
+      if (updatedGear && ctx?.kind === "node" && ctx.nodeId) {
+        const mapped = mapGearDataToSidebarGear(updatedGear);
+        setSidebarGears((gears) => gears.map((g) => (g.id === updatedGear.id ? mapped : g)));
+        setNodes((nds) =>
+          nds.map((n) => {
+            if (n.id !== ctx.nodeId) return n;
+            const d = (n.data ?? {}) as PedalNodeData;
+            return { ...n, data: { ...d, imageUrl: mapped.imageUrl ?? d.imageUrl, useImage: true } };
+          }),
+        );
+        const node = nodes.find((n) => n.id === ctx.nodeId);
+        const data = (node?.data ?? {}) as PedalNodeData;
+        setSettingsTarget({ kind: "node", id: ctx.nodeId, name: data.label ?? "" });
+        setSettingsName(data.label ?? "");
+        setSettingsIconKey(effectTypeToIconKey(mapped.effectType ?? "") ?? data.iconKey ?? "effects");
+        setSettingsEffectType(mapped.effectType ?? data.effectType ?? "");
+        setSettingsEffectTypeOther("");
+        setSettingsUseImage(true);
+        setSettingsHasImage(true);
+        setSettingsLoadFromGearId(mapped.id);
+        setSettingsGearOverride(updatedGear);
+        return;
+      }
 
       if (updatedGear && pending?.kind === "sidebar" && pending.id === updatedGear.id) {
         const mapped = mapGearDataToSidebarGear(updatedGear);
@@ -1249,7 +1306,7 @@ function BoardFlowEditorInner({
         }, 0);
       }
     },
-    [pendingSettingsTarget, nodes, openSettingsForNode, openSettingsForSidebarGear],
+    [pendingSettingsTarget, generatorContext, nodes, openSettingsForNode, openSettingsForSidebarGear],
   );
 
   /** 機材画像ジェネレーターでアップロード成功時：リストの該当のみ上書きし、設定モーダルを再開（画像・タブ維持） */
@@ -2112,6 +2169,11 @@ function BoardFlowEditorInner({
 
                               setGeneratorInitialGearId(gearId);
                               if (settingsTarget) {
+                                if (settingsTarget.kind === "sidebar" && gearId) {
+                                  setGeneratorContext({ kind: "sidebar", gearId });
+                                } else if (settingsTarget.kind === "node") {
+                                  setGeneratorContext({ kind: "node", nodeId: settingsTarget.id, gearId });
+                                }
                                 setPendingSettingsTarget(settingsTarget);
                                 setSettingsTarget(null);
                               }
@@ -2218,6 +2280,7 @@ function BoardFlowEditorInner({
                               setSidebarGears((gears) => gears.concat(mapped));
 
                               setGeneratorInitialGearId(mapped.id);
+                              setGeneratorContext({ kind: "sidebar", gearId: mapped.id });
                               setPendingSettingsTarget({ kind: "sidebar", id: mapped.id, name: mapped.name });
                               setSettingsTarget(null);
                               setTimeout(() => setShowGenerator(true), 0);
@@ -2253,6 +2316,11 @@ function BoardFlowEditorInner({
                             }
 
                             setGeneratorInitialGearId(gearId);
+                            if (settingsTarget.kind === "sidebar" && gearId) {
+                              setGeneratorContext({ kind: "sidebar", gearId });
+                            } else if (settingsTarget.kind === "node") {
+                              setGeneratorContext({ kind: "node", nodeId: settingsTarget.id, gearId });
+                            }
                             setPendingSettingsTarget(settingsTarget);
                             setSettingsTarget(null);
                             setTimeout(() => setShowGenerator(true), 0);
