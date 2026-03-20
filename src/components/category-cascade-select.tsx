@@ -16,6 +16,14 @@ function buildSlug(mainCategory: string, subGroupTitle: string, item: string): s
   return `${safe(mainCategory)}__${safe(subGroupTitle)}__${safe(item)}`;
 }
 
+// buildSlug と同じ「slug 化」ロジックを復元側でも使うことで、
+// `xxx / YYY` のような記号を含む詳細タイプでも選択が維持されるようにする。
+function safeForSlug(s: string): string {
+  return (s ?? "")
+    .replace(/\s+/g, "-")
+    .replace(/[\/\\?&#]/g, "");
+}
+
 /** 第1階層の選択肢：MEGA_MENU の mainCategory + 独立カテゴリ */
 const MAIN_OPTIONS: { type: "mega"; index: number; label: string }[] = MEGA_MENU_CATEGORIES.map(
   (c, i) => ({ type: "mega" as const, index: i, label: c.mainCategory })
@@ -98,6 +106,7 @@ export function CategoryCascadeSelect({
     // megaStr がマスタに存在するか確認し、順に state を復元
     const mega = MEGA_MENU_CATEGORIES.find(
       (c) =>
+        safeForSlug(c.mainCategory) === megaStr ||
         c.mainCategory === megaStr ||
         c.mainCategory === (megaStr?.replace(/-/g, " ") ?? "") ||
         c.mainCategory.replace(/\s/g, "-") === megaStr
@@ -113,6 +122,7 @@ export function CategoryCascadeSelect({
     if (subStr) {
       const sg = mega.subGroups.find(
         (s) =>
+          safeForSlug(s.title) === subStr ||
           s.title === subStr ||
           s.title === (subStr?.replace(/-/g, " ") ?? "") ||
           s.title.replace(/\s/g, "-") === subStr
@@ -122,6 +132,7 @@ export function CategoryCascadeSelect({
         if (itemStr) {
           const it = sg.items.find(
             (i) =>
+              safeForSlug(i) === itemStr ||
               i === itemStr ||
               i === (itemStr?.replace(/-/g, " ") ?? "") ||
               i.replace(/\s/g, "-") === itemStr
