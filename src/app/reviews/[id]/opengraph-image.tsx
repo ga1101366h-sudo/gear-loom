@@ -70,6 +70,17 @@ function extractFirstImageFromBody(
   return null;
 }
 
+function resolveReviewImageUrl(image: {
+  storage_path?: string | null;
+  url?: string | null;
+}): string | null {
+  const storagePath = (image.storage_path ?? "").trim();
+  if (storagePath) return getFirebaseStorageUrl(storagePath);
+  const directUrl = (image.url ?? "").trim();
+  if (directUrl.startsWith("http://") || directUrl.startsWith("https://")) return directUrl;
+  return null;
+}
+
 function FallbackCard({ title }: { title?: string }) {
   return (
     <div
@@ -125,16 +136,18 @@ export default async function OpenGraphImage({
       return new ImageResponse(<FallbackCard />, { ...size });
     }
 
-    const images = (review as { review_images?: { storage_path: string; sort_order: number }[] }).review_images ?? [];
+    const images = (review as {
+      review_images?: { storage_path?: string | null; url?: string | null; sort_order?: number }[];
+    }).review_images ?? [];
     const firstImage = images.length > 0
-      ? [...images].sort((a, b) => a.sort_order - b.sort_order)[0]
+      ? [...images].sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999))[0]
       : null;
     const bodyImageUrl = extractFirstImageFromBody(
       (review as { body_md?: string | null }).body_md,
       (review as { body_html?: string | null }).body_html
     );
     const imageUrl = firstImage
-      ? getFirebaseStorageUrl(firstImage.storage_path)
+      ? resolveReviewImageUrl(firstImage) ?? bodyImageUrl
       : bodyImageUrl;
     const imageDataUrl = imageUrl ? await fetchImageAsDataUrl(imageUrl) : null;
     // Data URL 変換に失敗しても、元URLをそのまま使って描画を試みる
