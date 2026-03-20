@@ -18,9 +18,8 @@ const notoSansJP = Noto_Sans_JP({
   display: "swap",
 });
 
-const siteOrigin =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://gear-loom.com");
+// SNSカード/Canonical を常に本番ドメインへ固定
+const siteOrigin = "https://www.gear-loom.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),

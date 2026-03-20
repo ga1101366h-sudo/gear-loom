@@ -50,10 +50,7 @@ function getFirebaseStorageUrl(storagePath: string): string {
 }
 
 function getSiteOrigin(): string {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://gear-loom.com")
-  );
+  return "https://www.gear-loom.com";
 }
 
 /** X・Facebook 等でシェア時の画像は同一ドメインの動的OG画像（opengraph-image）を指定し、確実に表示されるようにする */

@@ -19,10 +19,7 @@ import {
 export const revalidate = 120;
 
 function getRequestOrigin(): string {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://www.gear-loom.com")
-  );
+  return "https://www.gear-loom.com";
 }
 
 type Props = { params: Promise<{ id: string }> };
