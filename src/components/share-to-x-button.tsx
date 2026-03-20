@@ -25,9 +25,10 @@ export function ShareToXButton({
       urlProp ??
       (typeof window !== "undefined" && path ? `${window.location.origin}${path}` : "");
     if (!url) return;
-    const fullText = `${text}\n${url}`;
     const params = new URLSearchParams();
-    params.set("text", fullText);
+    // Twitter/X のカード画像は `url` パラメータで解決されやすいので別指定する
+    params.set("text", text);
+    params.set("url", url);
     const shareUrl = `https://twitter.com/intent/tweet?${params.toString()}`;
     window.open(shareUrl, "_blank", "noopener,noreferrer");
   };

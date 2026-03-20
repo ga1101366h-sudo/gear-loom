@@ -79,10 +79,16 @@ export function CategoryListSection({
               : r.category_id;
             const categoryName = categorySlug ? getCategoryPathDisplay(categorySlug) : null;
             const excerpt = getReviewExcerpt(r);
+
+            // /reviews/[id] でカテゴリ（ブログ/イベント）を正しくヘッダー表示するためのメインナビ上書き用
+            const mainNav =
+              r.category_id === "blog" || r.category_id === "event" ? r.category_id : null;
+            const reviewHref = `/reviews/${r.id}${mainNav ? `?mainNav=${encodeURIComponent(mainNav)}` : ""}`;
+
             return (
               <li key={r.id}>
                 <Card className="h-full overflow-hidden transition-all hover:border-electric-blue/50">
-                  <Link href={`/reviews/${r.id}`} className="block">
+                  <Link href={reviewHref} className="block">
                     <div className="relative aspect-[16/9] w-full bg-surface-card overflow-hidden">
                       {imageUrl ? (
                         <Image

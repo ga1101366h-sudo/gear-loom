@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -19,6 +19,7 @@ const OVERLAY_CLOSE_DELAY_MS = 200;
 
 export function HeaderMobileMenu({ open, onClose }: Props) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const prevPathnameRef = useRef(pathname);
   const overlayCanCloseRef = useRef(false);
   const { user, signOut } = useAuth();
@@ -78,8 +79,18 @@ export function HeaderMobileMenu({ open, onClose }: Props) {
 
   if (!open) return null;
 
+  const reviewsMainNav = pathname?.startsWith("/reviews/") ? searchParams?.get("mainNav") : null;
+  const overrideActiveHref =
+    reviewsMainNav === "blog"
+      ? "/blog"
+      : reviewsMainNav === "event"
+        ? "/events"
+        : null;
+
   const getNavLinkClass = (href: string) => {
-    const isActive = pathname === href || (href !== "/" && pathname?.startsWith(href + "/"));
+    const isActive = overrideActiveHref
+      ? href === overrideActiveHref
+      : pathname === href || (href !== "/" && pathname?.startsWith(href + "/"));
     return isActive
       ? "block w-full rounded-lg px-4 py-3.5 text-left text-sm font-medium text-cyan-400 transition-colors border-l-4 border-cyan-400 bg-cyan-500/10 shadow-[0_0_8px_rgba(6,182,212,0.25)]"
       : "block w-full rounded-lg px-4 py-3.5 text-left text-sm font-medium text-gray-400 transition-colors duration-200 hover:bg-cyan-500/10 hover:text-cyan-400/90 active:bg-cyan-500/15";

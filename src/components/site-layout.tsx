@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Menu, PenSquare, Edit3, Layout } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { HeaderAuth } from "@/components/header-auth";
@@ -34,10 +34,21 @@ function isAllowedWithoutUserId(path: string | null): boolean {
 
 export function SiteLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useUserProfile();
   const isEmbed = pathname?.startsWith("/embed");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // /reviews/[id] は記事種別的にはブログ/イベント/レビューが混在するため、
+  // リスト側リンクから渡された `?mainNav=blog|event` があればヘッダーのactiveを上書きする
+  const reviewsMainNav = pathname?.startsWith("/reviews/") ? searchParams?.get("mainNav") : null;
+  const overrideActiveHref =
+    reviewsMainNav === "blog"
+      ? "/blog"
+      : reviewsMainNav === "event"
+        ? "/events"
+        : null;
 
   // user_id 未設定のユーザーが許可外の画面に遷移した場合は遷移先で即座にログアウト
   // 公開プロフィール（/users/*）では絶対にログアウトしない（セッションラグ時の誤判定を防止）
@@ -132,7 +143,9 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
                 aria-label="メインメニュー"
               >
                 {MAIN_NAV_ITEMS.map(({ href, label }) => {
-                  const isActive = pathname === href || pathname?.startsWith(href + "/");
+                  const isActive = overrideActiveHref
+                    ? href === overrideActiveHref
+                    : pathname === href || pathname?.startsWith(href + "/");
                   return (
                     <a
                       key={href + label}

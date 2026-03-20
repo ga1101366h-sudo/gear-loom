@@ -63,9 +63,8 @@ export const metadata: Metadata = {
   },
 };
 
-// content-only（ブログ/イベント/カスタム）を新着レビュー枠から除外する
-// （エフェクターボード関連がここに混ざっているケースに対応）
-const EXCLUDED_FROM_MAIN_SECTIONS = ["event", "blog", "custom"];
+// ボード相当（custom）だけ除外し、ブログ/イベント/レビューは新着記事枠に載せる
+const EXCLUDED_FROM_MAIN_SECTIONS = ["custom"];
 
 async function getRecentReviews(): Promise<Review[]> {
   try {
@@ -152,7 +151,7 @@ function toNewReviewItem(r: Review): NewReviewItem {
     gear_name: r.gear_name,
     maker_name: r.maker_name ?? null,
     rating: r.rating,
-    excerpt: "レビューを読む →",
+      excerpt: "記事を読む →",
     image,
     category: categoryName,
     category_slug: slug || null,
@@ -296,13 +295,13 @@ export default async function HomePage() {
           {/* スマホ：カテゴリ横スクロール */}
           <TopPageCategoryNavMobile />
 
-          {/* 新着レビュー */}
+          {/* 新着記事 */}
           <section className="min-w-0 overflow-hidden">
             <h2 className="mb-2 font-display text-xl font-semibold tracking-tight text-white md:text-2xl">
-              新着レビュー
+              新着記事
             </h2>
             <p className="mb-6 text-sm text-gray-400">
-              クリックでレビュー記事（全文）と各ECの検索リンクへ
+              クリックで記事（全文）と各ECの検索リンクへ
             </p>
             <NewReviewsCarousel items={newReviewItems} />
           </section>
