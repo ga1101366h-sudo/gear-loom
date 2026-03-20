@@ -72,9 +72,10 @@ export async function generateMetadata({
     (review.gear_name ? `${review.gear_name}のレビュー` : "楽器・機材のレビュー");
   const origin = getSiteOrigin();
   const url = `${origin}/reviews/${id}`;
+  const ogVersion = encodeURIComponent((review.updated_at || review.created_at || "").trim());
   // Twitter/X はスクレイピングで参照する `og:image` が重要なので、
   // どのカテゴリでも必ず応答する動的OG（フォールバック込み）を使う。
-  const ogImageUrl = `${origin}/reviews/${id}/opengraph-image`;
+  const ogImageUrl = `${origin}/reviews/${id}/opengraph-image${ogVersion ? `?v=${ogVersion}` : ""}`;
   const imageAlt = review.title || review.gear_name || "Gear-Loom レビュー";
   const ogImages = [
     { url: ogImageUrl, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: imageAlt },
