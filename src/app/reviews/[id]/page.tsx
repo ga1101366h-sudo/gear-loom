@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/card";
 
 export const revalidate = 120;
+const OG_IMAGE_SCHEMA_VERSION = "20260321-1";
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -75,7 +76,7 @@ export async function generateMetadata({
   const ogVersion = encodeURIComponent((review.updated_at || review.created_at || "").trim());
   // X 側の採用順ブレをなくすため、画像URLは 1 つだけ出す
   // （中身は opengraph-image 側で記事画像を優先して描画）
-  const ogImageUrl = `${origin}/reviews/${id}/opengraph-image${ogVersion ? `?v=${ogVersion}` : ""}`;
+  const ogImageUrl = `${origin}/reviews/${id}/opengraph-image?cv=${OG_IMAGE_SCHEMA_VERSION}${ogVersion ? `&v=${ogVersion}` : ""}`;
   const imageAlt = review.title || review.gear_name || "Gear-Loom レビュー";
   const ogImages = [
     { url: ogImageUrl, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: imageAlt },
