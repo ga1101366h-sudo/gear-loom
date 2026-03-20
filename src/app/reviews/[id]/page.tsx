@@ -57,6 +57,39 @@ function getSiteOrigin(): string {
 const OG_IMAGE_WIDTH = 1200;
 const OG_IMAGE_HEIGHT = 675; // X推奨 1.78:1
 
+function extractFirstImageFromBody(
+  bodyMd: string | null | undefined,
+  bodyHtml: string | null | undefined
+): string | null {
+  const md = (bodyMd ?? "").trim();
+  if (md) {
+    const mdMatch = md.match(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/i);
+    if (mdMatch?.[1]) return mdMatch[1].trim();
+  }
+  const html = (bodyHtml ?? "").trim();
+  if (html) {
+    const htmlMatch = html.match(/<img[^>]+src=["'](https?:\/\/[^"']+)["']/i);
+    if (htmlMatch?.[1]) return htmlMatch[1].trim();
+  }
+  return null;
+}
+
+function getPrimaryImageUrl(review: ReviewDetail): string | null {
+  const rawImages = (review as {
+    review_images?: { storage_path?: string | null; url?: string | null; sort_order?: number }[];
+  }).review_images ?? [];
+  const first = rawImages.length
+    ? [...rawImages].sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999))[0]
+    : null;
+  if (first) {
+    const storagePath = (first.storage_path ?? "").trim();
+    if (storagePath) return getFirebaseStorageUrl(storagePath);
+    const directUrl = (first.url ?? "").trim();
+    if (directUrl.startsWith("http://") || directUrl.startsWith("https://")) return directUrl;
+  }
+  return extractFirstImageFromBody(review.body_md, review.body_html);
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -73,12 +106,14 @@ export async function generateMetadata({
   const origin = getSiteOrigin();
   const url = `${origin}/reviews/${id}`;
   const ogVersion = encodeURIComponent((review.updated_at || review.created_at || "").trim());
-  // Twitter/X はスクレイピングで参照する `og:image` が重要なので、
-  // どのカテゴリでも必ず応答する動的OG（フォールバック込み）を使う。
-  const ogImageUrl = `${origin}/reviews/${id}/opengraph-image${ogVersion ? `?v=${ogVersion}` : ""}`;
+  const ogFallbackImageUrl = `${origin}/reviews/${id}/opengraph-image${ogVersion ? `?v=${ogVersion}` : ""}`;
+  const articleImageUrl = getPrimaryImageUrl(review);
+  // まず記事実画像、次に動的OGフォールバックを並べて X/Facebook の取りこぼしを減らす
+  const ogImageUrl = articleImageUrl ?? ogFallbackImageUrl;
   const imageAlt = review.title || review.gear_name || "Gear-Loom レビュー";
   const ogImages = [
     { url: ogImageUrl, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: imageAlt },
+    { url: ogFallbackImageUrl, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: imageAlt },
   ];
 
   return {
@@ -96,7 +131,7 @@ export async function generateMetadata({
       card: "summary_large_image",
       title,
       description,
-      images: [ogImageUrl],
+      images: [ogImageUrl, ogFallbackImageUrl],
     },
     alternates: { canonical: url },
   };
