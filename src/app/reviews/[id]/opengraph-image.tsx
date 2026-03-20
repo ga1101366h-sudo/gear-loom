@@ -52,6 +52,24 @@ async function fetchImageAsDataUrl(url: string): Promise<string | null> {
   }
 }
 
+/** 本文（Markdown / HTML）から最初の画像URLを抽出 */
+function extractFirstImageFromBody(
+  bodyMd: string | null | undefined,
+  bodyHtml: string | null | undefined
+): string | null {
+  const md = (bodyMd ?? "").trim();
+  if (md) {
+    const mdMatch = md.match(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/i);
+    if (mdMatch?.[1]) return mdMatch[1].trim();
+  }
+  const html = (bodyHtml ?? "").trim();
+  if (html) {
+    const htmlMatch = html.match(/<img[^>]+src=["'](https?:\/\/[^"']+)["']/i);
+    if (htmlMatch?.[1]) return htmlMatch[1].trim();
+  }
+  return null;
+}
+
 function FallbackCard({ title }: { title?: string }) {
   return (
     <div
@@ -111,7 +129,13 @@ export default async function OpenGraphImage({
     const firstImage = images.length > 0
       ? [...images].sort((a, b) => a.sort_order - b.sort_order)[0]
       : null;
-    const imageUrl = firstImage ? getFirebaseStorageUrl(firstImage.storage_path) : null;
+    const bodyImageUrl = extractFirstImageFromBody(
+      (review as { body_md?: string | null }).body_md,
+      (review as { body_html?: string | null }).body_html
+    );
+    const imageUrl = firstImage
+      ? getFirebaseStorageUrl(firstImage.storage_path)
+      : bodyImageUrl;
     const imageDataUrl = imageUrl ? await fetchImageAsDataUrl(imageUrl) : null;
     // Data URL 変換に失敗しても、元URLをそのまま使って描画を試みる
     const bgImageUrl = imageDataUrl ?? imageUrl ?? DEFAULT_BG_DATA_URL;
