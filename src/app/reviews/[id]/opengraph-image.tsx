@@ -6,51 +6,12 @@ export const alt = "Gear-Loom レビュー";
 export const size = { width: 1200, height: 675 }; // X推奨 1.78:1
 export const contentType = "image/png";
 
-const FETCH_TIMEOUT_MS = 10000; // 高解像度画像でも取り切れるよう余裕を持たせる
-const FETCH_MAX_BYTES = 12 * 1024 * 1024; // 12MB
-
 /** レビュー画像がないときのデフォルト背景（常に画像レイヤーがあるようにする） */
 const DEFAULT_BG_DATA_URL =
   "data:image/svg+xml," +
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1a2332"/><stop offset="100%" stop-color="#0f172a"/></linearGradient></defs><rect width="1200" height="675" fill="url(#g)"/><text x="600" y="320" font-family="sans-serif" font-size="32" fill="#475569" text-anchor="middle">Gear-Loom</text></svg>'
   );
-
-/** ArrayBuffer を base64 に（Node / Edge 両対応） */
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  if (typeof Buffer !== "undefined") {
-    return Buffer.from(buffer).toString("base64");
-  }
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return typeof btoa !== "undefined" ? btoa(binary) : "";
-}
-
-/** 画像URLを取得して Data URL に変換。失敗時は null */
-async function fetchImageAsDataUrl(url: string): Promise<string | null> {
-  if (!url.startsWith("https://") || url.includes("/b//o/")) return null;
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { "User-Agent": "Gear-Loom-OG/1.0" },
-    });
-    clearTimeout(timeout);
-    if (!res.ok || !res.headers.get("content-type")?.startsWith("image/")) return null;
-    const contentType = res.headers.get("content-type") ?? "image/jpeg";
-    const buf = await res.arrayBuffer();
-    if (buf.byteLength > FETCH_MAX_BYTES) return null;
-    const base64 = arrayBufferToBase64(buf);
-    if (!base64) return null;
-    return `data:${contentType.split(";")[0]};base64,${base64}`;
-  } catch {
-    return null;
-  }
-}
 
 /** 本文（Markdown / HTML）から最初の画像URLを抽出 */
 function extractFirstImageFromBody(
@@ -149,9 +110,8 @@ export default async function OpenGraphImage({
     const imageUrl = firstImage
       ? resolveReviewImageUrl(firstImage) ?? bodyImageUrl
       : bodyImageUrl;
-    const imageDataUrl = imageUrl ? await fetchImageAsDataUrl(imageUrl) : null;
-    // Data URL 変換に失敗しても、元URLをそのまま使って描画を試みる
-    const bgImageUrl = imageDataUrl ?? imageUrl ?? DEFAULT_BG_DATA_URL;
+    // OG生成時の事前fetch/変換をやめ、元URLを直接使ってタイムアウト起因のムラを避ける
+    const bgImageUrl = imageUrl ?? DEFAULT_BG_DATA_URL;
 
     const title = review.title.length > 50 ? review.title.slice(0, 47) + "…" : review.title;
     const subtitle = review.gear_name ? `${review.gear_name} | Gear-Loom` : "Gear-Loom";
