@@ -6,8 +6,8 @@ export const alt = "Gear-Loom レビュー";
 export const size = { width: 1200, height: 675 }; // X推奨 1.78:1
 export const contentType = "image/png";
 
-const FETCH_TIMEOUT_MS = 4000; // Vercel の制限内で返すため短め
-const FETCH_MAX_BYTES = 3 * 1024 * 1024; // 3MB
+const FETCH_TIMEOUT_MS = 10000; // 高解像度画像でも取り切れるよう余裕を持たせる
+const FETCH_MAX_BYTES = 12 * 1024 * 1024; // 12MB
 
 /** レビュー画像がないときのデフォルト背景（常に画像レイヤーがあるようにする） */
 const DEFAULT_BG_DATA_URL =
@@ -113,7 +113,8 @@ export default async function OpenGraphImage({
       : null;
     const imageUrl = firstImage ? getFirebaseStorageUrl(firstImage.storage_path) : null;
     const imageDataUrl = imageUrl ? await fetchImageAsDataUrl(imageUrl) : null;
-    const bgImageUrl = imageDataUrl ?? DEFAULT_BG_DATA_URL;
+    // Data URL 変換に失敗しても、元URLをそのまま使って描画を試みる
+    const bgImageUrl = imageDataUrl ?? imageUrl ?? DEFAULT_BG_DATA_URL;
 
     const title = review.title.length > 50 ? review.title.slice(0, 47) + "…" : review.title;
     const subtitle = review.gear_name ? `${review.gear_name} | Gear-Loom` : "Gear-Loom";
