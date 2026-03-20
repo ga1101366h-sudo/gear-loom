@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { MEGA_MENU_CATEGORIES } from "@/data/rakuten-genres";
 
 /** 階層を持たない独立カテゴリ（1つ目で選択時点で確定） */
@@ -64,6 +64,13 @@ export function CategoryCascadeSelect({
   const [selectedMainCategory, setSelectedMainCategory] = useState<string>("");
   const [selectedSubGroup, setSelectedSubGroup] = useState<string>("");
   const [selectedItem, setSelectedItem] = useState<string>("");
+  // `value` の復元が失敗した場合でも、ユーザー操作で確定した選択を握りつぶさないための退避
+  const selectedItemRef = useRef<string>(selectedItem);
+
+  // 現在の選択を常に退避しておく
+  useEffect(() => {
+    selectedItemRef.current = selectedItem;
+  }, [selectedItem]);
 
   const mainOpt = ALL_MAIN_OPTIONS.find((o) => o.label === selectedMainCategory);
   const selectedMegaIndex =
@@ -137,7 +144,8 @@ export function CategoryCascadeSelect({
               i === (itemStr?.replace(/-/g, " ") ?? "") ||
               i.replace(/\s/g, "-") === itemStr
           );
-          setSelectedItem(it ?? "");
+          // 復元失敗した場合は、ユーザー操作で確定している selectedItem を維持する
+          setSelectedItem(it ?? selectedItemRef.current);
         } else {
           setSelectedItem("");
         }

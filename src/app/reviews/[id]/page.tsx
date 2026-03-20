@@ -75,17 +75,9 @@ export async function generateMetadata({
     (review.gear_name ? `${review.gear_name}のレビュー` : "楽器・機材のレビュー");
   const origin = getSiteOrigin();
   const url = `${origin}/reviews/${id}`;
-  const detail = review as ReviewDetail;
-  const reviewImages = detail.review_images ?? [];
-  let ogImageUrl: string;
-  if (reviewImages.length > 0) {
-    const first = reviewImages
-      .slice()
-      .sort((a, b) => a.sort_order - b.sort_order)[0];
-    ogImageUrl = getFirebaseStorageUrl(first.storage_path);
-  } else {
-    ogImageUrl = `${origin}/images/mock/ogp-final.png`;
-  }
+  // Twitter/X はスクレイピングで参照する `og:image` が重要なので、
+  // どのカテゴリでも必ず応答する動的OG（フォールバック込み）を使う。
+  const ogImageUrl = `${origin}/reviews/${id}/opengraph-image`;
   const imageAlt = review.title || review.gear_name || "Gear-Loom レビュー";
   const ogImages = [
     { url: ogImageUrl, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: imageAlt },

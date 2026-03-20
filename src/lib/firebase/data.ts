@@ -1,7 +1,7 @@
 import { getAdminFirestore } from "./admin";
 import { prisma } from "@/lib/prisma";
 import { getCategoryLevel, getAllTargetSlugs, getAllTargetItems } from "@/data/category-search";
-import { getCategoryLabel, getCategoryPathSlugVariants } from "@/data/post-categories";
+import { getCategoryLabel, getCategoryPathSlugVariants, isContentOnlyCategorySlug } from "@/data/post-categories";
 import type { Review, Category, Maker, LiveEvent, Profile, Gear } from "@/types/database";
 
 export type ReviewDetail = Review & {
@@ -344,6 +344,27 @@ export async function getReviewsFromFirestore(
             .orderBy("category_slug");
           const snapSlug = await q.get();
           for (const doc of snapSlug.docs) {
+            if (!seenIds.has(doc.id)) {
+              seenIds.add(doc.id);
+              docs.push(doc);
+            }
+          }
+        }
+      }
+
+      // content-only（blog/event/custom）は、保存時に category_id/category_slug のどちらかがズレて入っているケースがあるため、
+      // category_id 側でも prefix 範囲検索してマージする（/blog が空になるのを防ぐ）
+      if (docs.length === 0 && isContentOnlyCategorySlug(slugTrimmed)) {
+        const variants = getCategoryPathSlugVariants(slugTrimmed);
+        const fallback = variants.length > 0 ? variants : [slugTrimmed];
+        for (const s of fallback) {
+          const q = db
+            .collection("reviews")
+            .where("category_id", ">=", s)
+            .where("category_id", "<=", s + "\uf8ff")
+            .orderBy("category_id");
+          const snapId = await q.get();
+          for (const doc of snapId.docs) {
             if (!seenIds.has(doc.id)) {
               seenIds.add(doc.id);
               docs.push(doc);

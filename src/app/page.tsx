@@ -63,7 +63,9 @@ export const metadata: Metadata = {
   },
 };
 
-const EXCLUDED_FROM_MAIN_SECTIONS = ["event", "blog"];
+// content-only（ブログ/イベント/カスタム）を新着レビュー枠から除外する
+// （エフェクターボード関連がここに混ざっているケースに対応）
+const EXCLUDED_FROM_MAIN_SECTIONS = ["event", "blog", "custom"];
 
 async function getRecentReviews(): Promise<Review[]> {
   try {
@@ -294,6 +296,17 @@ export default async function HomePage() {
           {/* スマホ：カテゴリ横スクロール */}
           <TopPageCategoryNavMobile />
 
+          {/* 新着レビュー */}
+          <section className="min-w-0 overflow-hidden">
+            <h2 className="mb-2 font-display text-xl font-semibold tracking-tight text-white md:text-2xl">
+              新着レビュー
+            </h2>
+            <p className="mb-6 text-sm text-gray-400">
+              クリックでレビュー記事（全文）と各ECの検索リンクへ
+            </p>
+            <NewReviewsCarousel items={newReviewItems} />
+          </section>
+
           {/* 新着エフェクターボード（キラーフィーチャー・コンテンツ最上部） */}
           <section className="min-w-0 overflow-hidden">
             <h2 className="mb-2 font-display text-xl font-semibold tracking-tight text-white md:text-2xl">
@@ -338,17 +351,6 @@ export default async function HomePage() {
                 })}
               />
             )}
-          </section>
-
-          {/* 新着レビュー */}
-          <section className="min-w-0 overflow-hidden">
-            <h2 className="mb-2 font-display text-xl font-semibold tracking-tight text-white md:text-2xl">
-              新着レビュー
-            </h2>
-            <p className="mb-6 text-sm text-gray-400">
-              クリックでレビュー記事（全文）と各ECの検索リンクへ
-            </p>
-            <NewReviewsCarousel items={newReviewItems} />
           </section>
 
           {/* フォロー中のユーザの記事（ログイン時のみ表示） */}
