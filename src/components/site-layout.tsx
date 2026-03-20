@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Menu, PenSquare, Edit3, Layout } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { HeaderAuth } from "@/components/header-auth";
@@ -34,7 +34,6 @@ function isAllowedWithoutUserId(path: string | null): boolean {
 
 export function SiteLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading } = useUserProfile();
   const isEmbed = pathname?.startsWith("/embed");
@@ -42,7 +41,17 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
 
   // /reviews/[id] は記事種別的にはブログ/イベント/レビューが混在するため、
   // リスト側リンクから渡された `?mainNav=blog|event` があればヘッダーのactiveを上書きする
-  const reviewsMainNav = pathname?.startsWith("/reviews/") ? searchParams?.get("mainNav") : null;
+  const [reviewsMainNav, setReviewsMainNav] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pathname?.startsWith("/reviews/")) {
+      setReviewsMainNav(null);
+      return;
+    }
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    setReviewsMainNav(sp.get("mainNav"));
+  }, [pathname]);
+
   const overrideActiveHref =
     reviewsMainNav === "blog"
       ? "/blog"

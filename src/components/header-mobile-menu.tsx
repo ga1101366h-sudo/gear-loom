@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -19,7 +19,6 @@ const OVERLAY_CLOSE_DELAY_MS = 200;
 
 export function HeaderMobileMenu({ open, onClose }: Props) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const prevPathnameRef = useRef(pathname);
   const overlayCanCloseRef = useRef(false);
   const { user, signOut } = useAuth();
@@ -79,13 +78,19 @@ export function HeaderMobileMenu({ open, onClose }: Props) {
 
   if (!open) return null;
 
-  const reviewsMainNav = pathname?.startsWith("/reviews/") ? searchParams?.get("mainNav") : null;
+  const [reviewsMainNav, setReviewsMainNav] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pathname?.startsWith("/reviews/")) {
+      setReviewsMainNav(null);
+      return;
+    }
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    setReviewsMainNav(sp.get("mainNav"));
+  }, [pathname]);
+
   const overrideActiveHref =
-    reviewsMainNav === "blog"
-      ? "/blog"
-      : reviewsMainNav === "event"
-        ? "/events"
-        : null;
+    reviewsMainNav === "blog" ? "/blog" : reviewsMainNav === "event" ? "/events" : null;
 
   const getNavLinkClass = (href: string) => {
     const isActive = overrideActiveHref

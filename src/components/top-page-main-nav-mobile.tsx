@@ -2,18 +2,27 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { MAIN_NAV_ITEMS } from "@/data/nav-items";
 
 /** スマホのみ：ドロップダウンでメインナビ（PCは別で横タブを維持する想定） */
 export function TopPageMainNavMobile() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const reviewsMainNav = pathname?.startsWith("/reviews/") ? searchParams?.get("mainNav") : null;
+  const [reviewsMainNav, setReviewsMainNav] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pathname?.startsWith("/reviews/")) {
+      setReviewsMainNav(null);
+      return;
+    }
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    setReviewsMainNav(sp.get("mainNav"));
+  }, [pathname]);
+
   const overrideActiveHref =
     reviewsMainNav === "blog" ? "/blog" : reviewsMainNav === "event" ? "/events" : null;
 
