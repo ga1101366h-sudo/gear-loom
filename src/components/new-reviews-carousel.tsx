@@ -58,6 +58,13 @@ const PLACEHOLDER_IMG =
 function ReviewCard({ item }: { item: NewReviewItem }) {
   const { user } = useAuth();
   const isOwner = !!user && !!item.author_uid && user.uid === item.author_uid;
+  const mainNav =
+    item.category_slug === "blog"
+      ? "blog"
+      : item.category_slug === "event"
+        ? "event"
+        : null;
+  const reviewHref = `/reviews/${item.id}${mainNav ? `?mainNav=${encodeURIComponent(mainNav)}` : ""}`;
 
   const shareText = isOwner
     ? buildReviewShareText({
@@ -79,7 +86,7 @@ function ReviewCard({ item }: { item: NewReviewItem }) {
 
   return (
     <div className="relative group flex h-full">
-      <Link href={`/reviews/${item.id}`} className="block flex-1 min-w-0">
+      <Link href={reviewHref} className="block flex-1 min-w-0">
         <Card className="card-hover h-full flex flex-col overflow-hidden">
           <div className="relative w-full shrink-0 overflow-hidden bg-surface-card h-[120px] sm:h-[150px] md:h-[160px]">
             {item.image ? (
@@ -157,7 +164,7 @@ function ReviewCard({ item }: { item: NewReviewItem }) {
           className="h-7 w-7 p-0 sm:h-auto sm:w-auto sm:px-2"
         >
           <ShareToXButton
-            path={`/reviews/${item.id}`}
+            path={reviewHref}
             text={shareText}
             className="text-xs"
           />
