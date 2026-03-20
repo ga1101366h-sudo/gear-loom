@@ -277,7 +277,8 @@ export default function NewReviewPage() {
           sharedByOwner: true,
         });
         const shareUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
-          text: `${baseText}\n${reviewUrl}`,
+          text: baseText,
+          url: reviewUrl,
         }).toString()}`;
         window.open(shareUrl, "_blank", "noopener,noreferrer");
       }
@@ -434,7 +435,8 @@ export default function NewReviewPage() {
           sharedByOwner: true,
         });
         const shareUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
-          text: `${baseText}\n${reviewUrl}`,
+          text: baseText,
+          url: reviewUrl,
         }).toString()}`;
         window.open(shareUrl, "_blank", "noopener,noreferrer");
       }

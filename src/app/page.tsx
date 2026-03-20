@@ -33,7 +33,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { SiteAnnouncements } from "@/components/site-announcements";
 import { BoardCarousel } from "@/components/board-carousel";
-import { getCategoryPathDisplay } from "@/data/post-categories";
+import { getCategoryPathDisplay, isContentOnlyCategorySlug } from "@/data/post-categories";
 import type { Review, LiveEvent } from "@/types/database";
 
 /** 公開トップはISRで短時間キャッシュ（体感速度改善） */
@@ -204,11 +204,15 @@ export default async function HomePage() {
   const popularReviewItems: NewReviewItem[] =
     popularReviews.map(toNewReviewItem);
 
-  // ヒーロースライドショー用：新着記事の画像を順に5件まで表示
-  const heroImageUrls = newReviewItems
+  // ヒーロースライドショー用：従来通り「エフェクターレビュー系」だけを使う
+  // （ブログ/イベント/カスタム等のコンテンツ系画像は混ぜない）
+  const heroImageUrls = recentReviews
+    .filter((r) => !isContentOnlyCategorySlug(r.category_id))
+    .filter((r) => r.category_id !== "photo")
+    .slice(0, 5)
+    .map(toNewReviewItem)
     .map((i) => i.image)
-    .filter((url): url is string => !!url)
-    .slice(0, 5);
+    .filter((url): url is string => !!url);
 
   return (
     <div>

@@ -111,8 +111,11 @@ function BoardsPublishContent() {
             typeof window !== "undefined" ? window.location.origin : "";
           const postUrl = `${baseUrl}/boards/post/${result.postId}`;
           if (postToX) {
-            const tweetText = `${trimmedTitle}を公開しました！\n#エフェクターボード\n#GearLoom\n${postUrl}`;
-            const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+            const tweetText = `${trimmedTitle}を公開しました！\n#エフェクターボード\n#GearLoom`;
+            const shareUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
+              text: tweetText,
+              url: postUrl,
+            }).toString()}`;
             window.open(shareUrl, "_blank", "noopener,noreferrer");
           }
           router.push("/boards");
