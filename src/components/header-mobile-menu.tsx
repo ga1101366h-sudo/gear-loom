@@ -24,6 +24,7 @@ export function HeaderMobileMenu({ open, onClose }: Props) {
   const { user, signOut } = useAuth();
   const { profile } = useUserProfile();
   const [signingOut, setSigningOut] = useState(false);
+  const [reviewsMainNav, setReviewsMainNav] = useState<string | null>(null);
   const profileUserId = (profile?.user_id as string | null) ?? null;
   const isAdmin = isAdminUserId(profileUserId);
 
@@ -52,6 +53,16 @@ export function HeaderMobileMenu({ open, onClose }: Props) {
     }
   }, [pathname, open, onClose]);
 
+  useEffect(() => {
+    if (!pathname?.startsWith("/reviews/")) {
+      setReviewsMainNav(null);
+      return;
+    }
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    setReviewsMainNav(sp.get("mainNav"));
+  }, [pathname]);
+
   async function handleSignOut() {
     setSigningOut(true);
     try {
@@ -77,17 +88,6 @@ export function HeaderMobileMenu({ open, onClose }: Props) {
   }, [open]);
 
   if (!open) return null;
-
-  const [reviewsMainNav, setReviewsMainNav] = useState<string | null>(null);
-  useEffect(() => {
-    if (!pathname?.startsWith("/reviews/")) {
-      setReviewsMainNav(null);
-      return;
-    }
-    if (typeof window === "undefined") return;
-    const sp = new URLSearchParams(window.location.search);
-    setReviewsMainNav(sp.get("mainNav"));
-  }, [pathname]);
 
   const overrideActiveHref =
     reviewsMainNav === "blog" ? "/blog" : reviewsMainNav === "event" ? "/events" : null;
