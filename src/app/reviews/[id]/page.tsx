@@ -29,6 +29,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getReviewPrimaryImageUrl } from "@/lib/review-og-image";
+import { toOgProxyImageUrl } from "@/lib/og-proxy";
 
 export const revalidate = 120;
 const OG_IMAGE_SCHEMA_VERSION = "20260321-2";
@@ -76,10 +77,10 @@ export async function generateMetadata({
   const url = `${origin}/reviews/${id}`;
   const ogVersion = encodeURIComponent((review.updated_at || review.created_at || "").trim());
   const directImage = getReviewPrimaryImageUrl(review);
-  // X のクローラーは Firebase 等の「実画像URL」直指定の方が安定。画像が無いときだけ動的OGへ。
+  // Firebase Storage 直リンクは X クローラーで失敗することがあるため、同一オリジンの og-proxy 経由にする
   const ogImageUrl =
     directImage && /^https?:\/\//i.test(directImage)
-      ? directImage
+      ? toOgProxyImageUrl(origin, directImage)
       : `${origin}/reviews/${id}/opengraph-image?cv=${OG_IMAGE_SCHEMA_VERSION}${ogVersion ? `&v=${ogVersion}` : ""}`;
   const imageAlt = review.title || review.gear_name || "Gear-Loom レビュー";
   const ogImages = [

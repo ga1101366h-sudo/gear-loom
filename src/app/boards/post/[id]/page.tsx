@@ -15,6 +15,7 @@ import {
   CardContent,
   CardHeader,
 } from "@/components/ui/card";
+import { isFirebaseStorageHttpsUrl, toOgProxyImageUrl } from "@/lib/og-proxy";
 
 export const revalidate = 120;
 
@@ -39,7 +40,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     "Gear-Loomで共有されたエフェクターボードの投稿です。";
   const origin = getRequestOrigin();
   const url = `${origin}/boards/post/${id}`;
-  const ogImageUrl = `${origin}/boards/post/${id}/opengraph-image`;
+  const board = post.board;
+  const primaryImage =
+    board?.actualPhotoUrl?.trim() || board?.thumbnail?.trim() || null;
+  const ogImageUrl =
+    primaryImage &&
+    primaryImage.startsWith("https://") &&
+    isFirebaseStorageHttpsUrl(primaryImage)
+      ? toOgProxyImageUrl(origin, primaryImage)
+      : `${origin}/boards/post/${id}/opengraph-image`;
 
   return {
     title: `${title} | Gear-Loom`,
