@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { getReviewByIdFromFirestore } from "@/lib/firebase/data";
-import { getFirebaseStorageUrl } from "@/lib/utils";
+import { getReviewPrimaryImageUrl } from "@/lib/review-og-image";
 
 export const alt = "Gear-Loom レビュー";
 export const size = { width: 1200, height: 675 }; // X推奨 1.78:1
@@ -13,33 +13,42 @@ const DEFAULT_BG_DATA_URL =
     '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1a2332"/><stop offset="100%" stop-color="#0f172a"/></linearGradient></defs><rect width="1200" height="675" fill="url(#g)"/><text x="600" y="320" font-family="sans-serif" font-size="32" fill="#475569" text-anchor="middle">Gear-Loom</text></svg>'
   );
 
-/** 本文（Markdown / HTML）から最初の画像URLを抽出 */
-function extractFirstImageFromBody(
-  bodyMd: string | null | undefined,
-  bodyHtml: string | null | undefined
-): string | null {
-  const md = (bodyMd ?? "").trim();
-  if (md) {
-    const mdMatch = md.match(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/i);
-    if (mdMatch?.[1]) return mdMatch[1].trim();
+const FETCH_TIMEOUT_MS = 10000;
+const FETCH_MAX_BYTES = 12 * 1024 * 1024;
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(buffer).toString("base64");
   }
-  const html = (bodyHtml ?? "").trim();
-  if (html) {
-    const htmlMatch = html.match(/<img[^>]+src=["'](https?:\/\/[^"']+)["']/i);
-    if (htmlMatch?.[1]) return htmlMatch[1].trim();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
   }
-  return null;
+  return typeof btoa !== "undefined" ? btoa(binary) : "";
 }
 
-function resolveReviewImageUrl(image: {
-  storage_path?: string | null;
-  url?: string | null;
-}): string | null {
-  const storagePath = (image.storage_path ?? "").trim();
-  if (storagePath) return getFirebaseStorageUrl(storagePath);
-  const directUrl = (image.url ?? "").trim();
-  if (directUrl.startsWith("http://") || directUrl.startsWith("https://")) return directUrl;
-  return null;
+/** OG用: 外部画像を取得して Data URL に（Satori が remote img を描画できない環境向け） */
+async function fetchImageAsDataUrl(url: string): Promise<string | null> {
+  if (!url.startsWith("https://") && !url.startsWith("http://")) return null;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": "Gear-Loom-OG/1.0" },
+    });
+    clearTimeout(timeout);
+    if (!res.ok || !res.headers.get("content-type")?.startsWith("image/")) return null;
+    const contentType = res.headers.get("content-type") ?? "image/jpeg";
+    const buf = await res.arrayBuffer();
+    if (buf.byteLength > FETCH_MAX_BYTES) return null;
+    const base64 = arrayBufferToBase64(buf);
+    if (!base64) return null;
+    return `data:${contentType.split(";")[0]};base64,${base64}`;
+  } catch {
+    return null;
+  }
 }
 
 function FallbackCard({ title }: { title?: string }) {
@@ -56,7 +65,6 @@ function FallbackCard({ title }: { title?: string }) {
         padding: 48,
       }}
     >
-      {/* エラー時も画像レイヤーを置いて「画像＋タイトル」形式を維持 */}
       <div style={{ position: "absolute", inset: 0 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={DEFAULT_BG_DATA_URL} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -97,21 +105,9 @@ export default async function OpenGraphImage({
       return new ImageResponse(<FallbackCard />, { ...size });
     }
 
-    const images = (review as {
-      review_images?: { storage_path?: string | null; url?: string | null; sort_order?: number }[];
-    }).review_images ?? [];
-    const firstImage = images.length > 0
-      ? [...images].sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999))[0]
-      : null;
-    const bodyImageUrl = extractFirstImageFromBody(
-      (review as { body_md?: string | null }).body_md,
-      (review as { body_html?: string | null }).body_html
-    );
-    const imageUrl = firstImage
-      ? resolveReviewImageUrl(firstImage) ?? bodyImageUrl
-      : bodyImageUrl;
-    // OG生成時の事前fetch/変換をやめ、元URLを直接使ってタイムアウト起因のムラを避ける
-    const bgImageUrl = imageUrl ?? DEFAULT_BG_DATA_URL;
+    const imageUrl = getReviewPrimaryImageUrl(review);
+    const imageDataUrl = imageUrl ? await fetchImageAsDataUrl(imageUrl) : null;
+    const bgImageUrl = imageDataUrl ?? imageUrl ?? DEFAULT_BG_DATA_URL;
 
     const title = review.title.length > 50 ? review.title.slice(0, 47) + "…" : review.title;
     const subtitle = review.gear_name ? `${review.gear_name} | Gear-Loom` : "Gear-Loom";
@@ -131,7 +127,6 @@ export default async function OpenGraphImage({
             padding: 40,
           }}
         >
-          {/* 常に画像レイヤーを置き、全記事で「画像＋タイトル」のカードになるようにする */}
           <div
             style={{
               position: "absolute",

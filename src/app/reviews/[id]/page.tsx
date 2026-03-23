@@ -28,9 +28,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getReviewPrimaryImageUrl } from "@/lib/review-og-image";
 
 export const revalidate = 120;
-const OG_IMAGE_SCHEMA_VERSION = "20260321-1";
+const OG_IMAGE_SCHEMA_VERSION = "20260321-2";
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -74,9 +75,12 @@ export async function generateMetadata({
   const origin = getSiteOrigin();
   const url = `${origin}/reviews/${id}`;
   const ogVersion = encodeURIComponent((review.updated_at || review.created_at || "").trim());
-  // X 側の採用順ブレをなくすため、画像URLは 1 つだけ出す
-  // （中身は opengraph-image 側で記事画像を優先して描画）
-  const ogImageUrl = `${origin}/reviews/${id}/opengraph-image?cv=${OG_IMAGE_SCHEMA_VERSION}${ogVersion ? `&v=${ogVersion}` : ""}`;
+  const directImage = getReviewPrimaryImageUrl(review);
+  // X のクローラーは Firebase 等の「実画像URL」直指定の方が安定。画像が無いときだけ動的OGへ。
+  const ogImageUrl =
+    directImage && /^https?:\/\//i.test(directImage)
+      ? directImage
+      : `${origin}/reviews/${id}/opengraph-image?cv=${OG_IMAGE_SCHEMA_VERSION}${ogVersion ? `&v=${ogVersion}` : ""}`;
   const imageAlt = review.title || review.gear_name || "Gear-Loom レビュー";
   const ogImages = [
     { url: ogImageUrl, width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT, alt: imageAlt },
