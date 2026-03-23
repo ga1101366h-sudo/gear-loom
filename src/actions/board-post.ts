@@ -80,6 +80,9 @@ export async function publishBoardPost(
     });
     revalidatePath("/mypage");
     revalidatePath("/boards");
+    // トップの新着エフェクターボード（ISR）に即反映
+    revalidatePath("/", "layout");
+    revalidatePath("/");
     return { success: true, postId: post.id };
   } catch (err) {
     console.error("[publishBoardPost] Database error:", err);
@@ -177,6 +180,8 @@ export async function updateBoardPost(
     revalidatePath("/mypage");
     revalidatePath("/boards");
     revalidatePath(`/boards/post/${trimmedPostId}`);
+    revalidatePath("/", "layout");
+    revalidatePath("/");
     return { success: true };
   } catch (err) {
     console.error("[updateBoardPost] Database error:", err);
@@ -247,6 +252,8 @@ export async function deleteBoardPost(
     });
     revalidatePath("/mypage");
     revalidatePath("/boards");
+    revalidatePath("/", "layout");
+    revalidatePath("/");
     return { success: true };
   } catch (err) {
     console.error("[deleteBoardPost] Database error:", err);

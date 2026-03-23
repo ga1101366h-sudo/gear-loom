@@ -341,13 +341,18 @@ export default async function HomePage() {
                   const authorAvatarUrl = profile?.avatar_url?.trim() || null;
                   const title =
                     post.title?.trim() || board?.name?.trim() || "無題";
+                  // 実機写真: Board と BoardPost.photoUrl のどちらか（公開直後のISRずれ対策）
+                  const actualPhotoUrl =
+                    board?.actualPhotoUrl?.trim() ||
+                    post.photoUrl?.trim() ||
+                    null;
                   return {
                     postId: post.id,
                     title,
                     updatedAt: post.updatedAt.toISOString(),
                     authorLabel,
                     authorAvatarUrl,
-                    actualPhotoUrl: board?.actualPhotoUrl?.trim() ?? null,
+                    actualPhotoUrl,
                     thumbnail: board?.thumbnail?.trim() ?? null,
                     ownerUid: uid ?? null,
                   };

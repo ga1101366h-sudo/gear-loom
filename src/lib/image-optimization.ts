@@ -8,3 +8,15 @@ export function shouldUnoptimizeImage(src: string): boolean {
   return s.startsWith("data:") || s.startsWith("blob:") || s.startsWith("/");
 }
 
+/**
+ * トップのボードカルーセル等、Firebase Storage を `/_next/image` 経由にすると
+ * 初回フルロード時だけ取りこぼすケースがあるため、同ドメイン直リンクにする。
+ * （一覧・サムネイル用途。記事本文の next/image 最適化方針とは別扱い）
+ */
+export function shouldUnoptimizeFirebaseStorage(src: string): boolean {
+  const s = (src ?? "").trim();
+  if (!s) return false;
+  if (shouldUnoptimizeImage(s)) return true;
+  return s.includes("firebasestorage.googleapis.com");
+}
+
