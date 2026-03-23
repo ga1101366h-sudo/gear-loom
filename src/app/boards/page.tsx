@@ -84,7 +84,7 @@ export default async function BoardsPage() {
                           alt="配線図"
                           fill
                           className="object-cover group-hover:opacity-90 transition-opacity"
-                          unoptimized={shouldUnoptimizeImage(board!.thumbnail!)}
+                          unoptimized={shouldUnoptimizeFirebaseStorage(board!.thumbnail!)}
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
                       </div>
