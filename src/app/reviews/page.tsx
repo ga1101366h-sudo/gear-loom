@@ -15,6 +15,7 @@ import { fetchRakutenItems } from "@/lib/rakuten";
 import type { Review } from "@/types/database";
 import type { RakutenItem } from "@/types/rakuten";
 import { SearchCatalogSection, type CatalogItem } from "./SearchCatalogSection";
+import { shouldUnoptimizeFirebaseStorage } from "@/lib/image-optimization";
 
 export const revalidate = 60;
 
@@ -166,6 +167,7 @@ export default async function ReviewsListPage({ searchParams }: Props) {
                             fill
                             className="object-cover"
                             sizes="(max-width:640px) 50vw, (max-width:1024px) 33vw, 25vw"
+                            unoptimized={shouldUnoptimizeFirebaseStorage(imageUrl)}
                           />
                         ) : (
                           <Image

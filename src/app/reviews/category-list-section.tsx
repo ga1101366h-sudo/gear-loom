@@ -10,6 +10,7 @@ import {
 import { getFirebaseStorageUrl } from "@/lib/utils";
 import { isContentOnlyCategorySlug, getCategoryPathDisplay } from "@/data/post-categories";
 import type { Review } from "@/types/database";
+import { shouldUnoptimizeFirebaseStorage } from "@/lib/image-optimization";
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -97,6 +98,7 @@ export function CategoryListSection({
                           fill
                           className="object-cover"
                           sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+                          unoptimized={shouldUnoptimizeFirebaseStorage(imageUrl)}
                         />
                       ) : (
                         <Image

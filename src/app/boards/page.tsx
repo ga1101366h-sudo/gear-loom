@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { getProfilesByUids } from "@/lib/firebase/data";
-import { shouldUnoptimizeImage } from "@/lib/image-optimization";
+import { shouldUnoptimizeFirebaseStorage } from "@/lib/image-optimization";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -54,7 +54,9 @@ export default async function BoardsPage() {
             const authorAvatarUrl = profile?.avatar_url?.trim() || null;
             const title = post.title?.trim() || board?.name?.trim() || "無題";
             const updatedAt = post.updatedAt;
-            const hasActual = Boolean(board?.actualPhotoUrl?.trim());
+            const actualPhotoUrl =
+              board?.actualPhotoUrl?.trim() || post.photoUrl?.trim() || null;
+            const hasActual = Boolean(actualPhotoUrl);
             const hasThumbnail = Boolean(board?.thumbnail?.trim());
 
             return (
@@ -68,11 +70,11 @@ export default async function BoardsPage() {
                     <div className="flex w-full h-full" data-testid="board-card-split">
                       <div className="relative w-1/2 h-full">
                         <Image
-                          src={board!.actualPhotoUrl!}
+                          src={actualPhotoUrl!}
                           alt="実機写真"
                           fill
                           className="object-cover group-hover:opacity-90 transition-opacity"
-                          unoptimized={shouldUnoptimizeImage(board!.actualPhotoUrl!)}
+                          unoptimized={shouldUnoptimizeFirebaseStorage(actualPhotoUrl!)}
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
                       </div>
@@ -90,11 +92,11 @@ export default async function BoardsPage() {
                   ) : hasActual ? (
                     <div className="relative w-full h-full">
                       <Image
-                        src={board!.actualPhotoUrl!}
+                        src={actualPhotoUrl!}
                         alt="実機写真"
                         fill
                         className="object-cover group-hover:opacity-90 transition-opacity"
-                        unoptimized={shouldUnoptimizeImage(board!.actualPhotoUrl!)}
+                        unoptimized={shouldUnoptimizeFirebaseStorage(actualPhotoUrl!)}
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     </div>
@@ -105,7 +107,7 @@ export default async function BoardsPage() {
                         alt="配線図"
                         fill
                         className="object-cover group-hover:opacity-90 transition-opacity"
-                        unoptimized={shouldUnoptimizeImage(board!.thumbnail!)}
+                        unoptimized={shouldUnoptimizeFirebaseStorage(board!.thumbnail!)}
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     </div>
