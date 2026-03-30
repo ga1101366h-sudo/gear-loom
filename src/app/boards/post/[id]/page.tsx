@@ -42,7 +42,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const url = `${origin}/boards/post/${id}`;
   const board = post.board;
   const primaryImage =
-    board?.actualPhotoUrl?.trim() || board?.thumbnail?.trim() || null;
+    board?.actualPhotoUrl?.trim() ||
+    post.photoUrl?.trim() ||
+    board?.thumbnail?.trim() ||
+    null;
   const ogImageUrl =
     primaryImage &&
     primaryImage.startsWith("https://") &&
@@ -125,7 +128,7 @@ export default async function BoardPostDetailPage({ params }: Props) {
   }
 
   // 2. 実機写真の表示条件
-  const actualPhotoUrl = board?.actualPhotoUrl?.trim();
+  const actualPhotoUrl = board?.actualPhotoUrl?.trim() || post.photoUrl?.trim() || null;
   const hasActualPhoto = Boolean(actualPhotoUrl);
 
   // 3. 配線図（インタラクティブ）の表示条件（nodes または edges のどちらかがあれば表示）
@@ -152,7 +155,10 @@ export default async function BoardPostDetailPage({ params }: Props) {
 
   const title = post.title?.trim() || board?.name?.trim() || "エフェクターボード";
   const thumbnailUrl =
-    (board?.actualPhotoUrl?.trim() || board?.thumbnail?.trim()) ?? null;
+    (board?.actualPhotoUrl?.trim() ||
+      post.photoUrl?.trim() ||
+      board?.thumbnail?.trim()) ??
+    null;
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto px-4 py-8 sm:py-12">

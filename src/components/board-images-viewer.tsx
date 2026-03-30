@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { createPortal } from "react-dom";
+import { shouldUnoptimizeFirebaseStorage } from "@/lib/image-optimization";
 
 type BoardImagesViewerProps = {
   actualPhotoUrl: string | null;
@@ -52,6 +53,7 @@ export function BoardImagesViewer({
                 fill
                 className="object-contain transition-opacity duration-200 group-hover:opacity-80"
                 sizes="(max-width: 640px) 100vw, 50vw"
+                unoptimized={shouldUnoptimizeFirebaseStorage(actualPhotoUrl)}
               />
             </button>
           </div>
@@ -69,6 +71,7 @@ export function BoardImagesViewer({
                 fill
                 className="object-contain transition-opacity duration-200 group-hover:opacity-80"
                 sizes="(max-width: 640px) 100vw, 50vw"
+                unoptimized={shouldUnoptimizeFirebaseStorage(thumbnailUrl)}
               />
             </button>
           </div>
@@ -94,6 +97,7 @@ export function BoardImagesViewer({
                 className="object-contain cursor-pointer"
                 sizes="(max-width: 1024px) 100vw, 1024px"
                 priority
+                unoptimized={shouldUnoptimizeFirebaseStorage(lightboxSrc)}
               />
             </div>
           </div>,
