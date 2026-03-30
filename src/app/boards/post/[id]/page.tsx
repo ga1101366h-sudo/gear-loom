@@ -15,7 +15,8 @@ import {
   CardContent,
   CardHeader,
 } from "@/components/ui/card";
-import { isFirebaseStorageHttpsUrl, toOgProxyImageUrl } from "@/lib/og-proxy";
+
+const OG_IMAGE_SCHEMA_VERSION = "20260330-1";
 
 export const revalidate = 120;
 
@@ -41,17 +42,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const origin = getRequestOrigin();
   const url = `${origin}/boards/post/${id}`;
   const board = post.board;
-  const primaryImage =
-    board?.actualPhotoUrl?.trim() ||
-    post.photoUrl?.trim() ||
-    board?.thumbnail?.trim() ||
-    null;
-  const ogImageUrl =
-    primaryImage &&
-    primaryImage.startsWith("https://") &&
-    isFirebaseStorageHttpsUrl(primaryImage)
-      ? toOgProxyImageUrl(origin, primaryImage)
-      : `${origin}/boards/post/${id}/opengraph-image`;
+  const ogVersion = post.updatedAt ? encodeURIComponent(post.updatedAt.toISOString()) : "";
+  // X 用は常に同一ドメインの PNG（動的OG）に固定する（Firebase直リンク/プロキシ経由だと取りこぼしが起きるため）
+  const ogImageUrl = `${origin}/boards/post/${id}/opengraph-image?cv=${OG_IMAGE_SCHEMA_VERSION}${
+    ogVersion ? `&v=${ogVersion}` : ""
+  }`;
 
   return {
     title: `${title} | Gear-Loom`,
