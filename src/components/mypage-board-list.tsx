@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { shouldUnoptimizeImage } from "@/lib/image-optimization";
+import { shouldUnoptimizeFirebaseStorage } from "@/lib/image-optimization";
 import {
   DndContext,
   DragEndEvent,
@@ -112,7 +112,7 @@ function SortableBoardCard({
                         alt="実機写真"
                         fill
                         className="object-cover"
-                        unoptimized={shouldUnoptimizeImage(board.actualPhotoUrl!)}
+                        unoptimized={shouldUnoptimizeFirebaseStorage(board.actualPhotoUrl!)}
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     </div>
@@ -122,7 +122,7 @@ function SortableBoardCard({
                         alt="配線図"
                         fill
                         className="object-cover"
-                        unoptimized={shouldUnoptimizeImage(board.thumbnail!)}
+                        unoptimized={shouldUnoptimizeFirebaseStorage(board.thumbnail!)}
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     </div>
@@ -137,7 +137,7 @@ function SortableBoardCard({
                       alt="実機写真"
                       fill
                       className="object-cover"
-                      unoptimized={shouldUnoptimizeImage(board.actualPhotoUrl!)}
+                      unoptimized={shouldUnoptimizeFirebaseStorage(board.actualPhotoUrl!)}
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                   </div>
@@ -151,7 +151,7 @@ function SortableBoardCard({
                       alt="配線図"
                       fill
                       className="object-cover"
-                      unoptimized={shouldUnoptimizeImage(board.thumbnail!)}
+                      unoptimized={shouldUnoptimizeFirebaseStorage(board.thumbnail!)}
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                   </div>

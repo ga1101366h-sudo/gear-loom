@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFirebaseStorageUrl } from "@/lib/utils";
-import { shouldUnoptimizeImage } from "@/lib/image-optimization";
+import { shouldUnoptimizeFirebaseStorage } from "@/lib/image-optimization";
 import { getCategoryPathDisplay } from "@/data/post-categories";
 import { isContentOnlyCategorySlug } from "@/data/post-categories";
 import type { Review } from "@/types/database";
@@ -147,7 +147,7 @@ export function BoardPostListItem({
               fill
               className="object-cover"
               sizes="96px"
-              unoptimized={shouldUnoptimizeImage(thumbnailUrl)}
+              unoptimized={shouldUnoptimizeFirebaseStorage(thumbnailUrl)}
             />
           ) : (
             <Image src={PLACEHOLDER_IMG} alt="" fill className="object-cover" sizes="96px" unoptimized />
