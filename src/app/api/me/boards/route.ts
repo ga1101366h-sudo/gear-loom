@@ -25,7 +25,15 @@ export async function GET(request: Request) {
     const boards = await prisma.board.findMany({
       where: { userId: uid },
       orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }],
-      select: { id: true, name: true, thumbnail: true, actualPhotoUrl: true, updatedAt: true },
+      select: {
+        id: true,
+        name: true,
+        thumbnail: true,
+        actualPhotoUrl: true,
+        nodes: true,
+        edges: true,
+        updatedAt: true,
+      },
     });
 
     return NextResponse.json({
@@ -34,6 +42,8 @@ export async function GET(request: Request) {
         name: b.name,
         thumbnail: b.thumbnail ?? null,
         actualPhotoUrl: b.actualPhotoUrl ?? null,
+        nodes: b.nodes ?? null,
+        edges: b.edges ?? null,
         updatedAt: b.updatedAt.toISOString(),
       })),
     });

@@ -101,7 +101,15 @@ export default function MypagePage() {
   const [followingCount, setFollowingCount] = useState(0);
   const [followersCount, setFollowersCount] = useState(0);
   const [mypageGears, setMypageGears] = useState<UserGearItem[]>([]);
-  const [mypageBoards, setMypageBoards] = useState<{ id: string; name: string; thumbnail: string | null; actualPhotoUrl: string | null; updatedAt: string }[]>([]);
+  const [mypageBoards, setMypageBoards] = useState<{
+    id: string;
+    name: string;
+    thumbnail: string | null;
+    actualPhotoUrl: string | null;
+    nodes?: string | null;
+    edges?: string | null;
+    updatedAt: string;
+  }[]>([]);
   const [mypageBoardPosts, setMypageBoardPosts] = useState<{ id: string; title: string; content: string | null; updatedAt: string; boardId: string; boardName: string }[]>([]);
   const [likedBoardPosts, setLikedBoardPosts] = useState<{ postId: string; title: string; thumbnailUrl: string | null }[]>([]);
   const [followListModal, setFollowListModal] = useState<"following" | "followers" | null>(null);
@@ -121,7 +129,15 @@ export default function MypagePage() {
     return [...upcoming, ...past];
   }, [liveEvents]);
 
-  type MypageBoardItem = { id: string; name: string; thumbnail: string | null; actualPhotoUrl: string | null; updatedAt: string };
+  type MypageBoardItem = {
+    id: string;
+    name: string;
+    thumbnail: string | null;
+    actualPhotoUrl: string | null;
+    nodes?: string | null;
+    edges?: string | null;
+    updatedAt: string;
+  };
   type MypageBoardPostItem = {
     id: string;
     title: string;

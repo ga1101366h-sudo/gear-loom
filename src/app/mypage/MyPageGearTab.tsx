@@ -18,6 +18,8 @@ export type MypageBoardItem = {
   name: string;
   thumbnail: string | null;
   actualPhotoUrl: string | null;
+  nodes?: string | null;
+  edges?: string | null;
   updatedAt: string;
 };
 
