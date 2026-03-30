@@ -25,12 +25,15 @@ import { useSWRConfig } from "swr";
 import toast from "react-hot-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { deleteBoard, updateBoardOrder } from "@/actions/board";
+import { BoardFlowReadonly } from "@/components/board-flow-readonly";
 
 export type MypageBoardItem = {
   id: string;
   name: string;
   thumbnail: string | null;
   actualPhotoUrl: string | null;
+  nodes?: string | null;
+  edges?: string | null;
   updatedAt: string;
 };
 
@@ -103,6 +106,7 @@ function SortableBoardCard({
             {(() => {
               const hasActual = Boolean(board.actualPhotoUrl?.trim());
               const hasThumbnail = Boolean(board.thumbnail?.trim());
+              const hasFlowData = Boolean(board.nodes?.trim() || board.edges?.trim());
               if (hasActual && hasThumbnail) {
                 return (
                   <div className="flex w-full h-full">
@@ -124,6 +128,30 @@ function SortableBoardCard({
                         className="object-cover"
                         unoptimized={shouldUnoptimizeFirebaseStorage(board.thumbnail!)}
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                    </div>
+                  </div>
+                );
+              }
+              if (hasActual && hasFlowData) {
+                return (
+                  <div className="flex w-full h-full">
+                    <div className="relative w-1/2 h-full">
+                      <Image
+                        src={board.actualPhotoUrl!}
+                        alt="実機写真"
+                        fill
+                        className="object-cover"
+                        unoptimized={shouldUnoptimizeFirebaseStorage(board.actualPhotoUrl!)}
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                    </div>
+                    <div className="relative w-1/2 h-full border-l border-surface-border bg-[#050709]">
+                      <BoardFlowReadonly
+                        nodesJson={board.nodes ?? null}
+                        edgesJson={board.edges ?? null}
+                        containerClassName="w-full h-full border-0 rounded-none"
+                        interactive={false}
                       />
                     </div>
                   </div>
@@ -153,6 +181,18 @@ function SortableBoardCard({
                       className="object-cover"
                       unoptimized={shouldUnoptimizeFirebaseStorage(board.thumbnail!)}
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    />
+                  </div>
+                );
+              }
+              if (hasFlowData) {
+                return (
+                  <div className="relative w-full h-full bg-[#050709]">
+                    <BoardFlowReadonly
+                      nodesJson={board.nodes ?? null}
+                      edgesJson={board.edges ?? null}
+                      containerClassName="w-full h-full border-0 rounded-none"
+                      interactive={false}
                     />
                   </div>
                 );
