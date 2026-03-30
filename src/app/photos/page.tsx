@@ -1,7 +1,15 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import { CategoryListSection } from "@/app/reviews/category-list-section";
 import type { Review } from "@/types/database";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 async function getPhotoReviews(): Promise<Review[]> {
   try {

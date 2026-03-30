@@ -97,7 +97,7 @@ export function BoardCarousel({ cards }: { cards: BoardCarouselCard[] }) {
                       </div>
                     ) : (
                       <div className="flex w-full h-full items-center justify-center bg-gray-800 text-gray-500 text-xs">
-                        サムネイルなし
+                        実機写真や配線図を登録すると、使用機材の並び順やこだわりポイントがここに表示されます。
                       </div>
                     )}
                   </div>

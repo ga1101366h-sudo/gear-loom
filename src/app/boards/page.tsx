@@ -113,7 +113,7 @@ export default async function BoardsPage() {
                     </div>
                   ) : (
                     <div className="flex w-full h-full items-center justify-center bg-gray-800 text-gray-500 text-xs">
-                      サムネイルなし
+                      実機写真や配線図を登録すると、ボード構成と音作りの意図がここに表示されます。
                     </div>
                   )}
                 </div>

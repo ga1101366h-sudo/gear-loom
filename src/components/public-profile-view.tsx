@@ -367,7 +367,9 @@ export function PublicProfileView({
                             unoptimized={shouldUnoptimizeImage(String(b.actualPhotoUrl || b.thumbnail || ""))}
                           />
                         ) : (
-                          <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">サムネイルなし</div>
+                          <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-sm text-center px-4">
+                            実機写真や配線図を登録すると、機材の組み合わせや狙いのサウンドがここに表示されます。
+                          </div>
                         )}
                       </div>
                       <div className="p-3">
@@ -377,7 +379,9 @@ export function PublicProfileView({
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">公開しているエフェクターボードはありません。</p>
+                <p className="text-sm text-gray-400">
+                  まだ公開ボードはありません。ここにはエフェクターの接続順や使用機材、プレイヤーごとの音作りのこだわりが表示されます。
+                </p>
               )}
             </CardContent>
           </Card>
@@ -473,7 +477,9 @@ export function PublicProfileView({
             </CardHeader>
             <CardContent>
               {reviews.length === 0 && boardPosts.length === 0 ? (
-                <p className="text-sm text-gray-400">まだ投稿がありません。</p>
+                <p className="text-sm text-gray-400">
+                  まだ投稿はありません。レビューやボード記事が追加されると、機材レビューの背景やセッティング意図がここから確認できます。
+                </p>
               ) : (
                 <div className="space-y-6">
                   {reviews.length > 0 && (
