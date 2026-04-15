@@ -977,8 +977,7 @@ export async function getReviewsFromFollowedUsersFromFirestore(
 
   const chunkSize = 10;
   // orderBy を使うと複合インデックスが必要になるため、取得後にメモリで新着順ソートする
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const allDocs: any[] = [];
+  const allDocs: FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>[] = [];
   for (let i = 0; i < followingIds.length; i += chunkSize) {
     const chunk = followingIds.slice(i, i + chunkSize);
     const snap = await db

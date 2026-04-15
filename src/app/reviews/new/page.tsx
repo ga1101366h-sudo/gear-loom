@@ -23,9 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { CategoryCascadeSelect } from "@/components/category-cascade-select";
 import {
-  getGroupSlugByCategorySlug,
   getCategoryLabel,
-  isContentOnlyCategorySlug,
   normalizeCategorySlug,
 } from "@/data/post-categories";
 import { getPendingGear, clearPendingGear } from "@/lib/pending-gear";
@@ -37,6 +35,10 @@ import { BodyTextareaWithAi } from "@/components/body-textarea-with-ai";
 import type { Maker } from "@/types/database";
 import type { SpecTag } from "@/types/database";
 import { buildReviewShareText } from "@/lib/x-share";
+import {
+  useReviewFormFields,
+  SITUATION_OPTIONS,
+} from "@/hooks/use-review-form-fields";
 import toast from "react-hot-toast";
 
 export default function NewReviewPage() {
@@ -44,29 +46,35 @@ export default function NewReviewPage() {
   const { user, loading: authLoading } = useAuth();
   const db = getFirebaseFirestore();
   const storage = getFirebaseStorage();
-  const [makers, setMakers] = useState<Maker[]>([]);
-  const [specTags, setSpecTags] = useState<SpecTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [title, setTitle] = useState("");
-  const [gearName, setGearName] = useState("");
-  const [categorySlug, setCategorySlug] = useState("");
-  const [categoryNameJa, setCategoryNameJa] = useState("");
-  const [makerName, setMakerName] = useState("");
-  const [rating, setRating] = useState(5);
-  const [bodyMd, setBodyMd] = useState("");
-  const [specTagIds, setSpecTagIds] = useState<string[]>([]);
+  // ── 共通フォームフィールド（new/edit で共有） ──
+  const {
+    title, setTitle,
+    gearName, setGearName,
+    categorySlug, setCategorySlug,
+    categoryNameJa, setCategoryNameJa,
+    makerName, setMakerName,
+    rating, setRating,
+    bodyMd, setBodyMd,
+    specTagIds,
+    youtubeUrl, setYoutubeUrl,
+    eventUrl, setEventUrl,
+    situations, setSituations,
+    showPreview, setShowPreview,
+    previewImageUrls, setPreviewImageUrls,
+    addToOwnedGear, setAddToOwnedGear,
+    makers, setMakers,
+    specTags, setSpecTags,
+    groupSlug,
+    isContentOnlyCategory,
+    toggleSpecTag,
+  } = useReviewFormFields({ db });
+
   const [files, setFiles] = useState<File[]>([]);
   const [filePreviewUrls, setFilePreviewUrls] = useState<string[]>([]);
-  const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [eventUrl, setEventUrl] = useState("");
-  const [situations, setSituations] = useState<string[]>([]);
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewImageUrls, setPreviewImageUrls] = useState<string[]>([]);
-  /** 機材レビュー時のみ。マイページの所持機材に追加するか */
-  const [addToOwnedGear, setAddToOwnedGear] = useState(true);
   /** 投稿後にXでシェアするか（intentで投稿画面を開く） */
   const [shareToXAfterSubmit, setShareToXAfterSubmit] = useState(false);
   /** 楽天API等から渡された未登録機材（レビューSubmit時に gears + reviews を同時保存） */
@@ -77,13 +85,6 @@ export default function NewReviewPage() {
     categorySlug?: string;
     categoryNameJa?: string;
   } | null>(null);
-
-  const SITUATION_OPTIONS: { id: string; label: string }[] = [
-    { id: "home", label: "自宅・宅録" },
-    { id: "studio", label: "スタジオ" },
-    { id: "livehouse", label: "ライブハウス" },
-    { id: "streaming", label: "配信" },
-  ];
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -147,37 +148,6 @@ export default function NewReviewPage() {
       setLoading(false);
     })();
   }, [user, authLoading, db]);
-
-  const groupSlug = categorySlug ? getGroupSlugByCategorySlug(categorySlug) : "";
-  const isContentOnlyCategory = categorySlug ? isContentOnlyCategorySlug(categorySlug) : false;
-
-  useEffect(() => {
-    if (!db || !groupSlug) {
-      setMakers([]);
-      return;
-    }
-    (async () => {
-      // where のみで取得（複合インデックス不要）。名前順はクライアントでソート
-      const snap = await getDocs(
-        query(
-          collection(db, "makers"),
-          where("group_slug", "==", groupSlug)
-        )
-      );
-      const list: Maker[] = snap.docs
-        .map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            name: data.name ?? "",
-            group_slug: data.group_slug ?? "",
-            created_at: data.created_at ?? "",
-          } as Maker;
-        })
-        .sort((a, b) => a.name.localeCompare(b.name, "ja"));
-      setMakers(list);
-    })();
-  }, [db, groupSlug]);
 
   useEffect(() => {
     const urls = files.map((f) => URL.createObjectURL(f));
@@ -448,12 +418,6 @@ export default function NewReviewPage() {
     } finally {
       setSubmitting(false);
     }
-  }
-
-  function toggleSpecTag(id: string) {
-    setSpecTagIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
   }
 
   if (authLoading || loading) {

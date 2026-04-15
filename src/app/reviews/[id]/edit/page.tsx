@@ -26,8 +26,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CategoryCascadeSelect } from "@/components/category-cascade-select";
 import { ReviewFormPreview } from "@/components/review-form-preview";
 import { BodyTextareaWithAi } from "@/components/body-textarea-with-ai";
-import { getGroupSlugByCategorySlug, isContentOnlyCategorySlug } from "@/data/post-categories";
 import { isAdminUserId } from "@/lib/admin";
+import {
+  useReviewFormFields,
+  SITUATION_OPTIONS,
+} from "@/hooks/use-review-form-fields";
 
 const REVIEW_TITLE_MAX = 100;
 const REVIEW_BODY_MAX = 10000;
@@ -41,43 +44,39 @@ export default function EditReviewPage() {
   const db = getFirebaseFirestore();
   const storage = getFirebaseStorage();
 
-  const [makers, setMakers] = useState<Maker[]>([]);
-  const [specTags, setSpecTags] = useState<SpecTag[]>([]);
   const [existingImages, setExistingImages] = useState<ReviewImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [title, setTitle] = useState("");
-  const [gearName, setGearName] = useState("");
-  const [categorySlug, setCategorySlug] = useState("");
-  const [categoryNameJa, setCategoryNameJa] = useState("");
-  const [makerName, setMakerName] = useState("");
-  const [rating, setRating] = useState(5);
-  const [bodyMd, setBodyMd] = useState("");
-  const [specTagIds, setSpecTagIds] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
-  const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [eventUrl, setEventUrl] = useState("");
-  const [situations, setSituations] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewImageUrls, setPreviewImageUrls] = useState<string[]>([]);
-  /** 機材レビュー時のみ。マイページの所持機材に追加するか（編集時は未チェックがデフォルト） */
-  const [addToOwnedGear, setAddToOwnedGear] = useState(false);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
   /** 管理者が他ユーザーの記事を編集している場合 true（更新を API 経由で行う） */
   const [isAdminEditingOthers, setIsAdminEditingOthers] = useState(false);
 
-  const SITUATION_OPTIONS: { id: string; label: string }[] = [
-    { id: "home", label: "自宅・宅録" },
-    { id: "studio", label: "スタジオ" },
-    { id: "livehouse", label: "ライブハウス" },
-    { id: "streaming", label: "配信" },
-  ];
-
-  const groupSlug = categorySlug ? getGroupSlugByCategorySlug(categorySlug) : "";
-  const isContentOnlyCategory = categorySlug ? isContentOnlyCategorySlug(categorySlug) : false;
+  // ── 共通フォームフィールド（new/edit で共有） ──
+  const {
+    title, setTitle,
+    gearName, setGearName,
+    categorySlug, setCategorySlug,
+    categoryNameJa, setCategoryNameJa,
+    makerName, setMakerName,
+    rating, setRating,
+    bodyMd, setBodyMd,
+    specTagIds,
+    youtubeUrl, setYoutubeUrl,
+    eventUrl, setEventUrl,
+    situations, setSituations,
+    showPreview, setShowPreview,
+    previewImageUrls, setPreviewImageUrls,
+    addToOwnedGear, setAddToOwnedGear,
+    makers, setMakers,
+    specTags, setSpecTags,
+    groupSlug,
+    isContentOnlyCategory,
+    toggleSpecTag,
+    setAllFields,
+  } = useReviewFormFields({ db, initial: { addToOwnedGear: false } });
 
   useEffect(() => {
     if (authLoading) return;
@@ -128,17 +127,19 @@ export default function EditReviewPage() {
         });
         setSpecTags(tags);
 
-        setTitle(data.title ?? "");
-        setCategorySlug((data.category_slug as string) ?? "");
-        setCategoryNameJa((data.category_name_ja as string) ?? "");
-        setGearName((data.gear_name as string) ?? "");
-        setMakerName((data.maker_name as string) ?? "");
-        setRating(typeof data.rating === "number" ? data.rating : 5);
-        setBodyMd((data.body_md as string) ?? "");
-        setSpecTagIds(((data.spec_tag_ids as string[]) ?? []).slice());
-        setYoutubeUrl((data.youtube_url as string) ?? "");
-        setEventUrl((data.event_url as string) ?? "");
-        setSituations(((data.situations as string[]) ?? []).slice());
+        setAllFields({
+          title: (data.title as string) ?? "",
+          categorySlug: (data.category_slug as string) ?? "",
+          categoryNameJa: (data.category_name_ja as string) ?? "",
+          gearName: (data.gear_name as string) ?? "",
+          makerName: (data.maker_name as string) ?? "",
+          rating: typeof data.rating === "number" ? data.rating : 5,
+          bodyMd: (data.body_md as string) ?? "",
+          specTagIds: ((data.spec_tag_ids as string[]) ?? []).slice(),
+          youtubeUrl: (data.youtube_url as string) ?? "",
+          eventUrl: (data.event_url as string) ?? "",
+          situations: ((data.situations as string[]) ?? []).slice(),
+        });
         const imgs = ((data.review_images as ReviewImage[]) ?? []).slice();
         imgs.sort((a, b) => a.sort_order - b.sort_order);
         setExistingImages(imgs);
@@ -150,30 +151,6 @@ export default function EditReviewPage() {
       }
     })();
   }, [authLoading, user, db, reviewId, router]);
-
-  useEffect(() => {
-    if (!db || !groupSlug) {
-      setMakers([]);
-      return;
-    }
-    (async () => {
-      const snap = await getDocs(
-        query(collection(db, "makers"), where("group_slug", "==", groupSlug))
-      );
-      const list: Maker[] = snap.docs
-        .map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            name: data.name ?? "",
-            group_slug: data.group_slug ?? "",
-            created_at: data.created_at ?? "",
-          } as Maker;
-        })
-        .sort((a, b) => a.name.localeCompare(b.name, "ja"));
-      setMakers(list);
-    })();
-  }, [db, groupSlug]);
 
   function validateLengths(): boolean {
     if (title.length > REVIEW_TITLE_MAX || bodyMd.length > REVIEW_BODY_MAX) {
@@ -352,12 +329,6 @@ export default function EditReviewPage() {
     } finally {
       setSubmitting(false);
     }
-  }
-
-  function toggleSpecTag(id: string) {
-    setSpecTagIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
   }
 
   function removeExistingImage(storagePath: string) {

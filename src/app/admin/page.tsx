@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
-import { getFirebaseAuth, getFirebaseFirestore } from "@/lib/firebase/client";
+import { getFirebaseFirestore } from "@/lib/firebase/client";
 import { isAdminUserId } from "@/lib/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,93 +18,185 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useAdminFetch } from "@/hooks/use-admin-fetch";
+import toast from "react-hot-toast";
 import type { AdminLiveEventItem } from "@/app/api/admin/live-events/route";
 import type { AdminAnnouncementItem } from "@/app/api/admin/announcements/route";
 import type { AdminNotebookEntryItem } from "@/app/api/admin/notebook-entries/route";
 
-type AdminUserItem = { id: string; display_name: string | null; user_id: string | null; created_at: string };
-type IncompleteUserItem = { uid: string; email: string | null; display_name: string | null };
-type AdminReviewItem = { id: string; title: string; author_id: string; created_at: string };
+// ─── ローカル型定義 ───────────────────────────────────────────────────────────
+type AdminUserItem = {
+  id: string;
+  display_name: string | null;
+  user_id: string | null;
+  created_at: string;
+};
+type IncompleteUserItem = {
+  uid: string;
+  email: string | null;
+  display_name: string | null;
+};
+type AdminReviewItem = {
+  id: string;
+  title: string;
+  author_id: string;
+  created_at: string;
+};
+
+/** リスト系データの共通状態 */
+type ListState<T> = { items: T[]; loading: boolean; deletingId: string | null };
+
+function makeListState<T>(): ListState<T> {
+  return { items: [], loading: false, deletingId: null };
+}
+
+/** ライブイベント編集フォーム */
+type EditEventForm = {
+  event: AdminLiveEventItem | null;
+  title: string;
+  eventDate: string;
+  venue: string;
+  venueUrl: string;
+  description: string;
+  saving: boolean;
+};
+
+/** お知らせ新規フォーム */
+type NewAnnouncementForm = {
+  date: string;
+  title: string;
+  body: string;
+  url: string;
+  isImportant: boolean;
+  submitting: boolean;
+};
+
+/** お知らせ編集フォーム */
+type EditAnnouncementForm = {
+  announcement: AdminAnnouncementItem | null;
+  date: string;
+  title: string;
+  body: string;
+  url: string;
+  isImportant: boolean;
+  saving: boolean;
+};
+
+/** confirm ダイアログの pending 操作 */
+type PendingConfirm = {
+  title: string;
+  description: string;
+  onConfirm: () => Promise<void>;
+} | null;
+
+// ─── コンポーネント ───────────────────────────────────────────────────────────
+const PAGE_SIZE = 10;
 
 export default function AdminPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const auth = getFirebaseAuth();
   const db = getFirebaseFirestore();
+  const { fetchWithAuth, fetchList } = useAdminFetch();
+
+  // ── 認証 / 権限 ──
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
-  const [users, setUsers] = useState<AdminUserItem[]>([]);
-  const [incompleteUsers, setIncompleteUsers] = useState<IncompleteUserItem[]>([]);
-  const [reviews, setReviews] = useState<AdminReviewItem[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [loadingIncompleteUsers, setLoadingIncompleteUsers] = useState(false);
-  const [loadingReviews, setLoadingReviews] = useState(false);
-  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
-  const [deletingIncompleteUserId, setDeletingIncompleteUserId] = useState<string | null>(null);
-  const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
-  const [liveEvents, setLiveEvents] = useState<AdminLiveEventItem[]>([]);
-  const [loadingLiveEvents, setLoadingLiveEvents] = useState(false);
-  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
-  const [editingEvent, setEditingEvent] = useState<AdminLiveEventItem | null>(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editEventDate, setEditEventDate] = useState("");
-  const [editVenue, setEditVenue] = useState("");
-  const [editVenueUrl, setEditVenueUrl] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [savingEventId, setSavingEventId] = useState<string | null>(null);
-  const [announcements, setAnnouncements] = useState<AdminAnnouncementItem[]>([]);
-  const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
-  const [newAnnouncementDate, setNewAnnouncementDate] = useState("");
-  const [newAnnouncementTitle, setNewAnnouncementTitle] = useState("");
-  const [newAnnouncementBody, setNewAnnouncementBody] = useState("");
-  const [newAnnouncementUrl, setNewAnnouncementUrl] = useState("");
-  const [newAnnouncementImportant, setNewAnnouncementImportant] = useState(false);
-  const [addingAnnouncement, setAddingAnnouncement] = useState(false);
-  const [deletingAnnouncementId, setDeletingAnnouncementId] = useState<string | null>(null);
-  const [editingAnnouncement, setEditingAnnouncement] = useState<AdminAnnouncementItem | null>(null);
-  const [editAnnouncementDate, setEditAnnouncementDate] = useState("");
-  const [editAnnouncementTitle, setEditAnnouncementTitle] = useState("");
-  const [editAnnouncementBody, setEditAnnouncementBody] = useState("");
-  const [editAnnouncementUrl, setEditAnnouncementUrl] = useState("");
-  const [editAnnouncementImportant, setEditAnnouncementImportant] = useState(false);
-  const [savingAnnouncementId, setSavingAnnouncementId] = useState<string | null>(null);
+
+  // ── リスト系データ ──
+  const [usersState, setUsersState] = useState<ListState<AdminUserItem>>(makeListState());
+  const [incompleteUsersState, setIncompleteUsersState] =
+    useState<ListState<IncompleteUserItem>>(makeListState());
+  const [reviewsState, setReviewsState] = useState<ListState<AdminReviewItem>>(makeListState());
+  const [liveEventsState, setLiveEventsState] =
+    useState<ListState<AdminLiveEventItem>>(makeListState());
+  const [announcementsState, setAnnouncementsState] =
+    useState<ListState<AdminAnnouncementItem>>(makeListState());
+  const [notebookState, setNotebookState] =
+    useState<ListState<AdminNotebookEntryItem>>(makeListState());
+
+  // ── フォーム：ライブイベント編集 ──
+  const [editEventForm, setEditEventForm] = useState<EditEventForm>({
+    event: null,
+    title: "",
+    eventDate: "",
+    venue: "",
+    venueUrl: "",
+    description: "",
+    saving: false,
+  });
+
+  // ── フォーム：お知らせ新規 ──
+  const [newAnnouncementForm, setNewAnnouncementForm] = useState<NewAnnouncementForm>({
+    date: "",
+    title: "",
+    body: "",
+    url: "",
+    isImportant: false,
+    submitting: false,
+  });
+
+  // ── フォーム：お知らせ編集 ──
+  const [editAnnouncementForm, setEditAnnouncementForm] = useState<EditAnnouncementForm>({
+    announcement: null,
+    date: "",
+    title: "",
+    body: "",
+    url: "",
+    isImportant: false,
+    saving: false,
+  });
+
+  // ── 検索 / ページネーション ──
   const [userSearch, setUserSearch] = useState("");
   const [userPage, setUserPage] = useState(0);
   const [reviewSearch, setReviewSearch] = useState("");
   const [reviewPage, setReviewPage] = useState(0);
-  const [notebookEntries, setNotebookEntries] = useState<AdminNotebookEntryItem[]>([]);
-  const [loadingNotebookEntries, setLoadingNotebookEntries] = useState(false);
-  const [deletingNotebookEntryId, setDeletingNotebookEntryId] = useState<string | null>(null);
   const [notebookPage, setNotebookPage] = useState(0);
 
-  const PAGE_SIZE = 10;
+  // ── 確認ダイアログ ──
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
+  const [confirmRunning, setConfirmRunning] = useState(false);
 
-  const filteredUsers = users.filter((u) => {
+  // ─── 派生値 ────────────────────────────────────────────────────────────────
+  const isAdmin = isAdminUserId(profileUserId);
+
+  const filteredUsers = usersState.items.filter((u) => {
     const q = userSearch.trim().toLowerCase();
     if (!q) return true;
-    const name = (u.display_name ?? "").toLowerCase();
-    const uid = (u.user_id ?? "").toLowerCase();
-    const id = (u.id ?? "").toLowerCase();
-    return name.includes(q) || uid.includes(q) || id.includes(q);
+    return (
+      (u.display_name ?? "").toLowerCase().includes(q) ||
+      (u.user_id ?? "").toLowerCase().includes(q) ||
+      u.id.toLowerCase().includes(q)
+    );
   });
   const totalUserPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
-  const paginatedUsers = filteredUsers.slice(userPage * PAGE_SIZE, userPage * PAGE_SIZE + PAGE_SIZE);
+  const paginatedUsers = filteredUsers.slice(
+    userPage * PAGE_SIZE,
+    userPage * PAGE_SIZE + PAGE_SIZE
+  );
 
-  const filteredReviews = reviews.filter((r) => {
+  const filteredReviews = reviewsState.items.filter((r) => {
     const q = reviewSearch.trim().toLowerCase();
     if (!q) return true;
-    const title = (r.title ?? "").toLowerCase();
-    return title.includes(q);
+    return (r.title ?? "").toLowerCase().includes(q);
   });
   const totalReviewPages = Math.max(1, Math.ceil(filteredReviews.length / PAGE_SIZE));
-  const paginatedReviews = filteredReviews.slice(reviewPage * PAGE_SIZE, reviewPage * PAGE_SIZE + PAGE_SIZE);
+  const paginatedReviews = filteredReviews.slice(
+    reviewPage * PAGE_SIZE,
+    reviewPage * PAGE_SIZE + PAGE_SIZE
+  );
 
-  const totalNotebookPages = Math.max(1, Math.ceil(notebookEntries.length / PAGE_SIZE));
-  const paginatedNotebookEntries = notebookEntries.slice(
+  const totalNotebookPages = Math.max(
+    1,
+    Math.ceil(notebookState.items.length / PAGE_SIZE)
+  );
+  const paginatedNotebookEntries = notebookState.items.slice(
     notebookPage * PAGE_SIZE,
     notebookPage * PAGE_SIZE + PAGE_SIZE
   );
 
+  // ─── 検索リセット ──────────────────────────────────────────────────────────
   useEffect(() => {
     setUserPage(0);
   }, [userSearch]);
@@ -113,6 +205,7 @@ export default function AdminPage() {
     setReviewPage(0);
   }, [reviewSearch]);
 
+  // ─── プロフィール取得 ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!user?.uid || !db) return;
     getDoc(doc(db, "profiles", user.uid)).then((snap) => {
@@ -120,8 +213,7 @@ export default function AdminPage() {
     });
   }, [user?.uid, db]);
 
-  const isAdmin = isAdminUserId(profileUserId);
-
+  // ─── 権限チェック ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -130,429 +222,439 @@ export default function AdminPage() {
     }
     if (profileUserId !== null && !isAdmin) {
       router.push("/");
-      return;
     }
   }, [user, authLoading, isAdmin, profileUserId, router]);
 
-  async function fetchUsers() {
-    if (!auth?.currentUser) return;
-    setLoadingUsers(true);
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch("/api/admin/users", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && Array.isArray(json.users)) setUsers(json.users);
-      else setUsers([]);
-    } catch {
-      setUsers([]);
-    } finally {
-      setLoadingUsers(false);
-    }
-  }
-
-  async function fetchIncompleteUsers() {
-    if (!auth?.currentUser) return;
-    setLoadingIncompleteUsers(true);
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch("/api/admin/incomplete-users", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && Array.isArray(json.users)) setIncompleteUsers(json.users);
-      else setIncompleteUsers([]);
-    } catch {
-      setIncompleteUsers([]);
-    } finally {
-      setLoadingIncompleteUsers(false);
-    }
-  }
-
-  async function fetchReviews() {
-    if (!auth?.currentUser) return;
-    setLoadingReviews(true);
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch("/api/admin/reviews", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && Array.isArray(json.reviews)) setReviews(json.reviews);
-      else setReviews([]);
-    } catch {
-      setReviews([]);
-    } finally {
-      setLoadingReviews(false);
-    }
-  }
-
-  async function fetchLiveEvents() {
-    if (!auth?.currentUser) return;
-    setLoadingLiveEvents(true);
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch("/api/admin/live-events", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && Array.isArray(json.events)) setLiveEvents(json.events);
-      else setLiveEvents([]);
-    } catch {
-      setLiveEvents([]);
-    } finally {
-      setLoadingLiveEvents(false);
-    }
-  }
-
-  async function fetchAnnouncements() {
-    if (!auth?.currentUser) return;
-    setLoadingAnnouncements(true);
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch("/api/admin/announcements", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && Array.isArray(json.announcements)) setAnnouncements(json.announcements);
-      else setAnnouncements([]);
-    } catch {
-      setAnnouncements([]);
-    } finally {
-      setLoadingAnnouncements(false);
-    }
-  }
-
-  async function fetchNotebookEntries() {
-    if (!auth?.currentUser) return;
-    setLoadingNotebookEntries(true);
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch("/api/admin/notebook-entries", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && Array.isArray(json.entries)) setNotebookEntries(json.entries);
-      else setNotebookEntries([]);
-    } catch {
-      setNotebookEntries([]);
-    } finally {
-      setLoadingNotebookEntries(false);
-    }
-  }
-
+  // ─── 初期データ取得 ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isAdmin || !user) return;
-    fetchUsers();
-    fetchIncompleteUsers();
-    fetchReviews();
-    fetchNotebookEntries();
-    fetchLiveEvents();
-    fetchAnnouncements();
-  }, [isAdmin, user?.uid]);
 
-  async function handleDeleteUser(uid: string) {
-    if (!auth?.currentUser || uid === user?.uid) return;
-    if (!confirm("このユーザーを削除しますか？\nFirebase Auth のアカウントとプロフィールが削除されます。")) return;
-    setDeletingUserId(uid);
+    const load = async () => {
+      // 全リストを並列フェッチ
+      setUsersState((s) => ({ ...s, loading: true }));
+      setIncompleteUsersState((s) => ({ ...s, loading: true }));
+      setReviewsState((s) => ({ ...s, loading: true }));
+      setNotebookState((s) => ({ ...s, loading: true }));
+      setLiveEventsState((s) => ({ ...s, loading: true }));
+      setAnnouncementsState((s) => ({ ...s, loading: true }));
+
+      const [users, incompleteUsers, reviews, notebookEntries, liveEvents, announcements] =
+        await Promise.all([
+          fetchList<AdminUserItem>("/api/admin/users", "users"),
+          fetchList<IncompleteUserItem>("/api/admin/incomplete-users", "users"),
+          fetchList<AdminReviewItem>("/api/admin/reviews", "reviews"),
+          fetchList<AdminNotebookEntryItem>("/api/admin/notebook-entries", "entries"),
+          fetchList<AdminLiveEventItem>("/api/admin/live-events", "events"),
+          fetchList<AdminAnnouncementItem>("/api/admin/announcements", "announcements"),
+        ]);
+
+      setUsersState({ items: users, loading: false, deletingId: null });
+      setIncompleteUsersState({ items: incompleteUsers, loading: false, deletingId: null });
+      setReviewsState({ items: reviews, loading: false, deletingId: null });
+      setNotebookState({ items: notebookEntries, loading: false, deletingId: null });
+      setLiveEventsState({ items: liveEvents, loading: false, deletingId: null });
+      setAnnouncementsState({ items: announcements, loading: false, deletingId: null });
+    };
+
+    load();
+  }, [isAdmin, user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── 確認ダイアログヘルパー ────────────────────────────────────────────────
+  function openConfirm(config: NonNullable<PendingConfirm>) {
+    setPendingConfirm(config);
+  }
+
+  async function handleConfirmExecute() {
+    if (!pendingConfirm) return;
+    setConfirmRunning(true);
     try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch("/api/admin/delete-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ uid }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setUsers((prev) => prev.filter((u) => u.id !== uid));
-      } else {
-        alert(json.error ?? "削除に失敗しました。");
-      }
-    } catch {
-      alert("削除に失敗しました。");
+      await pendingConfirm.onConfirm();
     } finally {
-      setDeletingUserId(null);
+      setConfirmRunning(false);
+      setPendingConfirm(null);
     }
   }
 
-  async function handleDeleteIncompleteUser(uid: string) {
-    if (!auth?.currentUser || uid === user?.uid) return;
-    if (!confirm("このユーザー（ID未設定）を削除しますか？\nFirebase Auth のアカウントとプロフィールが削除されます。")) return;
-    setDeletingIncompleteUserId(uid);
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch("/api/admin/delete-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ uid }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setIncompleteUsers((prev) => prev.filter((u) => u.uid !== uid));
-      } else {
-        alert(json.error ?? "削除に失敗しました。");
-      }
-    } catch {
-      alert("削除に失敗しました。");
-    } finally {
-      setDeletingIncompleteUserId(null);
-    }
+  // ─── ユーザー削除 ──────────────────────────────────────────────────────────
+  function handleDeleteUser(uid: string) {
+    if (uid === user?.uid) return;
+    openConfirm({
+      title: "ユーザーを削除しますか？",
+      description:
+        "Firebase Auth のアカウントとプロフィールが削除されます。この操作は取り消せません。",
+      onConfirm: async () => {
+        setUsersState((s) => ({ ...s, deletingId: uid }));
+        try {
+          const res = await fetchWithAuth("/api/admin/delete-user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uid }),
+          });
+          const json: { error?: string } = await res.json().catch(() => ({}));
+          if (res.ok) {
+            setUsersState((s) => ({
+              ...s,
+              items: s.items.filter((u) => u.id !== uid),
+              deletingId: null,
+            }));
+          } else {
+            toast.error(json.error ?? "削除に失敗しました。");
+            setUsersState((s) => ({ ...s, deletingId: null }));
+          }
+        } catch {
+          toast.error("削除に失敗しました。");
+          setUsersState((s) => ({ ...s, deletingId: null }));
+        }
+      },
+    });
   }
 
-  async function handleDeleteReview(reviewId: string) {
-    if (!auth?.currentUser) return;
-    if (!confirm("この記事を削除しますか？")) return;
-    setDeletingReviewId(reviewId);
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch("/api/admin/delete-review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ reviewId }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setReviews((prev) => prev.filter((r) => r.id !== reviewId));
-      } else {
-        alert(json.error ?? "削除に失敗しました。");
-      }
-    } catch {
-      alert("削除に失敗しました。");
-    } finally {
-      setDeletingReviewId(null);
-    }
+  function handleDeleteIncompleteUser(uid: string) {
+    if (uid === user?.uid) return;
+    openConfirm({
+      title: "ユーザー（ID未設定）を削除しますか？",
+      description:
+        "Firebase Auth のアカウントとプロフィールが削除されます。この操作は取り消せません。",
+      onConfirm: async () => {
+        setIncompleteUsersState((s) => ({ ...s, deletingId: uid }));
+        try {
+          const res = await fetchWithAuth("/api/admin/delete-user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uid }),
+          });
+          const json: { error?: string } = await res.json().catch(() => ({}));
+          if (res.ok) {
+            setIncompleteUsersState((s) => ({
+              ...s,
+              items: s.items.filter((u) => u.uid !== uid),
+              deletingId: null,
+            }));
+          } else {
+            toast.error(json.error ?? "削除に失敗しました。");
+            setIncompleteUsersState((s) => ({ ...s, deletingId: null }));
+          }
+        } catch {
+          toast.error("削除に失敗しました。");
+          setIncompleteUsersState((s) => ({ ...s, deletingId: null }));
+        }
+      },
+    });
   }
 
-  async function handleDeleteNotebookEntry(entryId: string) {
-    if (!auth?.currentUser) return;
-    if (!confirm("このカスタム手帳を削除しますか？Firebase からも削除されます。")) return;
-    setDeletingNotebookEntryId(entryId);
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch(`/api/admin/notebook-entries/${encodeURIComponent(entryId)}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setNotebookEntries((prev) => prev.filter((e) => e.id !== entryId));
-      } else {
-        alert(json.error ?? "削除に失敗しました。");
-      }
-    } catch {
-      alert("削除に失敗しました。");
-    } finally {
-      setDeletingNotebookEntryId(null);
-    }
+  function handleDeleteReview(reviewId: string) {
+    openConfirm({
+      title: "この記事を削除しますか？",
+      description: "削除した記事は復元できません。",
+      onConfirm: async () => {
+        setReviewsState((s) => ({ ...s, deletingId: reviewId }));
+        try {
+          const res = await fetchWithAuth("/api/admin/delete-review", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reviewId }),
+          });
+          const json: { error?: string } = await res.json().catch(() => ({}));
+          if (res.ok) {
+            setReviewsState((s) => ({
+              ...s,
+              items: s.items.filter((r) => r.id !== reviewId),
+              deletingId: null,
+            }));
+          } else {
+            toast.error(json.error ?? "削除に失敗しました。");
+            setReviewsState((s) => ({ ...s, deletingId: null }));
+          }
+        } catch {
+          toast.error("削除に失敗しました。");
+          setReviewsState((s) => ({ ...s, deletingId: null }));
+        }
+      },
+    });
   }
 
+  function handleDeleteNotebookEntry(entryId: string) {
+    openConfirm({
+      title: "このカスタム手帳を削除しますか？",
+      description: "Firebase からも削除されます。この操作は取り消せません。",
+      onConfirm: async () => {
+        setNotebookState((s) => ({ ...s, deletingId: entryId }));
+        try {
+          const res = await fetchWithAuth(
+            `/api/admin/notebook-entries/${encodeURIComponent(entryId)}`,
+            { method: "DELETE" }
+          );
+          const json: { error?: string } = await res.json().catch(() => ({}));
+          if (res.ok) {
+            setNotebookState((s) => ({
+              ...s,
+              items: s.items.filter((e) => e.id !== entryId),
+              deletingId: null,
+            }));
+          } else {
+            toast.error(json.error ?? "削除に失敗しました。");
+            setNotebookState((s) => ({ ...s, deletingId: null }));
+          }
+        } catch {
+          toast.error("削除に失敗しました。");
+          setNotebookState((s) => ({ ...s, deletingId: null }));
+        }
+      },
+    });
+  }
+
+  // ─── ライブイベント ────────────────────────────────────────────────────────
   function openEditEvent(ev: AdminLiveEventItem) {
-    setEditingEvent(ev);
-    setEditTitle(ev.title);
-    setEditEventDate(ev.event_date);
-    setEditVenue(ev.venue ?? "");
-    setEditVenueUrl(ev.venue_url ?? "");
-    setEditDescription(ev.description ?? "");
+    setEditEventForm({
+      event: ev,
+      title: ev.title,
+      eventDate: ev.event_date,
+      venue: ev.venue ?? "",
+      venueUrl: ev.venue_url ?? "",
+      description: ev.description ?? "",
+      saving: false,
+    });
   }
 
   function closeEditEvent() {
-    setEditingEvent(null);
-    setEditTitle("");
-    setEditEventDate("");
-    setEditVenue("");
-    setEditVenueUrl("");
-    setEditDescription("");
+    setEditEventForm({
+      event: null,
+      title: "",
+      eventDate: "",
+      venue: "",
+      venueUrl: "",
+      description: "",
+      saving: false,
+    });
   }
 
   async function handleSaveLiveEvent(e: React.FormEvent) {
     e.preventDefault();
-    if (!auth?.currentUser || !editingEvent) return;
-    if (!editTitle.trim() || !editEventDate) return;
-    setSavingEventId(editingEvent.id);
+    const { event, title, eventDate, venue, venueUrl, description } = editEventForm;
+    if (!event || !title.trim() || !eventDate) return;
+
+    setEditEventForm((f) => ({ ...f, saving: true }));
     try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch(`/api/admin/live-events/${encodeURIComponent(editingEvent.id)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          title: editTitle.trim(),
-          event_date: editEventDate,
-          venue: editVenue.trim() || null,
-          venue_url: editVenueUrl.trim() || null,
-          description: editDescription.trim() || null,
-        }),
-      });
-      const json = await res.json().catch(() => ({}));
+      const res = await fetchWithAuth(
+        `/api/admin/live-events/${encodeURIComponent(event.id)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: title.trim(),
+            event_date: eventDate,
+            venue: venue.trim() || null,
+            venue_url: venueUrl.trim() || null,
+            description: description.trim() || null,
+          }),
+        }
+      );
+      const json: { error?: string } = await res.json().catch(() => ({}));
       if (res.ok) {
-        setLiveEvents((prev) =>
-          prev.map((ev) =>
-            ev.id === editingEvent.id
+        setLiveEventsState((s) => ({
+          ...s,
+          items: s.items.map((ev) =>
+            ev.id === event.id
               ? {
                   ...ev,
-                  title: editTitle.trim(),
-                  event_date: editEventDate,
-                  venue: editVenue.trim() || null,
-                  venue_url: editVenueUrl.trim() || null,
-                  description: editDescription.trim() || null,
+                  title: title.trim(),
+                  event_date: eventDate,
+                  venue: venue.trim() || null,
+                  venue_url: venueUrl.trim() || null,
+                  description: description.trim() || null,
                 }
               : ev
-          )
-        );
+          ),
+        }));
         closeEditEvent();
       } else {
-        alert(json.error ?? "更新に失敗しました。");
+        toast.error(json.error ?? "更新に失敗しました。");
+        setEditEventForm((f) => ({ ...f, saving: false }));
       }
     } catch {
-      alert("更新に失敗しました。");
-    } finally {
-      setSavingEventId(null);
+      toast.error("更新に失敗しました。");
+      setEditEventForm((f) => ({ ...f, saving: false }));
     }
   }
 
-  async function handleDeleteLiveEvent(eventId: string) {
-    if (!auth?.currentUser) return;
-    if (!confirm("このライブ予定を削除しますか？")) return;
-    setDeletingEventId(eventId);
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch(`/api/admin/live-events/${encodeURIComponent(eventId)}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setLiveEvents((prev) => prev.filter((ev) => ev.id !== eventId));
-      } else {
-        alert(json.error ?? "削除に失敗しました。");
-      }
-    } catch {
-      alert("削除に失敗しました。");
-    } finally {
-      setDeletingEventId(null);
-    }
+  function handleDeleteLiveEvent(eventId: string) {
+    openConfirm({
+      title: "このライブ予定を削除しますか？",
+      description: "削除したライブ予定は復元できません。",
+      onConfirm: async () => {
+        setLiveEventsState((s) => ({ ...s, deletingId: eventId }));
+        try {
+          const res = await fetchWithAuth(
+            `/api/admin/live-events/${encodeURIComponent(eventId)}`,
+            { method: "DELETE" }
+          );
+          const json: { error?: string } = await res.json().catch(() => ({}));
+          if (res.ok) {
+            setLiveEventsState((s) => ({
+              ...s,
+              items: s.items.filter((ev) => ev.id !== eventId),
+              deletingId: null,
+            }));
+          } else {
+            toast.error(json.error ?? "削除に失敗しました。");
+            setLiveEventsState((s) => ({ ...s, deletingId: null }));
+          }
+        } catch {
+          toast.error("削除に失敗しました。");
+          setLiveEventsState((s) => ({ ...s, deletingId: null }));
+        }
+      },
+    });
   }
 
+  // ─── お知らせ ──────────────────────────────────────────────────────────────
   async function handleAddAnnouncement(e: React.FormEvent) {
     e.preventDefault();
-    if (!auth?.currentUser || !newAnnouncementDate.trim() || !newAnnouncementTitle.trim()) return;
-    setAddingAnnouncement(true);
+    const { date, title, body, url, isImportant } = newAnnouncementForm;
+    if (!date.trim() || !title.trim()) return;
+
+    setNewAnnouncementForm((f) => ({ ...f, submitting: true }));
     try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch("/api/admin/announcements", {
+      const res = await fetchWithAuth("/api/admin/announcements", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          date: newAnnouncementDate.trim(),
-          title: newAnnouncementTitle.trim(),
-          body: newAnnouncementBody.trim(),
-          url: newAnnouncementUrl.trim() || null,
-          is_important: newAnnouncementImportant,
+          date: date.trim(),
+          title: title.trim(),
+          body: body.trim(),
+          url: url.trim() || null,
+          is_important: isImportant,
         }),
       });
-      const json = await res.json().catch(() => ({}));
+      const json: AdminAnnouncementItem & { error?: string } = await res
+        .json()
+        .catch(() => ({}));
       if (res.ok && json.id) {
-        setAnnouncements((prev) => [
-          { id: json.id, date: json.date, title: json.title, body: json.body ?? "", url: json.url, is_important: json.is_important, created_at: json.created_at ?? "" },
-          ...prev,
-        ]);
-        setNewAnnouncementDate("");
-        setNewAnnouncementTitle("");
-        setNewAnnouncementBody("");
-        setNewAnnouncementUrl("");
-        setNewAnnouncementImportant(false);
+        setAnnouncementsState((s) => ({
+          ...s,
+          items: [
+            {
+              id: json.id,
+              date: json.date,
+              title: json.title,
+              body: json.body ?? "",
+              url: json.url,
+              is_important: json.is_important,
+              created_at: json.created_at ?? "",
+            },
+            ...s.items,
+          ],
+        }));
+        setNewAnnouncementForm({
+          date: "",
+          title: "",
+          body: "",
+          url: "",
+          isImportant: false,
+          submitting: false,
+        });
       } else {
-        alert(json.error ?? "登録に失敗しました。");
+        toast.error(json.error ?? "登録に失敗しました。");
+        setNewAnnouncementForm((f) => ({ ...f, submitting: false }));
       }
     } catch {
-      alert("登録に失敗しました。");
-    } finally {
-      setAddingAnnouncement(false);
+      toast.error("登録に失敗しました。");
+      setNewAnnouncementForm((f) => ({ ...f, submitting: false }));
     }
   }
 
-  async function handleDeleteAnnouncement(id: string) {
-    if (!auth?.currentUser) return;
-    if (!confirm("このお知らせを削除しますか？")) return;
-    setDeletingAnnouncementId(id);
-    try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch(`/api/admin/announcements/${encodeURIComponent(id)}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setAnnouncements((prev) => prev.filter((a) => a.id !== id));
-      } else {
-        alert(json.error ?? "削除に失敗しました。");
-      }
-    } catch {
-      alert("削除に失敗しました。");
-    } finally {
-      setDeletingAnnouncementId(null);
-    }
+  function handleDeleteAnnouncement(id: string) {
+    openConfirm({
+      title: "このお知らせを削除しますか？",
+      description: "削除したお知らせは復元できません。",
+      onConfirm: async () => {
+        setAnnouncementsState((s) => ({ ...s, deletingId: id }));
+        try {
+          const res = await fetchWithAuth(
+            `/api/admin/announcements/${encodeURIComponent(id)}`,
+            { method: "DELETE" }
+          );
+          const json: { error?: string } = await res.json().catch(() => ({}));
+          if (res.ok) {
+            setAnnouncementsState((s) => ({
+              ...s,
+              items: s.items.filter((a) => a.id !== id),
+              deletingId: null,
+            }));
+          } else {
+            toast.error(json.error ?? "削除に失敗しました。");
+            setAnnouncementsState((s) => ({ ...s, deletingId: null }));
+          }
+        } catch {
+          toast.error("削除に失敗しました。");
+          setAnnouncementsState((s) => ({ ...s, deletingId: null }));
+        }
+      },
+    });
   }
 
   function openEditAnnouncement(a: AdminAnnouncementItem) {
-    setEditingAnnouncement(a);
-    setEditAnnouncementDate(a.date);
-    setEditAnnouncementTitle(a.title);
-    setEditAnnouncementBody(a.body ?? "");
-    setEditAnnouncementUrl(a.url ?? "");
-    setEditAnnouncementImportant(a.is_important ?? false);
+    setEditAnnouncementForm({
+      announcement: a,
+      date: a.date,
+      title: a.title,
+      body: a.body ?? "",
+      url: a.url ?? "",
+      isImportant: a.is_important ?? false,
+      saving: false,
+    });
   }
 
   async function handleSaveAnnouncement(e: React.FormEvent) {
     e.preventDefault();
-    if (!auth?.currentUser || !editingAnnouncement) return;
-    setSavingAnnouncementId(editingAnnouncement.id);
+    const { announcement, date, title, body, url, isImportant } = editAnnouncementForm;
+    if (!announcement) return;
+
+    setEditAnnouncementForm((f) => ({ ...f, saving: true }));
     try {
-      const token = await auth.currentUser.getIdToken();
-      const res = await fetch(`/api/admin/announcements/${encodeURIComponent(editingAnnouncement.id)}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          date: editAnnouncementDate.trim(),
-          title: editAnnouncementTitle.trim(),
-          body: editAnnouncementBody.trim(),
-          url: editAnnouncementUrl.trim() || null,
-          is_important: editAnnouncementImportant,
-        }),
-      });
-      const json = await res.json().catch(() => ({}));
+      const res = await fetchWithAuth(
+        `/api/admin/announcements/${encodeURIComponent(announcement.id)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: date.trim(),
+            title: title.trim(),
+            body: body.trim(),
+            url: url.trim() || null,
+            is_important: isImportant,
+          }),
+        }
+      );
+      const json: { error?: string } = await res.json().catch(() => ({}));
       if (res.ok) {
-        setAnnouncements((prev) =>
-          prev.map((a) =>
-            a.id === editingAnnouncement.id
+        setAnnouncementsState((s) => ({
+          ...s,
+          items: s.items.map((a) =>
+            a.id === announcement.id
               ? {
                   ...a,
-                  date: editAnnouncementDate.trim(),
-                  title: editAnnouncementTitle.trim(),
-                  body: editAnnouncementBody.trim(),
-                  url: editAnnouncementUrl.trim() || null,
-                  is_important: editAnnouncementImportant,
+                  date: date.trim(),
+                  title: title.trim(),
+                  body: body.trim(),
+                  url: url.trim() || null,
+                  is_important: isImportant,
                 }
               : a
-          )
-        );
-        setEditingAnnouncement(null);
+          ),
+        }));
+        setEditAnnouncementForm((f) => ({ ...f, announcement: null, saving: false }));
       } else {
-        alert(json.error ?? "更新に失敗しました。");
+        toast.error(json.error ?? "更新に失敗しました。");
+        setEditAnnouncementForm((f) => ({ ...f, saving: false }));
       }
     } catch {
-      alert("更新に失敗しました。");
-    } finally {
-      setSavingAnnouncementId(null);
+      toast.error("更新に失敗しました。");
+      setEditAnnouncementForm((f) => ({ ...f, saving: false }));
     }
   }
 
+  // ─── ローディング / 権限ガード ─────────────────────────────────────────────
   if (authLoading || (user && profileUserId === null)) {
     return (
       <div className="max-w-4xl mx-auto py-12 text-center text-gray-400">
@@ -560,10 +662,9 @@ export default function AdminPage() {
       </div>
     );
   }
+  if (!user || !isAdmin) return null;
 
-  if (!user) return null;
-  if (!isAdmin) return null;
-
+  // ─── レンダリング ──────────────────────────────────────────────────────────
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -573,6 +674,7 @@ export default function AdminPage() {
         </Button>
       </div>
 
+      {/* ── 登録ユーザー一覧 ── */}
       <Card>
         <CardHeader>
           <CardTitle className="text-electric-blue">登録ユーザー一覧</CardTitle>
@@ -588,9 +690,9 @@ export default function AdminPage() {
             onChange={(e) => setUserSearch(e.target.value)}
             className="max-w-xs bg-surface-dark border-surface-border"
           />
-          {loadingUsers ? (
+          {usersState.loading ? (
             <p className="text-gray-500 text-sm">読み込み中...</p>
-          ) : users.length === 0 ? (
+          ) : usersState.items.length === 0 ? (
             <p className="text-gray-500 text-sm">ユーザーがいません。</p>
           ) : filteredUsers.length === 0 ? (
             <p className="text-gray-500 text-sm">検索に一致するユーザーがいません。</p>
@@ -623,10 +725,10 @@ export default function AdminPage() {
                           variant="outline"
                           size="sm"
                           className="text-red-400 border-red-400/50 hover:bg-red-400/10"
-                          disabled={deletingUserId === u.id}
+                          disabled={usersState.deletingId === u.id}
                           onClick={() => handleDeleteUser(u.id)}
                         >
-                          {deletingUserId === u.id ? "削除中..." : "削除"}
+                          {usersState.deletingId === u.id ? "削除中..." : "削除"}
                         </Button>
                       ) : (
                         <span className="text-gray-500 text-xs">（自分）</span>
@@ -635,36 +737,19 @@ export default function AdminPage() {
                   </li>
                 ))}
               </ul>
-              {totalUserPages > 1 && (
-                <div className="flex items-center justify-center gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={userPage === 0}
-                    onClick={() => setUserPage((p) => Math.max(0, p - 1))}
-                    aria-label="前のページ"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <span className="text-sm text-gray-400">
-                    {userPage + 1} / {totalUserPages}（{filteredUsers.length}件）
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={userPage >= totalUserPages - 1}
-                    onClick={() => setUserPage((p) => Math.min(totalUserPages - 1, p + 1))}
-                    aria-label="次のページ"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
+              <Pagination
+                page={userPage}
+                total={totalUserPages}
+                count={filteredUsers.length}
+                onPrev={() => setUserPage((p) => Math.max(0, p - 1))}
+                onNext={() => setUserPage((p) => Math.min(totalUserPages - 1, p + 1))}
+              />
             </>
           )}
         </CardContent>
       </Card>
 
+      {/* ── ID未設定ユーザー ── */}
       <Card>
         <CardHeader>
           <CardTitle className="text-electric-blue">ID未設定のユーザー（未完了）</CardTitle>
@@ -673,13 +758,13 @@ export default function AdminPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loadingIncompleteUsers ? (
+          {incompleteUsersState.loading ? (
             <p className="text-gray-500 text-sm">読み込み中...</p>
-          ) : incompleteUsers.length === 0 ? (
+          ) : incompleteUsersState.items.length === 0 ? (
             <p className="text-gray-500 text-sm">該当ユーザーはいません。</p>
           ) : (
             <ul className="space-y-2 text-sm">
-              {incompleteUsers.map((u) => (
+              {incompleteUsersState.items.map((u) => (
                 <li
                   key={u.uid}
                   className="flex items-center justify-between gap-4 py-2 border-b border-surface-border last:border-0"
@@ -695,10 +780,10 @@ export default function AdminPage() {
                         variant="outline"
                         size="sm"
                         className="text-red-400 border-red-400/50 hover:bg-red-400/10"
-                        disabled={deletingIncompleteUserId === u.uid}
+                        disabled={incompleteUsersState.deletingId === u.uid}
                         onClick={() => handleDeleteIncompleteUser(u.uid)}
                       >
-                        {deletingIncompleteUserId === u.uid ? "削除中..." : "削除"}
+                        {incompleteUsersState.deletingId === u.uid ? "削除中..." : "削除"}
                       </Button>
                     ) : (
                       <span className="text-gray-500 text-xs">（自分）</span>
@@ -711,6 +796,7 @@ export default function AdminPage() {
         </CardContent>
       </Card>
 
+      {/* ── 記事一覧（レビュー） ── */}
       <Card>
         <CardHeader>
           <CardTitle className="text-electric-blue">記事一覧（レビュー）</CardTitle>
@@ -726,9 +812,9 @@ export default function AdminPage() {
             onChange={(e) => setReviewSearch(e.target.value)}
             className="max-w-xs bg-surface-dark border-surface-border"
           />
-          {loadingReviews ? (
+          {reviewsState.loading ? (
             <p className="text-gray-500 text-sm">読み込み中...</p>
-          ) : reviews.length === 0 ? (
+          ) : reviewsState.items.length === 0 ? (
             <p className="text-gray-500 text-sm">記事がありません。</p>
           ) : filteredReviews.length === 0 ? (
             <p className="text-gray-500 text-sm">検索に一致する記事がありません。</p>
@@ -755,45 +841,28 @@ export default function AdminPage() {
                         variant="outline"
                         size="sm"
                         className="text-red-400 border-red-400/50 hover:bg-red-400/10"
-                        disabled={deletingReviewId === r.id}
+                        disabled={reviewsState.deletingId === r.id}
                         onClick={() => handleDeleteReview(r.id)}
                       >
-                        {deletingReviewId === r.id ? "削除中..." : "削除"}
+                        {reviewsState.deletingId === r.id ? "削除中..." : "削除"}
                       </Button>
                     </div>
                   </li>
                 ))}
               </ul>
-              {totalReviewPages > 1 && (
-                <div className="flex items-center justify-center gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={reviewPage === 0}
-                    onClick={() => setReviewPage((p) => Math.max(0, p - 1))}
-                    aria-label="前のページ"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <span className="text-sm text-gray-400">
-                    {reviewPage + 1} / {totalReviewPages}（{filteredReviews.length}件）
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={reviewPage >= totalReviewPages - 1}
-                    onClick={() => setReviewPage((p) => Math.min(totalReviewPages - 1, p + 1))}
-                    aria-label="次のページ"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
+              <Pagination
+                page={reviewPage}
+                total={totalReviewPages}
+                count={filteredReviews.length}
+                onPrev={() => setReviewPage((p) => Math.max(0, p - 1))}
+                onNext={() => setReviewPage((p) => Math.min(totalReviewPages - 1, p + 1))}
+              />
             </>
           )}
         </CardContent>
       </Card>
 
+      {/* ── カスタム手帳一覧 ── */}
       <Card>
         <CardHeader>
           <CardTitle className="text-electric-blue">カスタム手帳一覧</CardTitle>
@@ -802,9 +871,9 @@ export default function AdminPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {loadingNotebookEntries ? (
+          {notebookState.loading ? (
             <p className="text-gray-500 text-sm">読み込み中...</p>
-          ) : notebookEntries.length === 0 ? (
+          ) : notebookState.items.length === 0 ? (
             <p className="text-gray-500 text-sm">カスタム手帳がありません。</p>
           ) : (
             <>
@@ -828,44 +897,29 @@ export default function AdminPage() {
                       variant="outline"
                       size="sm"
                       className="text-red-400 border-red-400/50 hover:bg-red-400/10 shrink-0"
-                      disabled={deletingNotebookEntryId === e.id}
+                      disabled={notebookState.deletingId === e.id}
                       onClick={() => handleDeleteNotebookEntry(e.id)}
                     >
-                      {deletingNotebookEntryId === e.id ? "削除中..." : "削除"}
+                      {notebookState.deletingId === e.id ? "削除中..." : "削除"}
                     </Button>
                   </li>
                 ))}
               </ul>
-              {totalNotebookPages > 1 && (
-                <div className="flex items-center justify-center gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={notebookPage === 0}
-                    onClick={() => setNotebookPage((p) => Math.max(0, p - 1))}
-                    aria-label="前のページ"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <span className="text-sm text-gray-400">
-                    {notebookPage + 1} / {totalNotebookPages}（{notebookEntries.length}件）
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={notebookPage >= totalNotebookPages - 1}
-                    onClick={() => setNotebookPage((p) => Math.min(totalNotebookPages - 1, p + 1))}
-                    aria-label="次のページ"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
+              <Pagination
+                page={notebookPage}
+                total={totalNotebookPages}
+                count={notebookState.items.length}
+                onPrev={() => setNotebookPage((p) => Math.max(0, p - 1))}
+                onNext={() =>
+                  setNotebookPage((p) => Math.min(totalNotebookPages - 1, p + 1))
+                }
+              />
             </>
           )}
         </CardContent>
       </Card>
 
+      {/* ── ライブ日程 ── */}
       <Card>
         <CardHeader>
           <CardTitle className="text-electric-blue">ライブ日程</CardTitle>
@@ -874,13 +928,13 @@ export default function AdminPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loadingLiveEvents ? (
+          {liveEventsState.loading ? (
             <p className="text-gray-500 text-sm">読み込み中...</p>
-          ) : liveEvents.length === 0 ? (
+          ) : liveEventsState.items.length === 0 ? (
             <p className="text-gray-500 text-sm">ライブ予定がありません。</p>
           ) : (
             <ul className="space-y-2 text-sm">
-              {liveEvents.map((ev) => (
+              {liveEventsState.items.map((ev) => (
                 <li
                   key={ev.id}
                   className="flex items-center justify-between gap-4 py-2 border-b border-surface-border last:border-0"
@@ -912,7 +966,7 @@ export default function AdminPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => openEditEvent(ev)}
-                      disabled={!!editingEvent}
+                      disabled={!!editEventForm.event}
                     >
                       編集
                     </Button>
@@ -920,10 +974,10 @@ export default function AdminPage() {
                       variant="outline"
                       size="sm"
                       className="text-red-400 border-red-400/50 hover:bg-red-400/10"
-                      disabled={deletingEventId === ev.id}
+                      disabled={liveEventsState.deletingId === ev.id}
                       onClick={() => handleDeleteLiveEvent(ev.id)}
                     >
-                      {deletingEventId === ev.id ? "削除中..." : "削除"}
+                      {liveEventsState.deletingId === ev.id ? "削除中..." : "削除"}
                     </Button>
                   </div>
                 </li>
@@ -933,6 +987,7 @@ export default function AdminPage() {
         </CardContent>
       </Card>
 
+      {/* ── Gear-Loomからのおしらせ ── */}
       <Card>
         <CardHeader>
           <CardTitle className="text-electric-blue">Gear-Loomからのおしらせ</CardTitle>
@@ -941,15 +996,20 @@ export default function AdminPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form onSubmit={handleAddAnnouncement} className="flex flex-col gap-3 rounded-lg border border-surface-border/80 p-3">
+          <form
+            onSubmit={handleAddAnnouncement}
+            className="flex flex-col gap-3 rounded-lg border border-surface-border/80 p-3"
+          >
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="ann-date">日付</Label>
                 <Input
                   id="ann-date"
                   type="date"
-                  value={newAnnouncementDate}
-                  onChange={(e) => setNewAnnouncementDate(e.target.value)}
+                  value={newAnnouncementForm.date}
+                  onChange={(e) =>
+                    setNewAnnouncementForm((f) => ({ ...f, date: e.target.value }))
+                  }
                   required
                 />
               </div>
@@ -957,8 +1017,10 @@ export default function AdminPage() {
                 <label className="flex items-center gap-2 text-sm text-gray-400">
                   <input
                     type="checkbox"
-                    checked={newAnnouncementImportant}
-                    onChange={(e) => setNewAnnouncementImportant(e.target.checked)}
+                    checked={newAnnouncementForm.isImportant}
+                    onChange={(e) =>
+                      setNewAnnouncementForm((f) => ({ ...f, isImportant: e.target.checked }))
+                    }
                     className="rounded border-surface-border"
                   />
                   重要タグを付ける
@@ -969,8 +1031,10 @@ export default function AdminPage() {
               <Label htmlFor="ann-title">タイトル</Label>
               <Input
                 id="ann-title"
-                value={newAnnouncementTitle}
-                onChange={(e) => setNewAnnouncementTitle(e.target.value)}
+                value={newAnnouncementForm.title}
+                onChange={(e) =>
+                  setNewAnnouncementForm((f) => ({ ...f, title: e.target.value }))
+                }
                 placeholder="例：《重要》〇〇のお知らせ"
                 required
               />
@@ -979,8 +1043,10 @@ export default function AdminPage() {
               <Label htmlFor="ann-body">本文</Label>
               <textarea
                 id="ann-body"
-                value={newAnnouncementBody}
-                onChange={(e) => setNewAnnouncementBody(e.target.value)}
+                value={newAnnouncementForm.body}
+                onChange={(e) =>
+                  setNewAnnouncementForm((f) => ({ ...f, body: e.target.value }))
+                }
                 placeholder="お知らせの本文を入力してください。"
                 required
                 rows={4}
@@ -992,22 +1058,27 @@ export default function AdminPage() {
               <Input
                 id="ann-url"
                 type="url"
-                value={newAnnouncementUrl}
-                onChange={(e) => setNewAnnouncementUrl(e.target.value)}
+                value={newAnnouncementForm.url}
+                onChange={(e) =>
+                  setNewAnnouncementForm((f) => ({ ...f, url: e.target.value }))
+                }
                 placeholder="https://..."
               />
             </div>
-            <Button type="submit" size="sm" disabled={addingAnnouncement}>
-              {addingAnnouncement ? "登録中..." : "お知らせを追加"}
+            <Button type="submit" size="sm" disabled={newAnnouncementForm.submitting}>
+              {newAnnouncementForm.submitting ? "登録中..." : "お知らせを追加"}
             </Button>
           </form>
-          {loadingAnnouncements ? (
+
+          {announcementsState.loading ? (
             <p className="text-gray-500 text-sm">読み込み中...</p>
-          ) : announcements.length === 0 ? (
-            <p className="text-gray-500 text-sm">お知らせがありません。上記フォームから追加できます。</p>
+          ) : announcementsState.items.length === 0 ? (
+            <p className="text-gray-500 text-sm">
+              お知らせがありません。上記フォームから追加できます。
+            </p>
           ) : (
             <ul className="space-y-2 text-sm">
-              {announcements.map((a) => (
+              {announcementsState.items.map((a) => (
                 <li
                   key={a.id}
                   className="flex items-center justify-between gap-4 py-2 border-b border-surface-border last:border-0"
@@ -1032,7 +1103,6 @@ export default function AdminPage() {
                       variant="outline"
                       size="sm"
                       className="text-electric-blue border-electric-blue/50 hover:bg-electric-blue/10"
-                      disabled={savingAnnouncementId === a.id}
                       onClick={() => openEditAnnouncement(a)}
                     >
                       編集
@@ -1041,10 +1111,10 @@ export default function AdminPage() {
                       variant="outline"
                       size="sm"
                       className="text-red-400 border-red-400/50 hover:bg-red-400/10"
-                      disabled={deletingAnnouncementId === a.id}
+                      disabled={announcementsState.deletingId === a.id}
                       onClick={() => handleDeleteAnnouncement(a.id)}
                     >
-                      {deletingAnnouncementId === a.id ? "削除中..." : "削除"}
+                      {announcementsState.deletingId === a.id ? "削除中..." : "削除"}
                     </Button>
                   </div>
                 </li>
@@ -1054,7 +1124,13 @@ export default function AdminPage() {
         </CardContent>
       </Card>
 
-      <Dialog.Root open={!!editingAnnouncement} onOpenChange={(open) => !open && setEditingAnnouncement(null)}>
+      {/* ── お知らせ編集ダイアログ ── */}
+      <Dialog.Root
+        open={!!editAnnouncementForm.announcement}
+        onOpenChange={(open) =>
+          !open && setEditAnnouncementForm((f) => ({ ...f, announcement: null }))
+        }
+      >
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-surface-border bg-surface-card p-6 shadow-xl max-h-[90vh] overflow-y-auto">
@@ -1066,8 +1142,10 @@ export default function AdminPage() {
                 <Label htmlFor="admin-ann-date">日付</Label>
                 <Input
                   id="admin-ann-date"
-                  value={editAnnouncementDate}
-                  onChange={(e) => setEditAnnouncementDate(e.target.value)}
+                  value={editAnnouncementForm.date}
+                  onChange={(e) =>
+                    setEditAnnouncementForm((f) => ({ ...f, date: e.target.value }))
+                  }
                   placeholder="例: 2025-01-15"
                   required
                 />
@@ -1076,8 +1154,10 @@ export default function AdminPage() {
                 <Label htmlFor="admin-ann-title">タイトル</Label>
                 <Input
                   id="admin-ann-title"
-                  value={editAnnouncementTitle}
-                  onChange={(e) => setEditAnnouncementTitle(e.target.value)}
+                  value={editAnnouncementForm.title}
+                  onChange={(e) =>
+                    setEditAnnouncementForm((f) => ({ ...f, title: e.target.value }))
+                  }
                   placeholder="例：《重要》〇〇のお知らせ"
                   required
                 />
@@ -1087,8 +1167,10 @@ export default function AdminPage() {
                 <textarea
                   id="admin-ann-body"
                   className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={editAnnouncementBody}
-                  onChange={(e) => setEditAnnouncementBody(e.target.value)}
+                  value={editAnnouncementForm.body}
+                  onChange={(e) =>
+                    setEditAnnouncementForm((f) => ({ ...f, body: e.target.value }))
+                  }
                   placeholder="お知らせの本文"
                 />
               </div>
@@ -1096,8 +1178,10 @@ export default function AdminPage() {
                 <Label htmlFor="admin-ann-url">URL（任意）</Label>
                 <Input
                   id="admin-ann-url"
-                  value={editAnnouncementUrl}
-                  onChange={(e) => setEditAnnouncementUrl(e.target.value)}
+                  value={editAnnouncementForm.url}
+                  onChange={(e) =>
+                    setEditAnnouncementForm((f) => ({ ...f, url: e.target.value }))
+                  }
                   placeholder="https://..."
                 />
               </div>
@@ -1105,17 +1189,27 @@ export default function AdminPage() {
                 <input
                   type="checkbox"
                   id="admin-ann-important"
-                  checked={editAnnouncementImportant}
-                  onChange={(e) => setEditAnnouncementImportant(e.target.checked)}
+                  checked={editAnnouncementForm.isImportant}
+                  onChange={(e) =>
+                    setEditAnnouncementForm((f) => ({ ...f, isImportant: e.target.checked }))
+                  }
                   className="rounded border-gray-600"
                 />
-                <Label htmlFor="admin-ann-important" className="cursor-pointer">重要マーク</Label>
+                <Label htmlFor="admin-ann-important" className="cursor-pointer">
+                  重要マーク
+                </Label>
               </div>
               <div className="flex gap-2 pt-2">
-                <Button type="submit" disabled={!!savingAnnouncementId}>
-                  {savingAnnouncementId ? "保存中..." : "保存"}
+                <Button type="submit" disabled={editAnnouncementForm.saving}>
+                  {editAnnouncementForm.saving ? "保存中..." : "保存"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setEditingAnnouncement(null)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    setEditAnnouncementForm((f) => ({ ...f, announcement: null }))
+                  }
+                >
                   キャンセル
                 </Button>
               </div>
@@ -1124,7 +1218,11 @@ export default function AdminPage() {
         </Dialog.Portal>
       </Dialog.Root>
 
-      <Dialog.Root open={!!editingEvent} onOpenChange={(open) => !open && closeEditEvent()}>
+      {/* ── ライブイベント編集ダイアログ ── */}
+      <Dialog.Root
+        open={!!editEventForm.event}
+        onOpenChange={(open) => !open && closeEditEvent()}
+      >
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-surface-border bg-surface-card p-6 shadow-xl">
@@ -1136,8 +1234,10 @@ export default function AdminPage() {
                 <Label htmlFor="admin-ev-title">タイトル</Label>
                 <Input
                   id="admin-ev-title"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
+                  value={editEventForm.title}
+                  onChange={(e) =>
+                    setEditEventForm((f) => ({ ...f, title: e.target.value }))
+                  }
                   required
                 />
               </div>
@@ -1146,8 +1246,10 @@ export default function AdminPage() {
                 <Input
                   id="admin-ev-date"
                   type="date"
-                  value={editEventDate}
-                  onChange={(e) => setEditEventDate(e.target.value)}
+                  value={editEventForm.eventDate}
+                  onChange={(e) =>
+                    setEditEventForm((f) => ({ ...f, eventDate: e.target.value }))
+                  }
                   required
                 />
               </div>
@@ -1155,8 +1257,10 @@ export default function AdminPage() {
                 <Label htmlFor="admin-ev-venue">会場</Label>
                 <Input
                   id="admin-ev-venue"
-                  value={editVenue}
-                  onChange={(e) => setEditVenue(e.target.value)}
+                  value={editEventForm.venue}
+                  onChange={(e) =>
+                    setEditEventForm((f) => ({ ...f, venue: e.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -1164,23 +1268,27 @@ export default function AdminPage() {
                 <Input
                   id="admin-ev-venue-url"
                   type="url"
-                  value={editVenueUrl}
-                  onChange={(e) => setEditVenueUrl(e.target.value)}
+                  value={editEventForm.venueUrl}
+                  onChange={(e) =>
+                    setEditEventForm((f) => ({ ...f, venueUrl: e.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="admin-ev-desc">メモ</Label>
                 <textarea
                   id="admin-ev-desc"
-                  value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
+                  value={editEventForm.description}
+                  onChange={(e) =>
+                    setEditEventForm((f) => ({ ...f, description: e.target.value }))
+                  }
                   rows={2}
                   className="flex w-full rounded-lg border border-surface-border bg-surface-card px-3 py-2 text-sm text-gray-100"
                 />
               </div>
               <div className="flex gap-2 pt-2">
-                <Button type="submit" disabled={savingEventId !== null}>
-                  {editingEvent && savingEventId === editingEvent.id ? "保存中..." : "保存"}
+                <Button type="submit" disabled={editEventForm.saving}>
+                  {editEventForm.saving ? "保存中..." : "保存"}
                 </Button>
                 <Dialog.Close asChild>
                   <Button type="button" variant="outline" onClick={closeEditEvent}>
@@ -1192,6 +1300,58 @@ export default function AdminPage() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      {/* ── 削除確認ダイアログ ── */}
+      <ConfirmDialog
+        open={!!pendingConfirm}
+        title={pendingConfirm?.title ?? ""}
+        description={pendingConfirm?.description ?? ""}
+        confirmLabel={confirmRunning ? "実行中..." : "削除する"}
+        onConfirm={handleConfirmExecute}
+        onCancel={() => setPendingConfirm(null)}
+      />
+    </div>
+  );
+}
+
+// ─── ページネーション サブコンポーネント ───────────────────────────────────────
+function Pagination({
+  page,
+  total,
+  count,
+  onPrev,
+  onNext,
+}: {
+  page: number;
+  total: number;
+  count: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  if (total <= 1) return null;
+  return (
+    <div className="flex items-center justify-center gap-2 pt-2">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={page === 0}
+        onClick={onPrev}
+        aria-label="前のページ"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+      <span className="text-sm text-gray-400">
+        {page + 1} / {total}（{count}件）
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={page >= total - 1}
+        onClick={onNext}
+        aria-label="次のページ"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
     </div>
   );
 }

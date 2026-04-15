@@ -291,9 +291,9 @@ export function MypageBoardList({ boards, swrKey }: Props) {
         // SWR キャッシュの boards からも楽観的に削除し、バックグラウンドで再検証
         mutate(
           swrKey,
-          (current: any) => {
+          (current: { boards?: MypageBoardItem[] } | undefined) => {
             if (!current) return current;
-            const prevBoards: any[] = Array.isArray(current.boards)
+            const prevBoards: MypageBoardItem[] = Array.isArray(current.boards)
               ? current.boards
               : [];
             return {
