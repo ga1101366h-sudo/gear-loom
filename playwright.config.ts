@@ -12,7 +12,7 @@ import { defineConfig, devices } from '@playwright/test';
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
-  testDir: './tests',
+  testDir: './tests/e2e',
   /* E2E は tests/e2e/ に配置。認証は globalSetup でセッション保存するか page.route でAPIモックを想定 */
   // globalSetup: require.resolve('./tests/e2e/global-setup.ts'),
   /* Run tests in files in parallel */
@@ -73,10 +73,11 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: {
-    command: process.env.CI ? 'npm run build && npm run start' : 'npm run dev',
-    url: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
+  /* CI では PLAYWRIGHT_BASE_URL=本番URL を指定するためローカルサーバーは不要 */
+  webServer: process.env.PLAYWRIGHT_BASE_URL ? undefined : {
+    command: 'npm run dev',
+    url: 'http://localhost:3000',
+    reuseExistingServer: true,
     timeout: 120000,
   },
 });
