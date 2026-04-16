@@ -7,20 +7,11 @@ import { Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getFirebaseStorageUrl } from "@/lib/utils";
 import { shouldUnoptimizeFirebaseStorage } from "@/lib/image-optimization";
-import { CATEGORY_LEVEL1, CATEGORY_LEVEL2 } from "@/data/category-hierarchy";
+import { CATEGORY_LEVEL1 } from "@/data/category-hierarchy";
+import { getGroupSlugByCategorySlug } from "@/data/post-categories";
 import type { Review } from "@/types/database";
 
-// ----------------------------------------------------------------
-// カテゴリ解決ヘルパー
-// category_id は "guitar" / "electric-guitar" / "electric-guitar__stratocaster"
-// など複数形式があるため、Level1 の id に正規化する
-// ----------------------------------------------------------------
-const LEVEL2_TO_LEVEL1: Record<string, string> = Object.fromEntries(
-  CATEGORY_LEVEL2.map((l2) => [l2.id, l2.parentId])
-);
-const LEVEL1_ID_SET = new Set(CATEGORY_LEVEL1.map((c) => c.id));
-
-// category-list-section.tsx と同じパターンで slug を解決する
+// category_slug（Firestore上の実際のスラッグ）を取得
 function resolveCategorySlug(review: Review): string {
   const slug =
     review.categories && "slug" in review.categories
@@ -29,12 +20,11 @@ function resolveCategorySlug(review: Review): string {
   return slug ?? "";
 }
 
+// getGroupSlugByCategorySlug を使って Level1 ID に正規化
 function getTopLevelId(review: Review): string {
-  const categoryId = resolveCategorySlug(review);
-  if (!categoryId) return "other";
-  if (LEVEL1_ID_SET.has(categoryId)) return categoryId;
-  const level2Key = categoryId.split("__")[0];
-  return LEVEL2_TO_LEVEL1[level2Key] ?? "other";
+  const slug = resolveCategorySlug(review);
+  if (!slug) return "other";
+  return getGroupSlugByCategorySlug(slug) || "other";
 }
 
 // ----------------------------------------------------------------
