@@ -52,13 +52,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja" className="dark" suppressHydrationWarning>
-      <head>
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4447190031977944"
-          crossOrigin="anonymous"
-        ></script>
-      </head>
       <body
         className={`${syne.variable} ${notoSansJP.variable} font-sans antialiased min-h-screen`}
         suppressHydrationWarning

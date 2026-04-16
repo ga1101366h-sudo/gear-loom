@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# 認証・プライベート系ページはクロール対象外
+Disallow: /api/
+Disallow: /auth/
+Disallow: /login
+Disallow: /signup
+Disallow: /mypage
+Disallow: /settings
+Disallow: /board/editor
+Disallow: /instruments
+Disallow: /likes
+
+Sitemap: https://www.gear-loom.com/sitemap.xml
