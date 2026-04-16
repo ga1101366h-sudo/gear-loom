@@ -20,7 +20,17 @@ const LEVEL2_TO_LEVEL1: Record<string, string> = Object.fromEntries(
 );
 const LEVEL1_ID_SET = new Set(CATEGORY_LEVEL1.map((c) => c.id));
 
-function getTopLevelId(categoryId: string): string {
+// category-list-section.tsx と同じパターンで slug を解決する
+function resolveCategorySlug(review: Review): string {
+  const slug =
+    review.categories && "slug" in review.categories
+      ? (review.categories as { slug: string }).slug
+      : review.category_id;
+  return slug ?? "";
+}
+
+function getTopLevelId(review: Review): string {
+  const categoryId = resolveCategorySlug(review);
   if (!categoryId) return "other";
   if (LEVEL1_ID_SET.has(categoryId)) return categoryId;
   const level2Key = categoryId.split("__")[0];
@@ -66,7 +76,7 @@ export function PhotoGallery({ reviews }: { reviews: Review[] }) {
   // 実際のデータにある Level1 カテゴリだけタブに表示
   const availableCategories = useMemo(() => {
     const presentIds = new Set(
-      reviewsWithImages.map((r) => getTopLevelId(r.category_id))
+      reviewsWithImages.map((r) => getTopLevelId(r))
     );
     return CATEGORY_LEVEL1.filter((c) => presentIds.has(c.id));
   }, [reviewsWithImages]);
@@ -75,7 +85,7 @@ export function PhotoGallery({ reviews }: { reviews: Review[] }) {
   const filtered = useMemo(() => {
     if (selectedCategory === "all") return reviewsWithImages;
     return reviewsWithImages.filter(
-      (r) => getTopLevelId(r.category_id) === selectedCategory
+      (r) => getTopLevelId(r) === selectedCategory
     );
   }, [reviewsWithImages, selectedCategory]);
 
