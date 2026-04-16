@@ -3,7 +3,7 @@ title: "Firebase と Prisma（PostgreSQL）を同一Next.jsアプリで使い分
 emoji: "🔀"
 type: "tech"
 topics: ["nextjs", "firebase", "prisma", "postgresql", "typescript"]
-published: true
+published: false
 ---
 
 個人開発の楽器・機材レビューサイト「[Gear-Loom](https://www.gear-loom.com)」では、**FirebaseとPrisma（PostgreSQL）を同一アプリの中で使い分ける**という構成を採用しています。
