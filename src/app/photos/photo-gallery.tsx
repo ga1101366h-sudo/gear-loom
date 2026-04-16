@@ -7,7 +7,7 @@ import { Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getFirebaseStorageUrl } from "@/lib/utils";
 import { shouldUnoptimizeFirebaseStorage } from "@/lib/image-optimization";
-import { CATEGORY_LEVEL1 } from "@/data/category-hierarchy";
+import { CATEGORY_LEVEL1, CATEGORY_LEVEL2 } from "@/data/category-hierarchy";
 import { getGroupSlugByCategorySlug } from "@/data/post-categories";
 import type { Review } from "@/types/database";
 
@@ -21,10 +21,31 @@ function resolveCategorySlug(review: Review): string {
 }
 
 // getGroupSlugByCategorySlug を使って Level1 ID に正規化
+// Japanese path slugs (e.g. "ギター__エレキギター__ストラト") も解決できるよう拡張
 function getTopLevelId(review: Review): string {
   const slug = resolveCategorySlug(review);
   if (!slug) return "other";
-  return getGroupSlugByCategorySlug(slug) || "other";
+
+  const result = getGroupSlugByCategorySlug(slug);
+
+  // 英語の Level1 ID として解決済みならそのまま返す
+  if (CATEGORY_LEVEL1.some((c) => c.id === result)) return result;
+
+  // 日本語パス形式を解決: "L1名__L2名__L3名" または "L2名__L3名"
+  const parts = slug.split("__").filter(Boolean);
+  if (parts.length >= 2) {
+    // 先頭が Level1 の日本語名か？
+    const l1ByName = CATEGORY_LEVEL1.find((c) => c.name === parts[0]);
+    if (l1ByName) return l1ByName.id;
+    // 先頭が Level2 の日本語名か？（2階層形式）
+    const l2ByName = CATEGORY_LEVEL2.find((c) => c.name === parts[0]);
+    if (l2ByName) return l2ByName.parentId;
+  } else if (parts.length === 1) {
+    const l1ByName = CATEGORY_LEVEL1.find((c) => c.name === parts[0]);
+    if (l1ByName) return l1ByName.id;
+  }
+
+  return "other";
 }
 
 // ----------------------------------------------------------------
