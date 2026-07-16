@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ECSearchLinks } from "@/components/ec-search-links";
 import { getGearByIdFromFirestore } from "@/lib/firebase/data";
+import { JsonLd } from "@/components/seo/json-ld";
 
 const PLACEHOLDER_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%231a2332' width='400' height='400'/%3E%3Ctext fill='%236b7280' x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='14'%3E機材画像%3C/text%3E%3C/svg%3E";
@@ -32,8 +33,20 @@ export default async function GearDetailPage({ params }: Props) {
   const gear = await getGearByIdFromFirestore(id);
   if (!gear) notFound();
 
+  // --- 構造化データ（JSON-LD / schema.org Product）---
+  // 機材データには平均評価（ratingValue）が存在しないため AggregateRating は付与しない。
+  // 集計評価を捏造せず、確実に存在する name / image / url のみで Product を出力する。
+  const gearJsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: gear.name,
+    url: `https://www.gear-loom.com/gears/${id}`,
+    ...(gear.imageUrl ? { image: gear.imageUrl } : {}),
+  };
+
   return (
     <div className="container mx-auto max-w-3xl px-4 py-6">
+      <JsonLd data={gearJsonLd} />
       <Card className="overflow-hidden">
         <div className="relative aspect-video w-full bg-surface-card sm:aspect-square sm:max-h-[400px]">
           {gear.imageUrl ? (

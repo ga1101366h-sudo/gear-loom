@@ -4,6 +4,7 @@ import Script from "next/script";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SiteLayout } from "@/components/site-layout";
+import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import "./globals.css";
 
 const syne = Syne({
@@ -61,6 +62,7 @@ export default function RootLayout({
           strategy="afterInteractive"
           crossOrigin="anonymous"
         />
+        <GoogleAnalytics />
         <AuthProvider>
           <SiteLayout>{children}</SiteLayout>
         </AuthProvider>

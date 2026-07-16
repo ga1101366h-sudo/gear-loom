@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/card";
 import { getReviewPrimaryImageUrl } from "@/lib/review-og-image";
 import { toOgProxyImageUrl } from "@/lib/og-proxy";
+import { JsonLd } from "@/components/seo/json-ld";
 
 export const revalidate = 120;
 const OG_IMAGE_SCHEMA_VERSION = "20260321-2";
@@ -205,8 +206,54 @@ export default async function ReviewDetailPage({
   const showGearReviewCta =
     !isContentOnlyCategory && !!review.gear_name && review.gear_name.trim().length > 0;
 
+  // --- 構造化データ（JSON-LD / schema.org Review）---
+  // 実際に評価値を持つ機材レビューのみ出力する。
+  // コンテンツ系カテゴリ（ブログ・イベント等）や rating=0 の投稿は Product レビューではないため出力しない。
+  const gearNameTrimmed = review.gear_name?.trim() ?? "";
+  const reviewAuthorName =
+    profile?.display_name?.trim() ||
+    (profile?.user_id ? `@${profile.user_id}` : "");
+  const reviewBodyText = (
+    review.body_md?.trim() ||
+    (review.body_html ?? "").replace(/<[^>]*>/g, " ")
+  )
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 5000);
+  const datePublished = (() => {
+    const raw = (review.created_at ?? "").trim();
+    if (!raw) return "";
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? "" : d.toISOString();
+  })();
+  const reviewJsonLd =
+    !isContentOnlyCategory && review.rating > 0 && gearNameTrimmed
+      ? {
+          "@context": "https://schema.org",
+          "@type": "Review",
+          name: review.title,
+          ...(reviewBodyText ? { reviewBody: reviewBodyText } : {}),
+          ...(datePublished ? { datePublished } : {}),
+          itemReviewed: {
+            "@type": "Product",
+            name: gearNameTrimmed,
+            ...(makerName ? { brand: { "@type": "Brand", name: makerName } } : {}),
+          },
+          reviewRating: {
+            "@type": "Rating",
+            ratingValue: review.rating,
+            bestRating: 5,
+            worstRating: 1,
+          },
+          ...(reviewAuthorName
+            ? { author: { "@type": "Person", name: reviewAuthorName } }
+            : {}),
+        }
+      : null;
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
+      {reviewJsonLd && <JsonLd data={reviewJsonLd} />}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" asChild>
           <Link href="/">← トップ</Link>
