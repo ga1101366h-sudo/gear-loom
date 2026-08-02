@@ -43,6 +43,18 @@ export function ECSearchLinks({
     reviewTitle?.trim() ||
     "";
 
+  // EC/SNS ボタンのクリックを GA4 の ec_click イベントとして送信する（gtag 未定義でも壊れない）
+  const trackEcClick = (ecName: string) => {
+    if (typeof window === "undefined") return;
+    const gtag = (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag;
+    if (typeof gtag !== "function") return;
+    gtag("event", "ec_click", {
+      ec_name: ecName,
+      gear_name: gearName ?? "",
+      maker_name: makerName ?? "",
+    });
+  };
+
   const encodedSearch = baseSearchQuery ? encodeURIComponent(baseSearchQuery) : null;
   const xSearchUrl = encodedSearch
     ? `https://x.com/search?q=${encodedSearch}&src=typed_query&f=live`
@@ -74,6 +86,7 @@ export function ECSearchLinks({
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => trackEcClick(name)}
                   className={`w-full rounded-md px-4 py-3 text-sm font-semibold text-white text-center shadow-md transition-transform duration-150 hover:-translate-y-0.5 ${color}`}
                 >
                   {label}
@@ -98,6 +111,7 @@ export function ECSearchLinks({
                   href={xSearchUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => trackEcClick("X")}
                   className="w-full rounded-md px-4 py-3 text-sm font-semibold text-white text-center shadow-md transition-transform duration-150 hover:-translate-y-0.5 bg-black hover:bg-zinc-900"
                 >
                   X でみんなの投稿を見る
@@ -109,6 +123,7 @@ export function ECSearchLinks({
                   href={youtubeSearchUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => trackEcClick("YouTube")}
                   className="w-full rounded-md px-4 py-3 text-sm font-semibold text-white text-center shadow-md transition-transform duration-150 hover:-translate-y-0.5 bg-red-600 hover:bg-red-700 flex items-center justify-center gap-2"
                 >
                   <span className="text-base" aria-hidden>
