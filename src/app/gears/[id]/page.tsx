@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ECSearchLinks } from "@/components/ec-search-links";
-import { getGearByIdFromFirestore } from "@/lib/firebase/data";
+import { getGearByIdFromFirestore, getGearRatingAggregateFromFirestore } from "@/lib/firebase/data";
 import { JsonLd } from "@/components/seo/json-ld";
 
 const PLACEHOLDER_IMG =
@@ -33,15 +33,29 @@ export default async function GearDetailPage({ params }: Props) {
   const gear = await getGearByIdFromFirestore(id);
   if (!gear) notFound();
 
+  // gear_id で紐づく実レビューの評価を集計（rating>0 が1件以上ある場合のみ値が返る）
+  const ratingAggregate = await getGearRatingAggregateFromFirestore(id);
+
   // --- 構造化データ（JSON-LD / schema.org Product）---
-  // 機材データには平均評価（ratingValue）が存在しないため AggregateRating は付与しない。
-  // 集計評価を捏造せず、確実に存在する name / image / url のみで Product を出力する。
+  // AggregateRating は gear_id で紐づく実レビュー（rating>0）を集計した本物の値のみ付与する。
+  // 対象レビューが1件も無い場合は捏造せず aggregateRating を出さない。
   const gearJsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: gear.name,
     url: `https://www.gear-loom.com/gears/${id}`,
     ...(gear.imageUrl ? { image: gear.imageUrl } : {}),
+    ...(ratingAggregate
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: ratingAggregate.ratingValue,
+            reviewCount: ratingAggregate.ratingCount,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : {}),
   };
 
   return (
@@ -68,7 +82,23 @@ export default async function GearDetailPage({ params }: Props) {
         </div>
         <CardHeader>
           <CardTitle className="text-xl text-white">{gear.name}</CardTitle>
-          {gear.reviewCount > 0 && (
+          {/* JSON-LD の AggregateRating は「ページ上にも見えていること」が Google の要件。
+              集計値がある場合は必ず★と件数を画面にも出す。 */}
+          {ratingAggregate && (
+            <CardDescription className="flex items-center gap-2">
+              <span className="flex gap-0.5 text-electric-blue" aria-hidden>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <span key={i} className={i <= Math.round(ratingAggregate.ratingValue) ? "opacity-100" : "opacity-30"}>
+                    ★
+                  </span>
+                ))}
+              </span>
+              <span>
+                {ratingAggregate.ratingValue.toFixed(1)}（レビュー {ratingAggregate.ratingCount}件）
+              </span>
+            </CardDescription>
+          )}
+          {!ratingAggregate && gear.reviewCount > 0 && (
             <CardDescription>レビュー {gear.reviewCount}件</CardDescription>
           )}
         </CardHeader>
@@ -84,9 +114,14 @@ export default async function GearDetailPage({ params }: Props) {
               </a>
             </Button>
           )}
-          <Link href="/gears/search" className="text-sm text-electric-blue hover:underline">
-            ← 機材検索に戻る
-          </Link>
+          <div className="flex flex-wrap gap-4">
+            <Link href="/gears" className="text-sm text-electric-blue hover:underline">
+              ← 機材一覧
+            </Link>
+            <Link href="/gears/search" className="text-sm text-electric-blue hover:underline">
+              機材検索
+            </Link>
+          </div>
         </CardContent>
       </Card>
 

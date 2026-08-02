@@ -602,6 +602,67 @@ export async function getGearByIdFromFirestore(id: string): Promise<Gear | null>
   }
 }
 
+/**
+ * 機材一覧ページ（/gears）用：gears コレクションを新しい順に取得する。
+ * - gears はレビュー投稿時（api/reviews/with-gear）に1件ずつ作られる。
+ * - 取得できない場合は空配列を返す（一覧ページは空状態を表示する）。
+ */
+export async function getGearsFromFirestore(limit = 200): Promise<Gear[]> {
+  const db = getAdminFirestore();
+  if (!db) {
+    console.error("[getGearsFromFirestore] Firebase Admin が初期化できていません");
+    return [];
+  }
+  try {
+    // orderBy を使うと createdAt を持たないドキュメントが黙って除外されるため、
+    // 取得してからメモリ上で新しい順に並べ替える（件数が少ない前提）。
+    const snap = await db.collection("gears").limit(limit).get();
+    const gears = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        name: String(data.name ?? ""),
+        imageUrl: String(data.imageUrl ?? ""),
+        affiliateUrl: String(data.affiliateUrl ?? ""),
+        reviewCount: Number(data.reviewCount ?? 0),
+        createdAt: data.createdAt?.toMillis?.()
+          ? new Date(data.createdAt.toMillis()).toISOString()
+          : String(data.createdAt ?? ""),
+      };
+    });
+    gears.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
+    return gears;
+  } catch (err) {
+    console.error("[getGearsFromFirestore] 機材一覧の取得に失敗しました", err);
+    return [];
+  }
+}
+
+/**
+ * 機材ページの AggregateRating 用：gear_id で紐づく実レビューの評価だけを集計する。
+ * - 紐付けは reviews.gear_id（gears ドキュメントIDへの厳密な参照）で行う（gear_name の名寄せは使わない）。
+ * - rating>0 のレビューが1件以上ある場合のみ結果を返す。1件も無ければ null（捏造しない）。
+ * - ratingValue は小数1桁に丸める。
+ */
+export async function getGearRatingAggregateFromFirestore(
+  gearId: string
+): Promise<{ ratingValue: number; ratingCount: number } | null> {
+  const db = getAdminFirestore();
+  if (!db || !gearId?.trim()) return null;
+  try {
+    const snap = await db.collection("reviews").where("gear_id", "==", gearId).get();
+    const ratings = snap.docs
+      .map((d) => Number(d.data().rating ?? 0))
+      .filter((r) => r > 0);
+    if (ratings.length === 0) return null;
+    const sum = ratings.reduce((acc, r) => acc + r, 0);
+    const ratingValue = Math.round((sum / ratings.length) * 10) / 10;
+    return { ratingValue, ratingCount: ratings.length };
+  } catch {
+    return null;
+  }
+}
+
 export async function getReviewLikeCountFromFirestore(reviewId: string): Promise<number> {
   const db = getAdminFirestore();
   if (!db) return 0;
