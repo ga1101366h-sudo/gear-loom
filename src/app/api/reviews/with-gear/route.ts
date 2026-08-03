@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase/admin";
 import { isContentOnlyCategorySlug, getGroupSlugByCategorySlug } from "@/data/post-categories";
+import { buildGearDisplayName, findOrCreateGear } from "@/lib/gears/link-gear";
 
 export type WithGearBody = {
   gear: { name: string; imageUrl: string; affiliateUrl: string };
@@ -91,15 +92,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const gearRef = db.collection("gears").doc();
     const now = new Date();
-    await gearRef.set({
-      name: String(gearPayload.name ?? "").trim(),
+    // 機材ページは「あれば再利用・無ければ作成」する（2026-08-03）。
+    // 以前は毎回新規作成していたため、同じ機材を2人がレビューすると機材ページが2枚できていた。
+    // 表示名は手入力投稿の経路と同じ規則（メーカー名＋機材名）に揃える。
+    // 楽天の商品名をそのまま使うと、同じ機材でも経路によって名前が変わり名寄せできないため。
+    const gearDisplayName =
+      buildGearDisplayName(
+        makerName,
+        String(reviewPayload.gearName ?? "").trim() || String(gearPayload.name ?? "").trim()
+      ) || String(gearPayload.name ?? "").trim();
+    const gearResult = await findOrCreateGear(db, {
+      displayName: gearDisplayName,
       imageUrl: String(gearPayload.imageUrl ?? "").trim(),
       affiliateUrl: String(gearPayload.affiliateUrl ?? "").trim(),
-      reviewCount: 1,
       createdAt: now,
     });
+    const gearId = gearResult.gearId;
 
     const specTagIds = Array.isArray(reviewPayload.specTagIds) ? reviewPayload.specTagIds : [];
     let specTagNames: string[] = [];
@@ -117,7 +126,7 @@ export async function POST(request: NextRequest) {
       category_name_ja: categoryNameJa,
       ...(makerId && { maker_id: makerId }),
       maker_name: isContentOnly ? null : (makerName || null),
-      gear_id: gearRef.id,
+      gear_id: gearId,
       gear_name: isContentOnly ? "" : String(reviewPayload.gearName ?? gearPayload.name ?? "").trim(),
       author_display_name: authorDisplayName,
       author_user_id: authorUserId,
@@ -153,7 +162,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       reviewId: reviewRef.id,
-      gearId: gearRef.id,
+      gearId,
     });
   } catch (err) {
     console.error("[reviews/with-gear]", err);

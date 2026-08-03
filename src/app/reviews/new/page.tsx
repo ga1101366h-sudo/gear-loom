@@ -375,6 +375,29 @@ export default function NewReviewPage() {
         });
       }
 
+      // 機材ページ（/gears/{id}）を用意してこのレビューに紐付ける（2026-08-03 追加）
+      // この手入力の経路は gears を作っておらず、機材ページが1枚も存在しない状態になっていた。
+      // 画像アップロードの後に呼ぶ（1枚目の画像を機材ページのサムネイルに使うため）。
+      // レビュー本体はすでに保存済みなので、失敗しても投稿は成立させる（エラー表示はしない）。
+      if (!isContentOnlyCategory && gearName.trim()) {
+        try {
+          const idToken = await user.getIdToken();
+          const linkRes = await fetch("/api/reviews/link-gear", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({ reviewId: reviewRef.id }),
+          });
+          if (!linkRes.ok) {
+            console.error("[reviews/new] 機材ページの紐付けに失敗", await linkRes.text());
+          }
+        } catch (linkErr) {
+          console.error("[reviews/new] 機材ページの紐付けに失敗", linkErr);
+        }
+      }
+
       if (addToOwnedGear && !isContentOnlyCategory && gearName.trim()) {
         const currentOwnedGear = (profile?.owned_gear as string | undefined) ?? "";
         const makerPart = makerName.trim();
