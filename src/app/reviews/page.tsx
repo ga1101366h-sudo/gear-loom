@@ -19,6 +19,12 @@ import { shouldUnoptimizeFirebaseStorage } from "@/lib/image-optimization";
 
 export const revalidate = 60;
 
+// 正規URL。?q= / ?category= 付きのURLが別ページとしてインデックスされ、
+// Search Console で重複扱いになっていたため、すべて /reviews に集約する（2026-08-03）
+export const metadata = {
+  alternates: { canonical: "/reviews" },
+};
+
 async function getReviews(categorySlug?: string): Promise<Review[]> {
   try {
     const { getReviewsFromFirestore } = await import("@/lib/firebase/data");

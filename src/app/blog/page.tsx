@@ -7,6 +7,7 @@ import type { Review } from "@/types/database";
 export const metadata: Metadata = {
   title: "ブログ",
   description: "Gear-Loom（ギアルーム）のブログ記事一覧です。機材の使いこなしやイベントレポートなどをチェックできます。",
+  alternates: { canonical: "/blog" },
 };
 
 async function getBlogReviews(): Promise<Review[]> {

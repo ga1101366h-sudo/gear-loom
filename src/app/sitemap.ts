@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { getAdminFirestore } from "@/lib/firebase/admin";
-import { POST_CATEGORY_FLAT } from "@/data/post-categories";
+import { POST_CATEGORY_FLAT, getCategoryPathSlugVariants } from "@/data/post-categories";
 
 export const dynamic = "force-dynamic";
 
@@ -46,13 +46,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   // レビュー記事（Firestore reviews コレクションのID一覧）
+  // あわせて category_id を集め、後段の「レビューがあるカテゴリだけ載せる」判定に使う。
+  const reviewCategoryIds = new Set<string>();
   try {
     const db = getAdminFirestore();
     if (db) {
-      const snap = await db.collection("reviews").select().get();
+      const snap = await db.collection("reviews").select("updated_at", "category_id").get();
       snap.docs.forEach((d) => {
-        const data = d.data() as { updated_at?: string };
+        const data = d.data() as { updated_at?: string; category_id?: string };
         addUrl(`/reviews/${d.id}`, data.updated_at || undefined, "weekly");
+        const catId = String(data.category_id ?? "").trim();
+        if (catId) reviewCategoryIds.add(catId);
       });
     }
   } catch (err) {
@@ -98,15 +102,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   console.log(`[sitemap] gears urls = ${gearCount}`);
 
   // カテゴリ一覧ページ（POST_CATEGORY_FLAT のカテゴリ slug を列挙）
+  //
+  // ★レビューが1件も無いカテゴリは載せない（2026-08-03）
+  // 理由：Search Console 実測で、登録済み27ページに対し「クロール済み - インデックス未登録」が117ページあった。
+  //       レビュー0件のカテゴリページは共通ヘッダー・フッターしか本文が無く（実測 約2,170文字のうち大半が共通パーツ）、
+  //       中身の無いページを sitemap で大量に申告すると、サイト全体の評価を下げる方向に働く。
+  //       レビューが付いたカテゴリは自動的にここに載るようになるので、手作業の除外リストは持たない。
+  // ※ここで noindex は付けない。noindex は category/[slug]/page.tsx の generateMetadata 側で
+  //   「そのカテゴリのレビューが0件なら noindex」として付ける（sitemap と判定基準を揃えてある）。
+  let categoryAdded = 0;
+  let categorySkipped = 0;
   try {
     POST_CATEGORY_FLAT.forEach((c) => {
       const slug = c.slug?.trim();
       if (!slug) return;
+      // 1つの slug は複数の表記ゆれ（英語ID／日本語パス／メガメニュー上のパス）で保存されうるため、
+      // カテゴリページ本体と同じ getCategoryPathSlugVariants で候補を出して突き合わせる。
+      const hasReview = getCategoryPathSlugVariants(slug).some((v) => reviewCategoryIds.has(v));
+      if (!hasReview) {
+        categorySkipped += 1;
+        return;
+      }
       addUrl(`/category/${encodeURIComponent(slug)}`, undefined, "weekly");
+      categoryAdded += 1;
     });
   } catch (err) {
     console.error("[sitemap] Failed to add category pages", err);
   }
+  // 「0件だから壊れている」のか「レビューが無いから正しく除外した」のかを後から区別できるようにする
+  console.log(
+    `[sitemap] category urls = ${categoryAdded} (skipped empty = ${categorySkipped} / total = ${POST_CATEGORY_FLAT.length})`
+  );
 
   // 生成結果の内訳を残す（本番で「なぜかURLが少ない」を後から追えるようにする）
   const gearUrlCount = urls.filter((u) => u.url.includes("/gears/")).length;

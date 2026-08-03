@@ -3,6 +3,11 @@ import { Button } from "@/components/ui/button";
 import { CategoryListSection } from "@/app/reviews/category-list-section";
 import type { Review } from "@/types/database";
 
+// 正規URLの明示（2026-08-03。Search Console の重複判定対策）
+export const metadata = {
+  alternates: { canonical: "/events" },
+};
+
 async function getEventReviews(): Promise<Review[]> {
   try {
     const { getReviewsFromFirestore } = await import("@/lib/firebase/data");

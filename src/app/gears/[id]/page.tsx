@@ -25,6 +25,8 @@ export async function generateMetadata({ params }: Props) {
   return {
     title: `${gear.name} | 機材`,
     description: `${gear.name}の機材ページ。レビュー${gear.reviewCount}件。`,
+    // 正規URLの明示（2026-08-03。Search Console の重複判定対策）
+    alternates: { canonical: `/gears/${id}` },
   };
 }
 

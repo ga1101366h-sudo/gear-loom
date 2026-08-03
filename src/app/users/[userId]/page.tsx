@@ -14,6 +14,16 @@ import type { ReviewWithLikeCount } from "@/components/public-profile-view";
 
 export const revalidate = 120;
 
+// 正規URLの明示（2026-08-03。Search Console の重複判定対策）
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ userId: string }>;
+}) {
+  const { userId } = await params;
+  return { alternates: { canonical: `/users/${encodeURIComponent(decodeURIComponent(userId))}` } };
+}
+
 export default async function PublicProfilePage({
   params,
 }: {

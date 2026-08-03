@@ -1,3 +1,4 @@
+import { cache } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -82,12 +83,54 @@ type Props = {
   searchParams: Promise<{ parent?: string }>;
 };
 
-export async function generateMetadata({ params }: Props) {
+/**
+ * generateMetadata と本体で同じレビュー取得が2回走らないようにする（同一リクエスト内でのみ共有）。
+ */
+const getCategoryReviews = cache(
+  async (slug: string, parentParam?: string): Promise<Review[]> =>
+    getReviewsFromFirestore(undefined, slug, parentParam)
+);
+
+function normalizeParentParam(parentFromUrl?: string): string | undefined {
+  if (parentFromUrl == null || String(parentFromUrl).trim() === "") return undefined;
+  try {
+    return decodeURIComponent(String(parentFromUrl).trim());
+  } catch {
+    return String(parentFromUrl).trim();
+  }
+}
+
+export async function generateMetadata({ params, searchParams }: Props) {
   const { slug } = await params;
+  const { parent: parentFromUrl } = await searchParams;
   const decoded = decodeSlug(slug);
   const name = getCategoryNameBySlug(decoded);
   if (!name) return { title: "カテゴリ" };
-  return { title: `${name} | カテゴリ`, description: `${name}のレビュー一覧と機材カタログ` };
+
+  // レビューが1件も無いカテゴリは noindex にする（2026-08-03）
+  // 理由：Search Console 実測で「クロール済み - インデックス未登録」が117ページあり、
+  //       レビュー0件のカテゴリページは共通ヘッダー・フッター以外に本文が無い状態だった。
+  //       中身の無いページをインデックス対象に残すと、サイト全体の評価を下げる方向に働く。
+  //       follow は残すので、機材カタログ側へのリンクはたどられる。
+  //       レビューが1件でも付けば自動的に index に戻る（除外リストは持たない）。
+  //       ★判定基準は sitemap.ts のカテゴリ絞り込みと同じ（「そのカテゴリのレビューが0件か」）。
+  let hasReview = false;
+  try {
+    const reviews = await getCategoryReviews(decoded, normalizeParentParam(parentFromUrl));
+    hasReview = reviews.length > 0;
+  } catch (err) {
+    // 取得に失敗したときは noindex にしない（一時的な障害でインデックスを落とさないため）
+    console.error("[category/generateMetadata] レビュー件数の取得に失敗", err);
+    hasReview = true;
+  }
+
+  return {
+    title: `${name} | カテゴリ`,
+    description: `${name}のレビュー一覧と機材カタログ`,
+    // ?parent= の有無で別URL扱いされないよう、正規URLはクエリなしに固定する
+    alternates: { canonical: `/category/${encodeURIComponent(decoded)}` },
+    ...(hasReview ? {} : { robots: { index: false, follow: true } }),
+  };
 }
 
 export default async function CategoryPage({ params, searchParams }: Props) {
@@ -97,13 +140,10 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const categoryName = getCategoryNameBySlug(slug);
   if (!categoryName) notFound();
 
-  const parentParam =
-    parentFromUrl != null && String(parentFromUrl).trim() !== ""
-      ? decodeURIComponent(String(parentFromUrl).trim())
-      : undefined;
+  const parentParam = normalizeParentParam(parentFromUrl);
 
   const [reviews, rakutenItems] = await Promise.all([
-    getReviewsFromFirestore(undefined, slug, parentParam),
+    getCategoryReviews(slug, parentParam),
     fetchRakutenItemsByGenreId(getRakutenGenreIdForCategory(slug)),
   ]);
 

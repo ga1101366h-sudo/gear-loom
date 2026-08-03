@@ -8,6 +8,11 @@ import { Button } from "@/components/ui/button";
 
 export const revalidate = 60;
 
+// 正規URLの明示（2026-08-03。Search Console の重複判定対策）
+export const metadata = {
+  alternates: { canonical: "/boards" },
+};
+
 export default async function BoardsPage() {
   const posts = await prisma.boardPost.findMany({
     where: { isPublic: true },

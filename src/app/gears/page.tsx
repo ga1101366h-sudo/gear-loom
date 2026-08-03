@@ -16,6 +16,7 @@ export const metadata = {
   title: "機材一覧",
   description:
     "Gear-Loom に登録されている機材の一覧です。気になる機材のページから、レビューや購入先を探せます。",
+  alternates: { canonical: "/gears" },
 };
 
 const PLACEHOLDER_IMG =

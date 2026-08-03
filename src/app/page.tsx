@@ -46,6 +46,9 @@ export const metadata: Metadata = {
   title: "Gear-Loom | あなたの愛機を語ろう",
   description:
     "機材への愛とこだわりをレビューやカスタム手帳に記録し、音楽仲間と共有できるプラットフォーム。",
+  // 正規URL。Search Console で「重複しています。ユーザーにより、正規ページとして
+  // 選択されていません」が出ていたため、公開ページに canonical を明示する（2026-08-03）
+  alternates: { canonical: "/" },
   openGraph: {
     title: "Gear-Loom | あなたの愛機を語ろう",
     description:

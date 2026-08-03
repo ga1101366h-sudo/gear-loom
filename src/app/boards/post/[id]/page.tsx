@@ -51,6 +51,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${title} | Gear-Loom`,
     description,
+    // 正規URLの明示（2026-08-03。Search Console の重複判定対策）
+    alternates: { canonical: `/boards/post/${id}` },
     openGraph: {
       title: `${title} | Gear-Loom`,
       description,
