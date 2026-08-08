@@ -16,6 +16,8 @@ import {
   getCategoryHref,
   resolveCategoryNameBySlug,
   toCanonicalCategorySlug,
+  decodeCategorySlug,
+  isKnownCategorySlug,
 } from "@/data/post-categories";
 import { getRakutenGenreIdForCategory } from "@/data/rakuten-genres";
 import { getReviewsFromFirestore } from "@/lib/firebase/data";
@@ -27,26 +29,30 @@ import { SearchSidebar } from "./SearchSidebar";
 const PLACEHOLDER_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='260' viewBox='0 0 400 260'%3E%3Crect fill='%231a2332' width='400' height='260'/%3E%3Ctext fill='%236b7280' x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='14'%3EGear-Loom%3C/text%3E%3C/svg%3E";
 
-/** URLで渡された slug をデコード（％エンコード・二重エンコード対策） */
+/**
+ * URLで渡された slug をデコード（％エンコード・二重エンコード対策）。
+ * ★実体は data/post-categories.ts の decodeCategorySlug に一本化してある（2026-08-09 第3弾A）。
+ *   以前はここに同じ内容の関数が複製されていたが、middleware 側と食い違う余地を無くすため統合した。
+ */
 function decodeSlug(slug: string): string {
-  let s = slug;
-  let prev = "";
-  while (s.includes("%") && s !== prev) {
-    prev = s;
-    try {
-      s = decodeURIComponent(s);
-    } catch {
-      break;
-    }
-  }
-  return s;
+  return decodeCategorySlug(slug);
 }
 
 /**
  * slug から表示名を解決する。実在しないカテゴリなら null（＝ notFound() で 404）。
- * 解決ロジックの本体は data/post-categories.ts の resolveCategoryNameBySlug。
+ * 解決ロジックの本体は data/post-categories.ts。
+ *
+ * ★2段構えになっている理由（2026-08-09 第3弾A）
+ *   `resolveCategoryNameBySlug()` は前後の空白を trim してから照合するため、
+ *   `/category/ギター ` `/category/オーバー ドライブ` のような**異表記も名前を返してしまう**。
+ *   第1弾で「どこからもリンクされていない無限の異表記URLは404にする」と決めており、
+ *   その厳密判定は `isKnownCategorySlug()`（＝正規表記そのものか、区切り全除去形か）が持っている。
+ *   以前この判定は middleware 側にあったが、第3弾Aで middleware の404回避策を撤去したため、
+ *   **同じ関数をページ側から直接呼ぶ形に移した**（判定ロジックは1本のまま＝DRY）。
+ *   出典：C:\AI組織運営\.company\reviews\2026-08-08_GearLoom_SEO修正第1弾_再レビュー.md ②(5)
  */
 function getCategoryNameBySlug(slug: string): string | null {
+  if (!isKnownCategorySlug(slug)) return null;
   return resolveCategoryNameBySlug(decodeSlug(slug));
 }
 
@@ -96,18 +102,16 @@ export async function generateMetadata({ params, searchParams }: Props) {
   const { parent: parentFromUrl } = await searchParams;
   const decoded = decodeSlug(slug);
   const name = getCategoryNameBySlug(decoded);
-  // ★実在しないカテゴリは notFound() で落とす（2026-08-08）
-  //   ただし **この notFound() だけでは HTTPステータスは 200 のまま**（＝ソフト404）。
-  //   generateMetadata 側で呼んでもページ本体で呼んでも同じで、これは実測済み。
-  //   ★真因は Next.js のストリーミング仕様ではなく、このリポジトリに `src/app/loading.tsx` が
-  //     あること。ルート直下の loading.tsx がルート直下に Suspense 境界を作るため、シェルが先に
-  //     送出されてステータスに反映されなくなる（レビュアー役が Next.js 15.1.9 の最小再現アプリで
-  //     loading.tsx の有無だけを変える A/B を実施し、あり=200／なし=404 を実測）。
-  //     出典：C:\AI組織運営\.company\reviews\2026-08-08_GearLoom_SEO修正第1弾_レビュー.md ②B
-  //   ★したがって 404 を返しているのは middleware（src/middleware.ts）であり、ここは
-  //     直接アクセス以外の経路（middleware が走らない経路）に対する保険。
-  //     loading.tsx はページ遷移時のスケルトン表示という別の目的があるため、UX を優先して残し、
-  //     middleware 方式を維持する（2026-08-08 CEO判断）。
+  // ★実在しないカテゴリは notFound() で落とす。**これがHTTP 404 の発生源**（2026-08-09 第3弾A）
+  //   かつては この notFound() を呼んでも HTTPステータスが 200 のまま（＝ソフト404）だった。
+  //   真因は Next.js のストリーミング仕様一般ではなく、このリポジトリの `src/app/loading.tsx` が
+  //   ルート直下に Suspense 境界を作り、シェルが先に送出されていたこと
+  //   （レビュアー役が Next.js 15.1.9 の最小再現アプリで loading.tsx の有無だけを変える A/B を実施し、
+  //     あり=200／なし=404 を実測。出典：
+  //     C:\AI組織運営\.company\reviews\2026-08-08_GearLoom_SEO修正第1弾_レビュー.md ②B）。
+  //   ★第3弾Aで `src/app/loading.tsx` を削除したので、この notFound() がそのまま 404 になる。
+  //     middleware 側の404回避策は撤去済み（＝**もうカテゴリの404は middleware に依存していない**）。
+  //     `/gears/*`・`/boards/post/*`・`/users/*` など他ルートのソフト404も同時に解消した。
   if (!name) notFound();
 
   // レビューが1件も無いカテゴリは noindex にする（2026-08-03）

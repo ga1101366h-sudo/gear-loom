@@ -37,8 +37,17 @@
  *                                                   実在する非公開記事の件数を引く方式にしてある。
  *                                                   `/api/about/stats`（公開API）も同じ関数を通る。
  *     - `src/app/sitemap.ts`  … sitemap.xml への掲載と「レビューがあるカテゴリだけ載せる」判定の母集団
- *     - `src/middleware.ts`   … 詳細URLに HTTP 404 を返す（ページ側の notFound() だけでは 200 のままになるため）。
- *                               ただし `/reviews/<id>/edit` は**通す**（本人が中身を直せる＝可逆性の担保）
+ *     - `src/app/reviews/[id]/opengraph-image.tsx` … OGP画像URLに HTTP 404 を返す。
+ *                               この画像ルートだけは、記事が取れなくても汎用画像で 200 を返す作りなので、
+ *                               ここで明示的に落とさないと「200を返すURL」が1本残ってしまう。
+ *
+ *   ★2026-08-09（第3弾A）に変わったこと
+ *     以前は `src/middleware.ts` が `/reviews/<非公開ID>` に HTTP 404 を返していた。
+ *     これは「ページ側の notFound() だけではステータスが 200 のままになる」ソフト404への回避策で、
+ *     真因（ルート直下の `src/app/loading.tsx`）を第3弾Aで取り除いたため**不要になり撤去した**。
+ *     現在は `getReviewByIdFromFirestore()` が null を返す → ページの `notFound()` が
+ *     そのまま HTTP 404 になる。`/reviews/<id>/edit` が通る（本人が中身を直せる＝可逆性の担保）点も
+ *     変わっていない（編集画面は Firestore をクライアント側から読むため）。
  *
  *   ★意図的に除外を入れていない箇所（＝漏れではない）
  *     - `src/lib/firebase/follow-timeline-client.ts` … クライアント側のフォロー中タイムライン。

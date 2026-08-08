@@ -994,6 +994,16 @@ export async function getAboutPageCountsFromFirestore(): Promise<AboutPageCounts
    *
    *   ★存在確認してから引く理由：HIDDEN_REVIEW_IDS に「もう Firestore に無いID」が書かれていると、
    *     単純に個数を引くだけでは件数が実際より少なくなる。getAll は1往復のバッチ読み取り。
+   *
+   *   ★失敗を握り潰さない（2026-08-09 第3弾A）
+   *     以前この catch は黙って 0 を返していた。getAll が失敗すると **何の合図も出ないまま
+   *     /about のレビュー件数が非公開分だけ多く表示される**（14 → 15 に戻る）という、
+   *     気づけない壊れ方をする。ログを出したうえで、
+   *     「引けなかった＝0件引く」ではなく **リストの件数を上限として引く**側に倒す。
+   *     理由＝非公開記事を数え漏らして多く見せる（＝非公開化の意図に反する）より、
+   *     存在しないIDのぶん少なく見せるほうが害が小さいため。件数は「◯◯+件」表記なので
+   *     少なめに出ても表記としては破綻しない。
+   *     出典：C:\AI組織運営\.company\reviews\2026-08-08_GearLoom_SEO修正第2弾A_再レビュー.md 5-1
    */
   async function countExistingHiddenReviews(
     database: NonNullable<ReturnType<typeof getAdminFirestore>>
@@ -1005,8 +1015,12 @@ export async function getAboutPageCountsFromFirestore(): Promise<AboutPageCounts
         ...ids.map((id) => database.collection("reviews").doc(id))
       );
       return snaps.filter((s) => s.exists).length;
-    } catch {
-      return 0;
+    } catch (err) {
+      console.error(
+        `[about] 非公開レビューの存在確認に失敗したため、リスト件数(${ids.length})をそのまま差し引きます`,
+        err
+      );
+      return ids.length;
     }
   }
 

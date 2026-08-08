@@ -49,11 +49,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // レビュー記事（Firestore reviews コレクションのID一覧）
   // あわせて category_id を集め、後段の「レビューがあるカテゴリだけ載せる」判定に使う。
   const reviewCategoryIds = new Set<string>();
-  // 「0件だから壊れている」のか「意図的に外した」のかを後から区別できるようにする
-  let hiddenReviewCount = 0;
+  // Firestore に一度も触れられなかった場合だけ、最後に1行だけ警告を出す（下の「ログ方針」を参照）
+  let firestoreUnavailable = false;
+  let reviewUrlCount = 0;
   try {
     const db = getAdminFirestore();
-    if (db) {
+    if (!db) {
+      firestoreUnavailable = true;
+    } else {
       const snap = await db.collection("reviews").select("updated_at", "category_id").get();
       snap.docs.forEach((d) => {
         // ★非公開にした記事は sitemap に載せない（2026-08-08）。
@@ -61,11 +64,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         //   非公開記事1件しか無いカテゴリページも sitemap から自動的に外れる。
         //   理由と対象は src/data/hidden-reviews.ts を参照。
         if (isHiddenReviewId(d.id)) {
-          hiddenReviewCount += 1;
           return;
         }
         const data = d.data() as { updated_at?: string; category_id?: string };
         addUrl(`/reviews/${d.id}`, data.updated_at || undefined, "weekly");
+        reviewUrlCount += 1;
         const catId = String(data.category_id ?? "").trim();
         if (catId) reviewCategoryIds.add(catId);
       });
@@ -73,7 +76,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch (err) {
     console.error("[sitemap] Failed to load reviews from Firestore", err);
   }
-  console.log(`[sitemap] hidden reviews excluded = ${hiddenReviewCount}`);
 
   // 公開プロフィール（profiles の user_id を優先）
   try {
@@ -98,7 +100,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const db = getAdminFirestore();
     if (!db) {
-      console.error("[sitemap] Firebase Admin が初期化できていないため gears を読み込めません");
+      firestoreUnavailable = true;
     } else {
       const snap = await db.collection("gears").select().get();
       gearCount = snap.size;
@@ -110,8 +112,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch (err) {
     console.error("[sitemap] Failed to load gears from Firestore", err);
   }
-  // 0件は「壊れている」か「データが無い」かの区別が付かないので、必ず件数を残す
-  console.log(`[sitemap] gears urls = ${gearCount}`);
 
   // カテゴリ一覧ページ（POST_CATEGORY_FLAT のカテゴリ slug を列挙）
   //
@@ -122,8 +122,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   //       レビューが付いたカテゴリは自動的にここに載るようになるので、手作業の除外リストは持たない。
   // ※ここで noindex は付けない。noindex は category/[slug]/page.tsx の generateMetadata 側で
   //   「そのカテゴリのレビューが0件なら noindex」として付ける（sitemap と判定基準を揃えてある）。
-  let categoryAdded = 0;
-  let categorySkipped = 0;
   try {
     POST_CATEGORY_FLAT.forEach((c) => {
       const slug = c.slug?.trim();
@@ -131,24 +129,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       // 1つの slug は複数の表記ゆれ（英語ID／日本語パス／メガメニュー上のパス）で保存されうるため、
       // カテゴリページ本体と同じ getCategoryPathSlugVariants で候補を出して突き合わせる。
       const hasReview = getCategoryPathSlugVariants(slug).some((v) => reviewCategoryIds.has(v));
-      if (!hasReview) {
-        categorySkipped += 1;
-        return;
-      }
+      if (!hasReview) return;
       addUrl(`/category/${encodeURIComponent(slug)}`, undefined, "weekly");
-      categoryAdded += 1;
     });
   } catch (err) {
     console.error("[sitemap] Failed to add category pages", err);
   }
-  // 「0件だから壊れている」のか「レビューが無いから正しく除外した」のかを後から区別できるようにする
-  console.log(
-    `[sitemap] category urls = ${categoryAdded} (skipped empty = ${categorySkipped} / total = ${POST_CATEGORY_FLAT.length})`
-  );
 
-  // 生成結果の内訳を残す（本番で「なぜかURLが少ない」を後から追えるようにする）
-  const gearUrlCount = urls.filter((u) => u.url.includes("/gears/")).length;
-  console.log(`[sitemap] total urls = ${urls.length} (gear detail = ${gearUrlCount})`);
+  // ★ログ方針（2026-08-09 第3弾A）
+  //   以前はここまでに内訳を4本 console.log していたが、sitemap.xml は
+  //   **クロールのたびに実行される**ため、正常時のログが Vercel のログを埋め続けていた。
+  //   出典：C:\AI組織運営\.company\reviews\2026-08-08_GearLoom_SEO修正第2弾A_レビュー.md 🟡-3
+  //   一方で「0件なのは壊れているからか、データが無いからか」を後から区別したい、という
+  //   元のログの目的は残す必要がある。そこで **異常のときだけ1行** 出す形にした：
+  //     - 取得例外 … 各 try/catch の console.error（従来どおり）
+  //     - Firebase Admin が初期化できていない／レビューURLが1本も無い … 下の console.warn
+  //   正常時は1行も出さない。
+  if (firestoreUnavailable || reviewUrlCount === 0) {
+    console.warn(
+      `[sitemap] 異常の可能性: firestore利用不可=${firestoreUnavailable} / レビューURL=${reviewUrlCount}本 / 機材=${gearCount}件 / 総URL=${urls.length}本`
+    );
+  }
 
   return urls;
 }

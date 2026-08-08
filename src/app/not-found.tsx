@@ -14,9 +14,13 @@ import { VISIBLE_MAIN_CATEGORIES } from "@/data/visible-menu";
  *   加えて第1弾で「中身の無いカテゴリURLを意図的に404にする」変更を入れたため、
  *   ユーザーがこの画面に到達する確率が上がっている。着地先を整えるのはセットで必要。
  *
- * ★HTTPステータスについて
- *   このファイルは**見た目だけ**を担当する。ステータス404を返しているのは src/middleware.ts。
- *   （このリポジトリには src/app/loading.tsx があり、notFound() だけではステータスが200のままになる）
+ * ★HTTPステータスについて（2026-08-09 第3弾Aで更新）
+ *   このファイルは**見た目だけ**を担当する。ステータス404は各ページの `notFound()` と、
+ *   ルーティング不一致時の Next.js 本体が返す。
+ *   以前は「ルート直下の `src/app/loading.tsx` が Suspense 境界を作るせいで notFound() が
+ *   ステータスに反映されず 200 のままになる」問題があり、src/middleware.ts で肩代わりしていたが、
+ *   第3弾Aで loading.tsx を削除して根本解消した（middleware の404回避策も撤去済み）。
+ *   出典：C:\AI組織運営\.company\engineering\notes\2026-08-09_GearLoom_SEO修正_第3弾A実装.md
  */
 export const metadata = {
   title: "ページが見つかりません",

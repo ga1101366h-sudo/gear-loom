@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { getReviewByIdFromFirestore } from "@/lib/firebase/data";
 import { getReviewPrimaryImageUrl } from "@/lib/review-og-image";
+import { isHiddenReviewId } from "@/data/hidden-reviews";
 
 export const alt = "Gear-Loom レビュー";
 export const size = { width: 1200, height: 675 }; // X推奨 1.78:1
@@ -99,6 +100,20 @@ export default async function OpenGraphImage({
 }) {
   try {
     const { id } = await params;
+
+    // ★非公開にした記事のOGP画像URLは 404 を返す（2026-08-09 第3弾A）
+    //   本文ページ `/reviews/<非公開ID>` は notFound() で 404 になるが、この画像ルートは
+    //   getReviewByIdFromFirestore が null を返しても下の FallbackCard で **200** を返してしまう。
+    //   非公開化の目的は「検索結果からも消す」ことなので、200 を返すURLを増やさない。
+    //   ※第2弾Aでは同じことを middleware（`/reviews/:path*`）でやっていたが、
+    //     第3弾Aで middleware を `/category/*` だけに絞ったため、判定をこちらへ移した。
+    //   ※`!review`（存在しないID）まで 404 にしないのは、
+    //     getReviewByIdFromFirestore が Firestore の一時的な失敗でも null を返す実装だから。
+    //     一時障害でOGP画像が消えるより、汎用画像が出るほうが害が小さい。
+    if (isHiddenReviewId(id)) {
+      return new Response(null, { status: 404 });
+    }
+
     const review = await getReviewByIdFromFirestore(id);
 
     if (!review) {

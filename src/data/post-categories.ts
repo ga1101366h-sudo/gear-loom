@@ -383,7 +383,13 @@ export function isCanonicalCategorySlug(decoded: string): boolean {
   return true;
 }
 
-/** エンコード済み slug が実在するカテゴリかどうか（middleware の404判定用） */
+/**
+ * エンコード済み slug が実在するカテゴリかどうか。
+ * ★2箇所から呼ばれる（2026-08-09 第3弾Aで移動。判定は必ずこの1本を通すこと＝DRY）
+ *   - `src/app/category/[slug]/page.tsx` … false なら notFound()（＝HTTP 404 の発生源）
+ *   - `src/middleware.ts`                … false なら 308 の正規化対象から外す
+ *                                          （trim される異表記を200に化けさせないためのガード）
+ */
 export function isKnownCategorySlug(encodedSlug: string): boolean {
   return isCanonicalCategorySlug(decodeCategorySlug(encodedSlug));
 }
