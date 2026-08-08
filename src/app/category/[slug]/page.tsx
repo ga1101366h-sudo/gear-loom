@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getFirebaseStorageUrl } from "@/lib/utils";
-import { isContentOnlyCategorySlug, isMainCategoryName, POST_CATEGORY_FLAT, normalizeCategorySlug, getCategoryLabel, getCategoryPathDisplay } from "@/data/post-categories";
+import { isContentOnlyCategorySlug, getCategoryPathDisplay, resolveCategoryNameBySlug } from "@/data/post-categories";
 import { getRakutenGenreIdForCategory } from "@/data/rakuten-genres";
 import { getReviewsFromFirestore } from "@/lib/firebase/data";
 import { fetchRakutenItemsByGenreId } from "@/lib/rakuten";
@@ -36,27 +36,12 @@ function decodeSlug(slug: string): string {
   return s;
 }
 
-/** 日本語の「大__中__小」形式なら最後の1つ（詳細名）を返し、それ以外は getCategoryLabel に任せる */
-function getCategoryDisplayNameFromSlug(slug: string): string {
-  const decoded = decodeSlug(slug);
-  const parts = decoded.split("__").filter(Boolean);
-  if (parts.length >= 3) return parts[parts.length - 1];
-  if (parts.length === 2) return parts[1];
-  if (parts.length === 1) return parts[0];
-  return decoded;
-}
-
+/**
+ * slug から表示名を解決する。実在しないカテゴリなら null（＝ notFound() で 404）。
+ * 解決ロジックの本体は data/post-categories.ts の resolveCategoryNameBySlug。
+ */
 function getCategoryNameBySlug(slug: string): string | null {
-  const decoded = decodeSlug(slug);
-  if (!decoded.trim()) return null;
-  if (isMainCategoryName(decoded)) return decoded;
-  const normalized = normalizeCategorySlug(decoded);
-  const flat = Array.isArray(POST_CATEGORY_FLAT) ? POST_CATEGORY_FLAT : [];
-  const fromFlat = flat.find((c) => c.slug === normalized)?.name_ja;
-  if (fromFlat) return fromFlat;
-  const fromLabel = getCategoryLabel(decoded);
-  if (fromLabel && fromLabel !== decoded) return fromLabel;
-  return getCategoryDisplayNameFromSlug(decoded);
+  return resolveCategoryNameBySlug(decodeSlug(slug));
 }
 
 function getFirstReviewImageUrl(r: Review): string | null {
@@ -105,7 +90,19 @@ export async function generateMetadata({ params, searchParams }: Props) {
   const { parent: parentFromUrl } = await searchParams;
   const decoded = decodeSlug(slug);
   const name = getCategoryNameBySlug(decoded);
-  if (!name) return { title: "カテゴリ" };
+  // ★実在しないカテゴリは notFound() で落とす（2026-08-08）
+  //   ただし **この notFound() だけでは HTTPステータスは 200 のまま**（＝ソフト404）。
+  //   generateMetadata 側で呼んでもページ本体で呼んでも同じで、これは実測済み。
+  //   ★真因は Next.js のストリーミング仕様ではなく、このリポジトリに `src/app/loading.tsx` が
+  //     あること。ルート直下の loading.tsx がルート直下に Suspense 境界を作るため、シェルが先に
+  //     送出されてステータスに反映されなくなる（レビュアー役が Next.js 15.1.9 の最小再現アプリで
+  //     loading.tsx の有無だけを変える A/B を実施し、あり=200／なし=404 を実測）。
+  //     出典：C:\AI組織運営\.company\reviews\2026-08-08_GearLoom_SEO修正第1弾_レビュー.md ②B
+  //   ★したがって 404 を返しているのは middleware（src/middleware.ts）であり、ここは
+  //     直接アクセス以外の経路（middleware が走らない経路）に対する保険。
+  //     loading.tsx はページ遷移時のスケルトン表示という別の目的があるため、UX を優先して残し、
+  //     middleware 方式を維持する（2026-08-08 CEO判断）。
+  if (!name) notFound();
 
   // レビューが1件も無いカテゴリは noindex にする（2026-08-03）
   // 理由：Search Console 実測で「クロール済み - インデックス未登録」が117ページあり、
