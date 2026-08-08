@@ -10,7 +10,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getFirebaseStorageUrl } from "@/lib/utils";
-import { isContentOnlyCategorySlug, getCategoryPathDisplay, resolveCategoryNameBySlug } from "@/data/post-categories";
+import {
+  isContentOnlyCategorySlug,
+  getCategoryPathDisplay,
+  getCategoryHref,
+  resolveCategoryNameBySlug,
+  toCanonicalCategorySlug,
+} from "@/data/post-categories";
 import { getRakutenGenreIdForCategory } from "@/data/rakuten-genres";
 import { getReviewsFromFirestore } from "@/lib/firebase/data";
 import { fetchRakutenItemsByGenreId } from "@/lib/rakuten";
@@ -124,8 +130,13 @@ export async function generateMetadata({ params, searchParams }: Props) {
   return {
     title: `${name} | カテゴリ`,
     description: `${name}のレビュー一覧と機材カタログ`,
-    // ?parent= の有無で別URL扱いされないよう、正規URLはクエリなしに固定する
-    alternates: { canonical: `/category/${encodeURIComponent(decoded)}` },
+    // ?parent= の有無で別URL扱いされないよう、正規URLはクエリなしに固定する。
+    // ★さらに、同じカテゴリの2系統URL（日本語式／ローマ字式）を1本に寄せる（2026-08-08 第2弾A）。
+    //   通常は middleware が 308 で寄せるので日本語式でここに到達しないが、
+    //   middleware が走らない経路に対する保険として canonical 側でも正規化しておく。
+    alternates: {
+      canonical: `/category/${encodeURIComponent(toCanonicalCategorySlug(decoded) ?? decoded)}`,
+    },
     ...(hasReview ? {} : { robots: { index: false, follow: true } }),
   };
 }
@@ -193,6 +204,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
                 ? (r.categories as { slug: string }).slug
                 : r.category_id;
               const catName = catSlug ? getCategoryPathDisplay(catSlug) : null;
+              // 内部リンクは必ず正規URL（ローマ字式）を指す＝sitemap と同じURLを推す
+              const catHref = catSlug ? getCategoryHref(catSlug) : null;
               return (
                 <li key={r.id}>
                   <Card className="h-full overflow-hidden transition-all hover:border-electric-blue/50">
@@ -232,12 +245,17 @@ export default async function CategoryPage({ params, searchParams }: Props) {
                     </Link>
                     {catName && (
                       <div className="px-3 pb-2">
-                        <Link
-                          href={`/category/${catSlug}`}
-                          className="text-xs text-electric-blue hover:underline"
-                        >
-                          {catName}
-                        </Link>
+                        {catHref ? (
+                          <Link
+                            href={catHref}
+                            className="text-xs text-electric-blue hover:underline"
+                          >
+                            {catName}
+                          </Link>
+                        ) : (
+                          // 正規URLに解決できないカテゴリはリンクにしない（壊れたリンクを出さない）
+                          <span className="text-xs text-gray-400">{catName}</span>
+                        )}
                       </div>
                     )}
                   </Card>

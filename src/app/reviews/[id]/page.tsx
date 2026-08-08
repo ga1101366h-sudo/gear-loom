@@ -9,7 +9,12 @@ import {
   getReviewHelpfulCountFromFirestore,
   type ReviewDetail,
 } from "@/lib/firebase/data";
-import { isContentOnlyCategorySlug, getCategoryLabel } from "@/data/post-categories";
+import {
+  isContentOnlyCategorySlug,
+  getCategoryLabel,
+  getCategoryBreadcrumb,
+  getCategoryHref,
+} from "@/data/post-categories";
 import { ECSearchLinks } from "@/components/ec-search-links";
 import { ReviewHelpfulButton } from "@/components/review-helpful-button";
 import { ReviewCompareButton } from "@/components/review-compare-button";
@@ -269,32 +274,37 @@ export default async function ReviewDetailPage({
           <CardDescription className="flex items-center gap-2 flex-wrap">
             {categorySlug ? (
               (() => {
-                const parts = categorySlug.split("__").filter(Boolean);
+                // ★リンク先はカテゴリページの正規URLを直接指す（2026-08-08 第2弾A）。
+                //   従来の `/reviews?category=...` 経由は、中間段が 404 に着地し、
+                //   末端段は日本語式URL（sitemap が推すローマ字式とは別のURL）に着地していた。
+                const crumbs = getCategoryBreadcrumb(categorySlug);
                 // スラグ分割で階層が取れない場合 or コンテンツ系カテゴリ（event/blog/custom）は単一ラベルで表示
-                if (parts.length === 0 || isContentOnlyCategory) {
-                  return (
-                    <Link
-                      href={`/reviews?category=${encodeURIComponent(categorySlug)}`}
-                      className="text-electric-blue hover:underline"
-                    >
-                      {categoryName || categorySlug}
+                if (crumbs.length === 0 || isContentOnlyCategory) {
+                  const href = getCategoryHref(categorySlug);
+                  const label = categoryName || categorySlug;
+                  return href ? (
+                    <Link href={href} className="text-electric-blue hover:underline">
+                      {label}
                     </Link>
+                  ) : (
+                    <span className="text-electric-blue">{label}</span>
                   );
                 }
                 return (
                   <>
-                    {parts.map((label, i) => {
-                      const slugUpToHere = parts.slice(0, i + 1).join("__");
-                      const href = `/reviews?category=${encodeURIComponent(slugUpToHere)}`;
-                      return (
-                        <span key={`${label}-${i}`}>
-                          {i > 0 && <span className="text-gray-500 mx-1">›</span>}
+                    {crumbs.map(({ label, href }, i) => (
+                      <span key={`${label}-${i}`}>
+                        {i > 0 && <span className="text-gray-500 mx-1">›</span>}
+                        {href ? (
                           <Link href={href} className="text-electric-blue hover:underline">
                             {label}
                           </Link>
-                        </span>
-                      );
-                    })}
+                        ) : (
+                          // 正規URLに解決できない段はリンクにしない（404へ飛ばさない）
+                          <span className="text-gray-400">{label}</span>
+                        )}
+                      </span>
+                    ))}
                   </>
                 );
               })()

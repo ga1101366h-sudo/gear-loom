@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, CARD_ACTION_BUTTON_CLASS } from "@/components/ui/button";
 import { setPendingGear } from "@/lib/pending-gear";
 
 const PLACEHOLDER_IMG =
@@ -81,7 +81,7 @@ export function SearchCatalogSection({ keyword, catalogItems }: Props) {
                 )}
               </CardHeader>
               <CardContent className="p-3 pt-0">
-                <Button size="sm" className="w-full" onClick={() => handleOpenReview(item)}>
+                <Button size="sm" className={CARD_ACTION_BUTTON_CLASS} onClick={() => handleOpenReview(item)}>
                   この機材でレビューを書く
                 </Button>
               </CardContent>

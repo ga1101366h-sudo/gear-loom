@@ -33,6 +33,26 @@ const buttonVariants = cva(
   }
 );
 
+/**
+ * 幅の狭いカード内で全幅表示するボタンに足すクラス。
+ *
+ * ★なぜ必要か（2026-08-08 第2弾A・実測）
+ *   buttonVariants の基底に `whitespace-nowrap` があるため、ボタン幅より文字が長いと
+ *   **折り返さずにボタンの外へ文字がはみ出す**（PC 1920px のカタログカードで実測：
+ *   ボタン幅 157px に対し文字が必要とする幅 162px。全カテゴリの全カードで発生）。
+ *   出典：C:\AI組織運営\.company\reviews\2026-08-08_GearLoom_本番_視覚チェック.md 🔴-1
+ *   ここで折り返しを許可し高さを可変にすることで、**カード幅がいくつでもはみ出さない**。
+ *
+ * ★「文字を小さくする」「文字を短くする」だけでは直らない理由（実測）
+ *   同じカードのボタン幅は、画面幅によって **1920px:155px / 1024px:115px / 768px:89px** と変わる。
+ *   一方 "この機材でレビューを書く" は 1行だと 12px フォントでも 144px 必要。
+ *   **どのフォントサイズでも 768〜1024px では1行に収まらない**ので、折り返しの許可が必須。
+ *   そのうえで px-1（左右4px）にして、PC幅（155px枠 − 8px ＝ 147px ≥ 144px）では1行に収める。
+ *   折り返す場合も text-balance で行を均等に割り、1文字だけが次行に落ちるのを避ける。
+ */
+export const CARD_ACTION_BUTTON_CLASS =
+  "w-full whitespace-normal text-balance h-auto min-h-[2.25rem] px-1 py-1.5 text-xs leading-snug";
+
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {

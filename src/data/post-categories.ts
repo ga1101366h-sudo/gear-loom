@@ -11,6 +11,7 @@ import {
   getCategoryDisplayLabel,
   getCategoryParentName,
   getCategoryParentIconName,
+  getCategorySlugFromDisplayPath,
   getLevel2IdBySubGroupName,
   LEGACY_SLUG_TO_NEW,
   toCategorySlug,
@@ -385,6 +386,87 @@ export function isCanonicalCategorySlug(decoded: string): boolean {
 /** エンコード済み slug が実在するカテゴリかどうか（middleware の404判定用） */
 export function isKnownCategorySlug(encodedSlug: string): boolean {
   return isCanonicalCategorySlug(decodeCategorySlug(encodedSlug));
+}
+
+/**
+ * 同じカテゴリを指す複数の表記を、1つの「正規URL用 slug」に寄せる。
+ * 解決できない（＝存在しないカテゴリ）場合は null。
+ *
+ * ★なぜ必要か（2026-08-08 第2弾A）
+ *   同じカテゴリが2系統のURLで公開され、**どちらも canonical が自分自身**を指していた。
+ *     - `/category/bass-effector__overdrive`      … sitemap.xml が載せている（ローマ字式）
+ *     - `/category/ベース__ベースエフェクター__オーバードライブ` … レビュー詳細からの内部リンク先（日本語式）
+ *   中身は同じなので Google からは重複コンテンツに見え、評価が2つに割れる。
+ *   出典：C:\AI組織運営\.company\reviews\2026-08-08_GearLoom_本番_視覚チェック.md
+ *        「指示範囲外だが重要（SEO第2弾で扱うべき論点）」
+ *
+ * ★どちらをローマ字式（level2Id__level3Id）に寄せるか＝ローマ字式を正とする理由
+ *   1. sitemap.ts が載せているのはローマ字式だけ（POST_CATEGORY_FLAT の slug）。
+ *   2. ローマ字式は ASCII なので URL が短く、共有・ログ・被リンクで壊れにくい。
+ *   3. 日本語式は既存レビューの category_id の保存形式に過ぎず、URL として設計されたものではない。
+ *
+ * ★ローマ字式が存在しない日本語パスは、そのまま日本語パスが正規URL（実測 1,410件中 1,374件）。
+ *   これらは「2系統ある」問題そのものが無いので寄せる先が無い。
+ *   既存レビューでは `ベース__ベースエフェクター__DIプリアンプ` 等 3種がこれに当たる。
+ */
+export function toCanonicalCategorySlug(input: string): string | null {
+  const decoded = decodeCategorySlug(input || "").trim();
+  if (!decoded) return null;
+
+  // 日本語の表示名パス「大__中__小」で、対応するローマ字 slug があるものはそちらへ寄せる
+  const matched = matchMegaMenuDisplayPath(decoded);
+  if (matched) {
+    const [mainName, subTitle, itemName] = matched.canonicalPath.split(SLUG_SEP);
+    const roman = getCategorySlugFromDisplayPath(mainName, subTitle, itemName);
+    if (roman && isCanonicalCategorySlug(roman)) return roman;
+  }
+
+  // それ以外は「そのままの表記が正規URL」。実在しない slug は null。
+  return isCanonicalCategorySlug(decoded) ? decoded : null;
+}
+
+/**
+ * カテゴリページへの内部リンクに使う href を返す。正規URLに解決できないものは null（＝リンクにしない）。
+ * 内部リンクとsitemapが別々のURLを推す状態を作らないため、リンクは必ずここを通す。
+ */
+export function getCategoryHref(input: string): string | null {
+  const slug = toCanonicalCategorySlug(input);
+  return slug ? `/category/${encodeURIComponent(slug)}` : null;
+}
+
+/**
+ * レビュー詳細のパンくず用：カテゴリ slug を「表示ラベル ＋ 正規URLの href」に分解する。
+ * href が null の段はリンクにしない。
+ *
+ * ★なぜ必要か（2026-08-08 第2弾A・実測）
+ *   従来は各段が `/reviews?category=<そこまでの__連結>` を指していた。これは
+ *   `/reviews` の redirect() 経由で `/category/<同じ文字列>` に飛ぶが、
+ *   **中間段（例「ベース__ベースエフェクター」）は実在しない slug なので 404 に着地していた**
+ *   （本番実測：/category/ベース__ベースエフェクター → HTTP 404）。
+ *   また末端段は日本語式URLに着地するため、sitemap（ローマ字式）と別のURLを推していた。
+ *   ここで段ごとに実在する正規URLへ解決する。
+ */
+export function getCategoryBreadcrumb(
+  categorySlug: string
+): { label: string; href: string | null }[] {
+  const decoded = decodeCategorySlug(categorySlug || "").trim();
+  if (!decoded) return [];
+  const parts = decoded.split(SLUG_SEP).filter(Boolean);
+  if (parts.length <= 1) {
+    return [{ label: getCategoryPathDisplay(decoded) || decoded, href: getCategoryHref(decoded) }];
+  }
+  const lastIndex = parts.length - 1;
+  return parts.map((label, i) => {
+    // 末端は「パス全体」が指すカテゴリ＝正規URL（ローマ字式があればそちら）
+    if (i === lastIndex) return { label, href: getCategoryHref(decoded) };
+    // 第1階層名（「ベース」など）はそれ自体が有効な slug
+    if (isMainCategoryName(label)) return { label, href: getCategoryHref(label) };
+    // 第2階層名（「ベースエフェクター」など）は level2 id に逆引きしてからリンクにする
+    const level2Id = getLevel2IdBySubGroupName(label);
+    if (level2Id) return { label, href: getCategoryHref(level2Id) };
+    // 解決できない段はリンクにしない（404へ飛ばさない）
+    return { label, href: null };
+  });
 }
 
 /**

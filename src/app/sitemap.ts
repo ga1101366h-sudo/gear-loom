@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { getAdminFirestore } from "@/lib/firebase/admin";
 import { POST_CATEGORY_FLAT, getCategoryPathSlugVariants } from "@/data/post-categories";
+import { isHiddenReviewId } from "@/data/hidden-reviews";
 
 export const dynamic = "force-dynamic";
 
@@ -48,11 +49,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // レビュー記事（Firestore reviews コレクションのID一覧）
   // あわせて category_id を集め、後段の「レビューがあるカテゴリだけ載せる」判定に使う。
   const reviewCategoryIds = new Set<string>();
+  // 「0件だから壊れている」のか「意図的に外した」のかを後から区別できるようにする
+  let hiddenReviewCount = 0;
   try {
     const db = getAdminFirestore();
     if (db) {
       const snap = await db.collection("reviews").select("updated_at", "category_id").get();
       snap.docs.forEach((d) => {
+        // ★非公開にした記事は sitemap に載せない（2026-08-08）。
+        //   category_id も集めない＝「レビューがあるカテゴリだけ載せる」判定の母集団からも外れるので、
+        //   非公開記事1件しか無いカテゴリページも sitemap から自動的に外れる。
+        //   理由と対象は src/data/hidden-reviews.ts を参照。
+        if (isHiddenReviewId(d.id)) {
+          hiddenReviewCount += 1;
+          return;
+        }
         const data = d.data() as { updated_at?: string; category_id?: string };
         addUrl(`/reviews/${d.id}`, data.updated_at || undefined, "weekly");
         const catId = String(data.category_id ?? "").trim();
@@ -62,6 +73,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch (err) {
     console.error("[sitemap] Failed to load reviews from Firestore", err);
   }
+  console.log(`[sitemap] hidden reviews excluded = ${hiddenReviewCount}`);
 
   // 公開プロフィール（profiles の user_id を優先）
   try {

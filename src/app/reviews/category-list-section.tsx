@@ -8,7 +8,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getFirebaseStorageUrl } from "@/lib/utils";
-import { isContentOnlyCategorySlug, getCategoryPathDisplay } from "@/data/post-categories";
+import {
+  isContentOnlyCategorySlug,
+  getCategoryPathDisplay,
+  getCategoryHref,
+} from "@/data/post-categories";
 import type { Review } from "@/types/database";
 import { shouldUnoptimizeFirebaseStorage } from "@/lib/image-optimization";
 
@@ -79,6 +83,8 @@ export function CategoryListSection({
               ? (r.categories as { slug: string }).slug
               : r.category_id;
             const categoryName = categorySlug ? getCategoryPathDisplay(categorySlug) : null;
+            // 内部リンクは必ずカテゴリページの正規URLを指す（2026-08-08 第2弾A）
+            const categoryHref = categorySlug ? getCategoryHref(categorySlug) : null;
             const excerpt = getReviewExcerpt(r);
 
             // /reviews/[id] でカテゴリ（ブログ/イベント）を正しくヘッダー表示するためのメインナビ上書き用
@@ -128,12 +134,17 @@ export function CategoryListSection({
                   </Link>
                   {categoryName && (
                     <div className="px-3 pb-3 -mt-1">
-                      <Link
-                        href={`/reviews?category=${encodeURIComponent(categorySlug)}`}
-                        className="text-xs text-electric-blue hover:underline"
-                      >
-                        {categoryName}
-                      </Link>
+                      {categoryHref ? (
+                        <Link
+                          href={categoryHref}
+                          className="text-xs text-electric-blue hover:underline"
+                        >
+                          {categoryName}
+                        </Link>
+                      ) : (
+                        // 正規URLに解決できないカテゴリはリンクにしない（壊れたリンクを出さない）
+                        <span className="text-xs text-gray-400">{categoryName}</span>
+                      )}
                     </div>
                   )}
                 </Card>

@@ -2,6 +2,7 @@ import { getAdminFirestore } from "./admin";
 import { prisma } from "@/lib/prisma";
 import { getCategoryLevel, getAllTargetSlugs, getAllTargetItems } from "@/data/category-search";
 import { getCategoryLabel, getCategoryPathSlugVariants, isContentOnlyCategorySlug } from "@/data/post-categories";
+import { isHiddenReviewId, HIDDEN_REVIEW_IDS } from "@/data/hidden-reviews";
 import type { Review, Category, Maker, LiveEvent, Profile, Gear } from "@/types/database";
 
 export type ReviewDetail = Review & {
@@ -379,8 +380,13 @@ export async function getReviewsFromFirestore(
       if (limit) q = q.limit(limit) as ReturnType<typeof q.limit>;
       snap = await q.get();
     }
+    // ★非公開にした記事をここで一括除外する（2026-08-08）。
+    //   トップの新着・レビュー一覧・カテゴリページ・/blog・/events・/photos の取得はすべてこの関数を通るので、
+    //   ここ1箇所で公開面から外れる。理由と対象は src/data/hidden-reviews.ts を参照。
+    const visibleDocs = snap.docs.filter((d) => !isHiddenReviewId(d.id));
+
     const authorIdsNeedingProfile = [...new Set(
-      snap.docs
+      visibleDocs
         .map((d) => {
           const data = d.data();
           const authorId = (data.author_id as string) ?? "";
@@ -392,7 +398,7 @@ export async function getReviewsFromFirestore(
     )];
     const profileMap = await getProfilesByAuthorIds(db, authorIdsNeedingProfile);
 
-    const reviews: Review[] = snap.docs.map((d) => {
+    const reviews: Review[] = visibleDocs.map((d) => {
       const data = d.data();
       const authorId = (data.author_id as string) ?? "";
       const fromDoc =
@@ -465,7 +471,9 @@ export async function getReviewsByAuthorIdFromFirestore(
   if (!db) return [];
   if (!authorId.trim()) return [];
   try {
-    const snap = await db.collection("reviews").where("author_id", "==", authorId).get();
+    const snapRaw = await db.collection("reviews").where("author_id", "==", authorId).get();
+    // ★非公開にした記事を除外（2026-08-08）。src/data/hidden-reviews.ts 参照
+    const snap = { docs: snapRaw.docs.filter((d) => !isHiddenReviewId(d.id)) };
     const reviews: Review[] = snap.docs
       .map((d) => {
       const data = d.data();
@@ -543,6 +551,9 @@ export async function getReviewByIdFromFirestore(id: string): Promise<ReviewDeta
   const db = getAdminFirestore();
   if (!db) return null;
   try {
+    // ★非公開にした記事は、詳細ページに直リンクで来ても表示しない（2026-08-08）。
+    //   呼び出し側（app/reviews/[id]/page.tsx）は null で notFound() になる。
+    if (isHiddenReviewId(id)) return null;
     const docSnap = await db.collection("reviews").doc(id).get();
     if (!docSnap.exists) return null;
     const data = docSnap.data()!;
@@ -652,6 +663,8 @@ export async function getGearRatingAggregateFromFirestore(
   try {
     const snap = await db.collection("reviews").where("gear_id", "==", gearId).get();
     const ratings = snap.docs
+      // ★非公開にした記事は評価集計にも入れない（2026-08-08）。src/data/hidden-reviews.ts 参照
+      .filter((d) => !isHiddenReviewId(d.id))
       .map((d) => Number(d.data().rating ?? 0))
       .filter((r) => r > 0);
     if (ratings.length === 0) return null;
@@ -715,10 +728,12 @@ export async function getPopularReviewsFromFirestore(limit = 20): Promise<Review
   const db = getAdminFirestore();
   if (!db) return [];
   try {
-    const [reviewsSnap, likesSnap] = await Promise.all([
+    const [reviewsSnapRaw, likesSnap] = await Promise.all([
       db.collection("reviews").orderBy("created_at", "desc").limit(150).get(),
       db.collection("review_likes").get(),
     ]);
+    // ★非公開にした記事を除外（2026-08-08）。src/data/hidden-reviews.ts 参照
+    const reviewsSnap = { docs: reviewsSnapRaw.docs.filter((d) => !isHiddenReviewId(d.id)) };
     const likeCountByReviewId: Record<string, number> = {};
     likesSnap.docs.forEach((d) => {
       const rid = d.data().review_id;
@@ -970,14 +985,46 @@ export async function getAboutPageCountsFromFirestore(): Promise<AboutPageCounts
     }
   }
 
+  /**
+   * ★非公開にした記事のうち、`reviews` に**実在する**ものの件数（2026-08-09 レビュー差し戻し 🔴-2 の是正）
+   *   count() は集計クエリなので、他の経路のような docs のフィルタが効かない。
+   *   そのため、この経路だけ非公開記事が件数に残り、/about だけ 15、他の公開面は 14 という
+   *   食い違いが出ていた（レビュアー役が /about のHTMLを取得して実測）。
+   *   出典：C:\AI組織運営\.company\reviews\2026-08-08_GearLoom_SEO修正第2弾A_レビュー.md 🔴-2
+   *
+   *   ★存在確認してから引く理由：HIDDEN_REVIEW_IDS に「もう Firestore に無いID」が書かれていると、
+   *     単純に個数を引くだけでは件数が実際より少なくなる。getAll は1往復のバッチ読み取り。
+   */
+  async function countExistingHiddenReviews(
+    database: NonNullable<ReturnType<typeof getAdminFirestore>>
+  ): Promise<number> {
+    const ids = Object.keys(HIDDEN_REVIEW_IDS);
+    if (ids.length === 0) return 0;
+    try {
+      const snaps = await database.getAll(
+        ...ids.map((id) => database.collection("reviews").doc(id))
+      );
+      return snaps.filter((s) => s.exists).length;
+    } catch {
+      return 0;
+    }
+  }
+
   try {
-    const [reviews, profiles, notebookEntries, liveEvents] = await Promise.all([
+    const [reviewsTotal, profiles, notebookEntries, liveEvents, hiddenExisting] = await Promise.all([
       getCount(db, "reviews"),
       getCount(db, "profiles"),
       getCount(db, "gear_notebook_entries"),
       getCount(db, "live_events"),
+      countExistingHiddenReviews(db),
     ]);
-    return { reviews, profiles, notebookEntries, liveEvents, boardPosts: 0 };
+    return {
+      reviews: Math.max(0, reviewsTotal - hiddenExisting),
+      profiles,
+      notebookEntries,
+      liveEvents,
+      boardPosts: 0,
+    };
   } catch {
     return fallback;
   }
@@ -1046,7 +1093,8 @@ export async function getReviewsFromFollowedUsersFromFirestore(
       .where("author_id", "in", chunk)
       .limit(80)
       .get();
-    snap.docs.forEach((d) => allDocs.push(d));
+    // ★非公開にした記事を除外（2026-08-08）。src/data/hidden-reviews.ts 参照
+    snap.docs.forEach((d) => { if (!isHiddenReviewId(d.id)) allDocs.push(d); });
   }
   allDocs.sort((a, b) => (b.data().created_at ?? "").localeCompare(a.data().created_at ?? ""));
   const trimmed = allDocs.slice(0, limit);
@@ -1160,6 +1208,8 @@ export async function getFollowingTimelineFromFirestore(
       .limit(Math.ceil(FOLLOW_TIMELINE_REVIEW_LIMIT / (followingIds.length / chunkSize)) || 15)
       .get();
     reviewsSnap.docs.forEach((d) => {
+      // ★非公開にした記事を除外（2026-08-08）。src/data/hidden-reviews.ts 参照
+      if (isHiddenReviewId(d.id)) return;
       const data = d.data();
       items.push({
         type: "review",

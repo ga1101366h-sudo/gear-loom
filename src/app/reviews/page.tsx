@@ -9,7 +9,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getFirebaseStorageUrl } from "@/lib/utils";
-import { isContentOnlyCategorySlug, getCategoryPathDisplay } from "@/data/post-categories";
+import {
+  isContentOnlyCategorySlug,
+  getCategoryPathDisplay,
+  getCategoryHref,
+  toCanonicalCategorySlug,
+} from "@/data/post-categories";
 import { RAKUTEN_GENRE_INSTRUMENTS } from "@/data/rakuten-genres";
 import { fetchRakutenItems } from "@/lib/rakuten";
 import type { Review } from "@/types/database";
@@ -93,7 +98,12 @@ export default async function ReviewsListPage({ searchParams }: Props) {
   // カテゴリ付きのレビュー一覧URLに直接アクセスされた場合は
   // 新しい機材カタログ付きカテゴリページへリダイレクトする
   if (categorySlug) {
-    redirect(`/category/${encodeURIComponent(categorySlug)}`);
+    // ★飛ばす先は必ず正規URL（2026-08-08 第2弾A）。
+    //   日本語式のまま飛ばすと、そこから middleware の 308 でローマ字式へ再度飛ぶ二段リダイレクトになる。
+    //   正規URLに解決できない値（存在しないカテゴリ）は /reviews へ落とす。
+    const canonical = toCanonicalCategorySlug(categorySlug);
+    if (canonical) redirect(`/category/${encodeURIComponent(canonical)}`);
+    redirect("/reviews");
   }
 
   const rawQuery = params.q ?? "";
@@ -160,6 +170,8 @@ export default async function ReviewsListPage({ searchParams }: Props) {
                   ? (r.categories as { slug: string }).slug
                   : r.category_id;
               const categoryName = slug ? getCategoryPathDisplay(slug) : null;
+              // 内部リンクは必ず正規URL（ローマ字式）を指す＝sitemap と同じURLを推す
+              const categoryHref = slug ? getCategoryHref(slug) : null;
               const excerpt = getReviewExcerpt(r);
               return (
                 <li key={r.id}>
@@ -206,12 +218,17 @@ export default async function ReviewsListPage({ searchParams }: Props) {
                     </Link>
                     {categoryName && (
                       <div className="px-3 pb-3 -mt-1">
-                        <Link
-                          href={`/category/${encodeURIComponent(slug)}`}
-                          className="text-xs text-electric-blue hover:underline"
-                        >
-                          {categoryName}
-                        </Link>
+                        {categoryHref ? (
+                          <Link
+                            href={categoryHref}
+                            className="text-xs text-electric-blue hover:underline"
+                          >
+                            {categoryName}
+                          </Link>
+                        ) : (
+                          // 正規URLに解決できないカテゴリはリンクにしない（壊れたリンクを出さない）
+                          <span className="text-xs text-gray-400">{categoryName}</span>
+                        )}
                       </div>
                     )}
                   </Card>
