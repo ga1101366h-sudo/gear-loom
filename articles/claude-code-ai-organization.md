@@ -3,7 +3,7 @@ title: "Claude Codeを「優秀な1人の部下」として使うのをやめた
 emoji: "🏢"
 type: "tech"
 topics: ["claudecode", "ai", "生成ai", "個人開発"]
-published: false
+published: true
 ---
 
 ## 「優秀な1人の部下」としての限界

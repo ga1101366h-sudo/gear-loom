@@ -3,7 +3,7 @@ title: "Discord Botで自宅のマイクラサーバーを起動・停止する�
 emoji: "⛏️"
 type: "tech"
 topics: ["minecraft", "discord", "discordbot", "python", "個人開発"]
-published: false
+published: true
 ---
 
 ## 「鯖立てて」
